@@ -1,13 +1,7 @@
 # ssl-jax
 self-supervised learning in jax
 
-## Design
-### Backbone
-### Projection Head
-### Losses
-### Augmentations
-
-## Must be Compatible with: 
+## Implements: 
 1. DINO https://arxiv.org/abs/2104.14294
 2. ESVIT https://arxiv.org/abs/2106.09785
 3. SEER https://arxiv.org/abs/2103.01988
