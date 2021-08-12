@@ -1,0 +1,14 @@
+# reference here: https://coverage.readthedocs.io/en/coverage-5.1/config.html
+
+[run]
+source = ssljax
+command_line = -m pytest
+
+[html]
+directory = coverage_report_html
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if self.debug:
+    raise NotImplementedError

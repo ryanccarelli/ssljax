@@ -1,0 +1,15 @@
+name: ssljax
+
+channels:
+    - conda-forge
+    - pytorch
+
+dependencies:
+    - pip==21.2.2
+    - python>=3.8
+    - numpy
+    - pytorch
+    - pre-commit==2.13.0
+    - coverage==5.5
+    - pip:
+        - jax[cuda111]
