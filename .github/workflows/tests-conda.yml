@@ -34,7 +34,7 @@ jobs:
       run: |
         conda info
         conda list
-    - name: pip install pathml
+    - name: pip install ssljax
       shell: bash -l {0}
       run: pip install -e .
     - name: disk usage
