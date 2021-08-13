@@ -6,7 +6,7 @@ from ssljax.core.utils import Registrable
 class Optimizer(Registrable):
     pass
 
-
+# Manually put register everything without creating subclasses
 Registrable._registry[Optimizer] = {
     "adabelief": adabelief,
     "adagrad": adagrad,
