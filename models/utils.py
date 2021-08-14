@@ -49,7 +49,8 @@ class ResNetBlock(nn.Module):
     return self.act(residual + y)
 
 
-class ResNextBlock
+class ResNextBlock(nn.Module):
+  pass
 
 
 class BottleneckResNetBlock(nn.Module):
