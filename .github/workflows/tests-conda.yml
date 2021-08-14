@@ -42,20 +42,10 @@ jobs:
       run: |
         sudo df -h
         sudo du -h
-    - name: Test with pytest and generate coverage report
+    - name: Test with pytest
       shell: bash -l {0}
       run: |
-        coverage run -m pytest -m
-        coverage xml
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v2
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        env_vars: OS,PYTHON
-        fail_ci_if_error: true
-        files: ./coverage.xml
-        name: codecov-umbrella
-        verbose: true
+        pytest
     - name: Compile docs
       shell: bash -l {0}
       run: |
