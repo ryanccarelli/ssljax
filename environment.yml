@@ -13,3 +13,4 @@ dependencies:
     - coverage==5.5
     - pip:
         - jax[cuda111]
+        - optax
