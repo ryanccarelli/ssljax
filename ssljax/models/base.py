@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 We want to support two configurations:
     1. contrastive learning by negative pairs (eg SIMCLR)
@@ -20,14 +19,13 @@ from ssljax.config import FromParams
 
 
 class BaseSSL(FromParams, nn.Module):
-=======
-# Base SSL class here
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
+from ssljax.config import FromParams
 
 
-class BaseSSL:
+class BaseSSL(FromParams, nn.Module):
     """
     Base class implementing self-supervised model.
 
