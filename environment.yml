@@ -12,5 +12,6 @@ dependencies:
     - pre-commit==2.13.0
     - coverage==5.5
     - pip:
-        - jax[cuda111]
+        - jax>=0.1.71
+        - jax>=0.1.49
         - optax
