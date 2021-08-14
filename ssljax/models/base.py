@@ -1,29 +1,48 @@
-# Base SSL class here
+"""
+We want to support two configurations:
+    1. contrastive learning by negative pairs (eg SIMCLR)
+    2. non-contrastive (eg BYOL, SimSiam)
+
+The non-contrastive approaches replace negative pairs with:
+    1. a learnable predictor
+    2. a stop-gradient
+
+Support
+stop gradient on target but not on predictor
+both ema of bodies and bodies with shared parameters
+
+"""
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
+from ssljax.config import FromParams
 
 
-class BaseSSL:
+class BaseSSL(FromParams, nn.Module):
     """
     Base class implementing self-supervised model.
 
     Args:
         config (json/yaml?): model specification
+        params (str): path to model parameters
     """
 
-    def __init__(self, config, params):
+    def __init__(self, config, params: None):
         self.config = config
-        # read config
+        self.params = params
+        # TODO: read config
+        self.head = self._setup_head(config)
+        self.body = self._setup_body(config)
+        self.loss = self._setup_loss(config)
+        self.optimizer = self._setup_optimizer(config)
+        self.trainer = self._setup_trainer(config)
 
-        self.head = self._setup_head()
-        self.body = self._setup_body()
-        self.loss = self._setup_loss()
+    def __call__():
+        # this takes the place of vissl forward
+        raise NotImplementedError
 
-    def parse_config():
-        """
-        Mostly we want to know if params are in config so we can declare from pretrained
-        """
+    # inherit from FromParams
+    def from_params():
         raise NotImplementedError
 
     def _setup_head():
@@ -54,4 +73,4 @@ class BaseSSL:
 
     @jax.jit
     def apply_model():
-        pass
+        raise NotImplementedError
