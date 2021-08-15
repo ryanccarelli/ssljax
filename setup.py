@@ -16,8 +16,19 @@ setuptools.setup(
         "Documentation": "https://ssljax.readthedocs.io/en/stable",
         "Source Code"  : "https://github.com/Dana-Farber-AIOS/pathml",
     },
-    install_requires=["numpy", "pre-commit==2.13.0", "torch", "flax", "tqdm",],
-    extras_require=["jax>=0.1.71", "jaxlib>=0.1.49",],
+    install_requires=[
+        "numpy",
+        "pre-commit==2.13.0",
+        "torch",
+        "flax",
+        "tqdm",
+    ],
+    extras_require={
+        "jax": [
+            "jax>=0.1.71",
+            "jaxlib>=0.1.49",
+        ]
+    },
     requires_python=">=3.8",
     classifiers=[
         "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
