@@ -2,6 +2,12 @@
 Logging utility functions to create the global logging handlers.
 
 This was adapted from [AllenNLP's Prepare Logging](https://github.com/allenai/allennlp/blob/main/allennlp/common/logging.py)
+
+Our changes are as follows:
+
+* Different formatting for logging messages
+* Removed the logger class
+
 """
 import logging
 from logging import Filter

@@ -2,6 +2,8 @@
 Utility functions to make tqdm play nice with logging
 
 The TQDM handlers were taken from [AllenNLP's tqdm handler](https://github.com/allenai/allennlp/blob/main/allennlp/common/tqdm.py)
+
+No changes were made to this file and thus it falls under the Apache 2.0 License.
 """
 import logging
 from ssljax.core.utils import logging as common_logging
