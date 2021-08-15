@@ -23,13 +23,11 @@ if "zmqshell.ZMQInteractiveShell" in SHELL:
 else:
     from tqdm import tqdm as _tqdm
 
-
 # This is necessary to stop tqdm from hanging
 # when exceptions are raised inside iterators.
 # It should have been fixed in 4.2.1, but it still
 # occurs.
 _tqdm.monitor_interval = 0
-
 
 logger = logging.getLogger("tqdm")
 logger.propagate = False
@@ -52,10 +50,25 @@ def replace_cr_with_newline(message: str) -> str:
 
 
 class TqdmToLogsWriter(object):
+    """
+    Log writer object that rate limits the number of messages that can be
+    written to the progress bar. Also formats the message and removes carriage
+    characters that will mess up the log files.
+    """
+
     def __init__(self):
         self.last_message_written_time = 0.0
 
-    def write(self, message):
+    def write(self, message: str):
+        """
+        Write the message.
+
+        Args:
+            message (str): The message to write.
+
+        Returns: None
+
+        """
         file_friendly_message: Optional[str] = None
         if common_logging.FILE_FRIENDLY_LOGGING:
             file_friendly_message = replace_cr_with_newline(message)
@@ -86,7 +99,7 @@ class Tqdm:
         default_mininterval = 2.0 if common_logging.FILE_FRIENDLY_LOGGING else 0.1
 
         new_kwargs = {
-            "file": TqdmToLogsWriter(),
+            "file"       : TqdmToLogsWriter(),
             "mininterval": default_mininterval,
             **kwargs,
         }
