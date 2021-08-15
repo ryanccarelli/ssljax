@@ -44,8 +44,10 @@ class BaseSSL(FromParams, nn.Module):
         self.optimizer = self._setup_optimizer(config)
         self.trainer = self._setup_trainer(config)
 
-    def __call__():
-        # this takes the place of vissl forward
+    def __call__(self, x):
+        """
+        Forward pass head and body.
+        """
         raise NotImplementedError
 
     # inherit from FromParams
