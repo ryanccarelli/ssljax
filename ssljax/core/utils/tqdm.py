@@ -1,5 +1,7 @@
 """
-Utility functions to make tqdm play nice with logging
+Wrapper for the tqdm library to prevent log files filling up with status bar
+updates and removes the en the logged messages so that their format is better
+for files. It removes the end carriage added by tqdm's writer.
 
 The TQDM handlers were taken from [AllenNLP's tqdm handler](https://github.com/allenai/allennlp/blob/main/allennlp/common/tqdm.py)
 
@@ -35,9 +37,10 @@ logger.propagate = False
 
 def replace_cr_with_newline(message: str) -> str:
     """
-    TQDM and requests use carriage returns to get the training line to update for each batch
-    without adding more lines to the terminal output. Displaying those in a file won't work
-    correctly, so we'll just make sure that each batch shows up on its one line.
+    TQDM and requests use carriage returns to get the training line to update
+    for each batch without adding more lines to the terminal output. Displaying
+    those in a file won't work correctly, so we'll just make sure that each
+    batch shows up on its one line.
     """
     # In addition to carriage returns, nested progress-bars will contain extra new-line
     # characters and this special control sequence which tells the terminal to move the
