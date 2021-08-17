@@ -16,9 +16,10 @@ import jax
 import jax.numpy as jnp
 from flax import linen as nn
 from ssljax.config import FromParams
+from ssljax.models import Body, Head
 
 
-class BaseSSL(FromParams, nn.Module):
+class BaseSSL(ModelBase, nn.Module, FromParams):
     """
     Base class implementing self-supervised model.
 
@@ -28,18 +29,13 @@ class BaseSSL(FromParams, nn.Module):
 
     def __init__(self, config):
         self.config = config
-        self.params = params
-        self.head = Head.from_params(self.config.pop("head"))
-        self.body = Body.from_params(config.pop("body"))
+        self.head = fromParams(Head, self.config.pop("head"))
+        self.body = fromParams(Body, self.config.pop("body"))
 
     def __call__(self, x):
         """
         Forward pass head and body.
         """
-        raise NotImplementedError
-
-    # inherit from FromParams
-    def from_params():
         raise NotImplementedError
 
     def freeze_head():
