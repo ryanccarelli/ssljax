@@ -1,10 +1,12 @@
 from optax import (adabelief, adagrad, adam, adamw, dpsgd, fromage, lamb,
                    noisy_sgd, radam, rmsprop, sgd, yogi)
+from optax._src.alias import lars
 from ssljax.core.utils import Registrable
 
 
 class Optimizer(Registrable):
     pass
+
 
 # Manually put register everything without creating subclasses
 Registrable._registry[Optimizer] = {
@@ -20,4 +22,5 @@ Registrable._registry[Optimizer] = {
     "rmsprop": rmsprop,
     "sgd": sgd,
     "yogi": yogi,
+    "lars": lars,
 }
