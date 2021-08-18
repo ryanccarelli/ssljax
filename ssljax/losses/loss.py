@@ -1,5 +1,6 @@
-from ssljax.core.utils import Registrable
+class LossBase:
+    """
+    Base class for loss function.
+    """
 
-
-class Loss(Registrable):
     pass
