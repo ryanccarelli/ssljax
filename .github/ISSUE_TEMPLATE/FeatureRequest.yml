@@ -1,0 +1,54 @@
+name: Feature Request
+description: Request a feature from the ssljax team
+title: "[enhancement]: I would like to see..."
+labels: [Tip, enhancement]
+assignees:
+  - mishmanners
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for asking Mish for a Tip. Tune into a Live stream or read Mish's articles on DEV for great GitHub tips.
+  - type: input
+    id: Name
+    attributes:
+      label: Name Of Feature 
+      description: What is the name for the feature?
+      placeholder: ex. GitHub Issue Forms
+    validations:
+      required: true
+
+  - type: textarea
+    id: info
+    attributes:
+      label: More information
+      description: Add more information on the feature you would like to see.
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: Level
+    attributes:
+      label: How important do you believe this feature to be?
+      description: This allows us to guage how important this feature might be for ssljax. 
+      options:
+        - Cool Idea
+        - Should Heavily Consider
+        - ssljax is lacking without this
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: location
+    attributes:
+      label: What aspect of ssljax does this apply to?
+      options:
+        - label: models
+          required: false
+        - label: optimizers
+          required: false
+        - label: train
+          required: false
+        - label: loss
+          required: false
