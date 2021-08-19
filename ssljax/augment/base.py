@@ -5,8 +5,11 @@ import jax.numpy as jnp
 
 class Augmentation:
     """
-    An augmentation is a function applied to images
+    An augmentation is a function applied to images.
     """
+
+    def __repr__(self):
+        raise NotImplementedError
 
     def __call__(self, x):
         raise NotImplementedError
@@ -14,11 +17,11 @@ class Augmentation:
 
 class Pipeline(Augmentation):
     """
-    Compose a sequence of augmentations.
+    A Pipeline is a composition of Augmentations.
 
     Args:
-        augmentations (list): sequence of transforms to be consecutively applied.
-            List of `pathml.core.Transform` objects
+        augmentlist (list): sequence of Augmentation to be composed.
+            List of `ssljax.augment.Augmentation` objects
     """
 
     def __init__(self, augmentlist):
@@ -47,6 +50,14 @@ class Pipeline(Augmentation):
             aug = t()
             x = aug(x)
         return x
+
+    @classmethod
+    def sample(cls):
+        """
+        Sample a pipeline from elements of self.pipeline.
+
+        """
+        raise NotImplementedError
 
     def save(self, path):
         """
