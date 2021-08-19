@@ -87,10 +87,10 @@ class SSLTrainer:
         # summary = jax.tre_map(lambda x: x.mean(), train_metrics)
         return state, metrics
 
-    def eval():
+    def eval(self):
         raise NotImplementedError
 
-    def evalstep():
+    def evalstep(self):
         raise NotImplementedError
 
     def build_task(self, config):
