@@ -1,8 +1,8 @@
 from flax import linen as nn
-from ssljax.core.utils import Registrable
+from ssljax.core.utils import register
 
 
-class ModelBase(Registrable, nn.Module):
+class ModelBase(nn.Module):
     """
     Abstract class for a ssljax  model.
     """
