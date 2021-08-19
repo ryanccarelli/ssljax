@@ -56,3 +56,6 @@ class Pipeline(Augmentation):
             path (str): save path on disk
         """
         raise NotImplementedError
+
+
+# TODO: implement a class to sample augmentations
