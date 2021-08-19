@@ -29,7 +29,32 @@ class TaskBase:
             - lr
     """
 
-    pass
+    def _get_optimizer(self):
+        raise NotImplementedError
+
+    def _get_dataset(self):
+        raise NotImplementedError
+
+    def _get_dataloader(self):
+        raise NotImplementedError
+
+    def _get_optimizer(self):
+        raise NotImplementedError
+
+    def _get_scheduler(self):
+        raise NotImplementedError
+
+    def _get_loss(self):
+        raise NotImplementedError
+
+    def _get_meter(self):
+        raise NotImplementedError
+
+    def _get_model(self):
+        raise NotImplementedError
+
+    def _get_augment(self):
+        raise NotImplementedError
 
 
 @register(TaskBase, "ssltask")

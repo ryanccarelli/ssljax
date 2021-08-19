@@ -83,7 +83,7 @@ class SSLTrainer:
         (loss, logits), grads = grad_fn(self.state.params)
         grads = jax.lax.pmean(grads, "batch")
         state = state.apply_gradients(grads=grads)
-        metrics = self.task.metrics(logits, targets, weights)
+        metrics = self.task.meter(logits, targets, weights)
         # summary = jax.tre_map(lambda x: x.mean(), train_metrics)
         return state, metrics
 
