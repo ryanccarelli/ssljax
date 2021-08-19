@@ -82,9 +82,9 @@ class TaskBase:
 
     def _get_meter(self) -> MeterBase:
         """
-        Initialize the meter. This must be implemented by child tasks.
+        Initialize the metrics. This must be implemented by child tasks.
 
-        Returns (MeterBase): The meter to use for the task.
+        Returns (MeterBase): The metrics to use for the task.
         """
         raise NotImplementedError()
 

@@ -5,6 +5,8 @@ import jax
 import jax.numpy as jnp
 from flax.training.train_state import TrainState
 from jax import random
+import numpy as np
+
 from ssljax.core.utils import prepare_environment
 from ssljax.tasks import SSLTask
 
