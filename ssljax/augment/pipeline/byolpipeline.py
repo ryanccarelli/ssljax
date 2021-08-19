@@ -1,6 +1,8 @@
 import jax
 import jax.numpy as jnp
 
+from ssljax.augment.pipeline.pipeline import Pipeline
+
 
 class BYOLPipeline(Pipeline):
     """

@@ -1,5 +1,6 @@
 # functions for ssljax.augment.augmentation.ColorTransform
-
+import jax
+import jax.numpy as jnp
 
 def rgb_to_hsv(r, g, b):
     """Converts R, G, B  values to H, S, V values.

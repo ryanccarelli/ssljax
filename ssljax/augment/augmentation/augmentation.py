@@ -2,7 +2,7 @@ import functools
 
 import jax
 import jax.numpy as jnp
-from ssljax.augment.colortransform import (_random_brightness,
+from ssljax.augment.augmentation.colortransform import (_random_brightness,
                                            _random_contrast, _random_hue,
                                            _random_saturation, _to_grayscale,
                                            adjust_brightness, adjust_contrast,
@@ -24,6 +24,20 @@ class Augmentation:
 
     def __call__(self, x, rng):
         raise NotImplementedError
+
+
+class AugmentationDistribution:
+    """
+    A distribution of augmentations to be sampled
+    """
+
+    def __init__(self, augmentations):
+        self.augmentations = augmentations
+
+    def sample(self, rng):
+        key, subkey = jax.random.split(rng)
+        sampledIndex = jax.random.choice(subkey, a=len(self.augmentations), p=[aug.prob for aug in self.augmentations])
+        return self.augmentations[sampledIndex]
 
 
 # byol augmentations
@@ -66,12 +80,12 @@ class RandomGaussianBlur(Augmentation):
     """
 
     def __init__(
-        self,
-        prob,
-        kernel_size,
-        padding,
-        sigma_min,
-        sigma_max,
+            self,
+            prob,
+            kernel_size,
+            padding,
+            sigma_min,
+            sigma_max,
     ):
         super().__init__(self, prob)
         self.kernel_size = kernel_size
@@ -163,16 +177,16 @@ class ColorTransform(Augmentation):
     """
 
     def __init__(
-        self,
-        prob=1.0,
-        brightness=0.8,
-        contrast=0.8,
-        saturation=0.8,
-        hue=0.2,
-        color_jitter_prob=0.8,
-        to_grayscale_prob=0.2,
-        apply_prob=1.0,
-        shuffle=True,
+            self,
+            prob=1.0,
+            brightness=0.8,
+            contrast=0.8,
+            saturation=0.8,
+            hue=0.2,
+            color_jitter_prob=0.8,
+            to_grayscale_prob=0.2,
+            apply_prob=1.0,
+            shuffle=True,
     ):
         super().__init__(self, prob)
         self.brightness = brightness
@@ -185,9 +199,9 @@ class ColorTransform(Augmentation):
         self.shuffle = shuffle
 
     def __call__(
-        self,
-        x,
-        rng,
+            self,
+            x,
+            rng,
     ):
         rngs = jax.random.split(rng, x.shape[0])
         jitter_fn = functools.partial(
@@ -204,17 +218,17 @@ class ColorTransform(Augmentation):
         return jax.vmap(jitter_fn)(x, rngs)
 
     def _color_transform_single_image(
-        self,
-        image,
-        rng,
-        brightness,
-        contrast,
-        saturation,
-        hue,
-        to_grayscale_prob,
-        color_jitter_prob,
-        apply_prob,
-        shuffle,
+            self,
+            image,
+            rng,
+            brightness,
+            contrast,
+            saturation,
+            hue,
+            to_grayscale_prob,
+            color_jitter_prob,
+            apply_prob,
+            shuffle,
     ):
         """Applies color jittering to a single image."""
         apply_rng, transform_rng = jax.random.split(rng)
@@ -318,3 +332,7 @@ class Solarize(Augmentation):
     def _maybe_apply(self, apply_fn, inputs, rng, apply_prob):
         should_apply = jax.random.uniform(rng, shape=()) <= apply_prob
         return jax.lax.cond(should_apply, inputs, apply_fn, inputs, lambda x: x)
+
+
+if __name__ == "__main__":
+    augs = AugmentationDistribution([])

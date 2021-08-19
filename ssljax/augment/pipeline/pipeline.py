@@ -1,26 +1,26 @@
 # base class for augmentations here
 
 # augmentations will be used by the trainer
+import jax
 import jax.numpy as jnp
+
+from ssljax.augment.augmentation.augmentation import Augmentation, AugmentationDistribution
 
 
 class Pipeline(Augmentation):
     """
-    A Pipeline is a composition of Augmentations.
-    It is often necessary to sample augmentations and generate a
-    new pipeline on each forward pass.
+    A Pipeline is a composition of AugmentationDistribution.
 
     Args:
-        augmentations (list, dict): sequence of Augmentation to be composed. If
+        augmentations (list): sequence of AugmentationDistribution to be sampled in sequence
     """
 
-    def __init__(self, augmentations, mode="deterministic", rng=False):
-        assert all([isinstance(t, Augmentation) for t in augmentations]), (
+    def __init__(self, augmentation_distributions, rng=False):
+        assert all([isinstance(t, AugmentationDistribution) for t in augmentation_distributions]), (
             f"All elements in input list must be of"
-            f" type ssljax.augment.Augmentation"
+            f" type ssljax.augment.AugmentationDistribution"
         )
-        self.pipeline = augmentations
-        self.mode = mode
+        self.pipeline = augmentation_distributions
         self.rng = rng
 
     def __len__(self):
@@ -35,27 +35,11 @@ class Pipeline(Augmentation):
 
     def __call__(self, x):
         assert isinstance(x, jnp.array), f"argument of type {type(x)} must be __."
-        if mode == "deterministic":
-            for t in self.pipeline:
-                rng, _ = jax.random.split(self.rng)
-                x = t(x, rng)
-            return x
-        elif mode == "withoutreplacement":
-            raise NotImplementedError
-        elif mode == "withreplacement":
-            raise NotImplementedError
-        else:
-            raise KeyError(f"mode is {mode} but must be in \{'deterministic','withreplacement','withoutreplacement'\}"
-
-    def sample(cls, rng):
-        """
-        Sample a pipeline from elements of self.pipeline.
-
-        Args:
-            rng (jnp.ndarray): jax rng
-        """
-        # should overwrite call
-        raise NotImplementedError
+        for aug_distribution in self.pipeline:
+            rng, _ = jax.random.split(self.rng)
+            aug = aug_distribution.sample(rng)
+            x = aug(x, rng)
+        return x
 
     def save(self, path):
         """
