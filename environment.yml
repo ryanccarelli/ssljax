@@ -22,3 +22,4 @@ dependencies:
         - sphinx-autoapi>=1.8.3
         - ipython
         - tqdm
+        - flax
