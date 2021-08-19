@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from flax.training.train_state import TrainState
 from jax import random
 from ssljax.core.utils import prepare_environment
-from ssljax.train.task import SSLTask
+from ssljax.tasks import SSLTask
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ class SSLTrainer:
         rng (jnp.DeviceArray):
         config (json): configuration file
     """
+
     def __init__(self, rng, config):
         self.config = config
         self.rng = prepare_environment(self.config)
@@ -72,7 +73,8 @@ class SSLTrainer:
             for k in batch_metrics_np[0]
         }
         # TODO: log
-        logger.log(f"train epoch: {epoch}, loss: {epoch_metrics_np['loss']}, accuracy: {epoch_metrics_np['accuracy']}")
+        logger.log(
+            f"train epoch: {epoch}, loss: {epoch_metrics_np['loss']}, accuracy: {epoch_metrics_np['accuracy']}")
         return state
 
     @jax.jit
