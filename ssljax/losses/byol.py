@@ -15,11 +15,14 @@
 # THIS CODE HAS BEEN MODIFIED FROM ITS SOURCE
 from typing import Optional, Text
 
+import jax
 import jax.numpy as jnp
 from ssljax.core import register
+from ssljax.losses import LossBase
 
 
 @register(LossBase, "regression")
+@lossbase
 def regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
     """
     Cosine similarity regression loss.
@@ -29,23 +32,24 @@ def regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
 
 
 @register(LossBase, "softmax")
+@lossbase
 def softmax_cross_entropy(
     logits: jnp.ndarray, labels: jnp.ndarray, reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
     """Computes softmax cross entropy given logits and one-hot class labels.
 
-  Args:
-    logits: Logit output values.
-    labels: Ground truth one-hot-encoded labels.
-    reduction: Type of reduction to apply to loss.
+    Args:
+        logits: Logit output values.
+        labels: Ground truth one-hot-encoded labels.
+        reduction: Type of reduction to apply to loss.
 
-  Returns:
-    Loss value. If `reduction` is `none`, this has the same shape as `labels`;
-    otherwise, it is scalar.
+    Returns:
+        Loss value. If `reduction` is `none`, this has the same shape as `labels`;
+        otherwise, it is scalar.
 
-  Raises:
-    ValueError: If the type of `reduction` is unsupported.
-  """
+    Raises:
+        ValueError: If the type of `reduction` is unsupported.
+    """
     loss = -jnp.sum(labels * jax.nn.log_softmax(logits), axis=-1)
     if reduction == "sum":
         return jnp.sum(loss)
