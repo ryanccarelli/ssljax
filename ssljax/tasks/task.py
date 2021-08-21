@@ -40,32 +40,18 @@ class Task:
         self.model = self._get_model()
         self.loss = self._get_loss()
         self.optimizer = self._get_optimizer()
-        self.dataloader = self._get_dataloader()
+        self.scheduler = self._get_scheduler()
         self.meter = self._get_meter()
         self.pipeline = self._get_pipeline()
+        self.dataloader = self._get_dataloader()
 
     # Functions the children class must implement
-    def _get_optimizer(self) -> Optimizer:
+    def _get_model(self) -> Model:
         """
-        Initialize the optimizer. This must be implemented by child tasks.
+        Initialize the model for this task. This must be implemented by child
+        tasks.
 
-        Returns (OptimizerBase): The optimizer to use for the task.
-        """
-        raise NotImplementedError()
-
-    def _get_dataloader(self) -> Dataloader:
-        """
-        Initialize the dataloader. This must be implemented by child tasks.
-
-        Returns (DataloaderBase): The dataloader to use for the task.
-        """
-        raise NotImplementedError()
-
-    def _get_scheduler(self) -> Scheduler:
-        """
-        Initialize the scheduler. This must be implemented by child tasks.
-
-        Returns (SchedulerBase): The scheduler to use for the task.
+        Returns (ModelBase): The model to use for this task.
         """
         raise NotImplementedError()
 
@@ -77,20 +63,27 @@ class Task:
         """
         raise NotImplementedError()
 
+    def _get_optimizer(self) -> Optimizer:
+        """
+        Initialize the optimizer. This must be implemented by child tasks.
+
+        Returns (OptimizerBase): The optimizer to use for the task.
+        """
+        raise NotImplementedError()
+
+    def _get_scheduler(self) -> Scheduler:
+        """
+        Initialize the scheduler. This must be implemented by child tasks.
+
+        Returns (SchedulerBase): The scheduler to use for the task.
+        """
+        raise NotImplementedError()
+
     def _get_meter(self) -> Meter:
         """
         Initialize the metrics. This must be implemented by child tasks.
 
         Returns (MeterBase): The metrics to use for the task.
-        """
-        raise NotImplementedError()
-
-    def _get_model(self) -> Model:
-        """
-        Initialize the model for this task. This must be implemented by child
-        tasks.
-
-        Returns (ModelBase): The model to use for this task.
         """
         raise NotImplementedError()
 
@@ -100,5 +93,13 @@ class Task:
         tasks.
 
         Returns (AugmentBase): The augment to use for this task.
+        """
+        raise NotImplementedError()
+
+    def _get_dataloader(self) -> Dataloader:
+        """
+        Initialize the dataloader. This must be implemented by child tasks.
+
+        Returns (DataloaderBase): The dataloader to use for the task.
         """
         raise NotImplementedError()
