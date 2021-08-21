@@ -4,5 +4,6 @@ logger = logging.getLogger(__name__)
 
 logger.error(f"{__name__}: THESE ARE PLACEHOLDERS!!")
 
-class DataloaderBase:
+
+class Dataset:
     pass
