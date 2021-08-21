@@ -10,4 +10,18 @@ class LossBase:
     Base class for loss function.
     """
 
-    pass
+    def __init__(self, lossfunction):
+        self.lossfunction = lossfunction
+
+    def __call__(self, x):
+        return self.lossfunction(x)
+
+
+def lossbase(lossfunction):
+    """
+    lossbase is a decorator that wraps loss functions in the
+    LossBase class.
+    """
+
+    lossclass = LossBase(lossfunction)
+    return lossclass

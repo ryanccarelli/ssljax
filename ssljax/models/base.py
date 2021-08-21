@@ -15,8 +15,9 @@ both ema of bodies and bodies with shared parameters
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
+from ssljax.augment import BaseAugment
 from ssljax.config import FromParams
-from ssljax.models import Body, Head
+from ssljax.models import BaseBody, BaseHead
 
 
 class BaseSSL(ModelBase, nn.Module, FromParams):
@@ -29,13 +30,17 @@ class BaseSSL(ModelBase, nn.Module, FromParams):
 
     def __init__(self, config):
         self.config = config
-        self.head = fromParams(Head, self.config.pop("head"))
-        self.body = fromParams(Body, self.config.pop("body"))
+        self.head = fromParams(BaseHead, self.config.pop("head"))
+        self.body = fromParams(BaseBody, self.config.pop("body"))
+        self.augment = fromParams(BaseAugment, self.config.pop("augment"))
 
     def __call__(self, x):
         """
         Forward pass head and body.
         """
+        # augment
+        # call body
+        # call head
         raise NotImplementedError
 
     def freeze_head():

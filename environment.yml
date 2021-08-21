@@ -23,4 +23,6 @@ dependencies:
         - ipython
         - tqdm
         - flax
+        - base58
+        - dill
         - overrides

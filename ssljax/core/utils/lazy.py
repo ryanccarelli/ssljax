@@ -2,7 +2,7 @@ import copy
 import inspect
 from typing import Callable, Generic, TypeVar, Type, Union, Optional, Dict, Any
 
-from params import Params
+from ssljax.core.utils.params import Params
 
 
 T = TypeVar("T")
