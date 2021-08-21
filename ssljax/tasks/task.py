@@ -19,14 +19,12 @@ class Task:
 
     A task constructs and holds:
         - model
-        - optimizer
-        - dataset
-        - dataloader
         - loss
-        - meters
-        - augmentations
+        - optimizer
         - scheduler
-            - lr
+        - meter
+        - pipeline
+        - dataloader
 
     Args:
         config (Config): The config to get parameters from.
