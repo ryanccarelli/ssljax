@@ -34,3 +34,16 @@ def prepare_environment(config) -> jax.numpy.DeviceArray:
 
     # Set the jax seed and return it. If the jax seed is None, default to 0.
     return jax_random.PRNGKey(jax_seed if jax_seed is not None else 0)
+
+
+
+def wrap_func_in_class_call(name, func, BaseClass=object):
+    """ Wraps a function in a class with the function as __call__
+
+    Args:
+        name(str): Name of the new class
+        func(Callable): A function which will be the mapped to __call__
+        BaseClass(Class, <optional>): Base class of the new function
+    """
+    newclass = type(name, (BaseClass, ), {"__call__" : lambda self, *args: func(*args)})
+    return newclass
