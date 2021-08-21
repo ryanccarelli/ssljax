@@ -2,6 +2,7 @@ from optax import (adabelief, adagrad, adam, adamw, dpsgd, fromage, lamb,
                    noisy_sgd, radam, rmsprop, sgd, yogi)
 from optax._src.alias import lars
 from ssljax.core.utils import register
+from ssljax.losses.byol import regression_loss
 
 __all__ = ["Optimizer"]
 
