@@ -21,9 +21,7 @@ from ssljax.core import register
 from ssljax.losses import LossBase
 
 
-@register(LossBase, "regression")
-@lossbase
-def regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
+def byol_regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
     """
     Cosine similarity regression loss.
     """
@@ -31,10 +29,10 @@ def regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
     return jnp.sum((normed_x - normed_y) ** 2, axis=-1)
 
 
-@register(LossBase, "softmax")
-@lossbase
-def softmax_cross_entropy(
-    logits: jnp.ndarray, labels: jnp.ndarray, reduction: Optional[Text] = "mean",
+def byol_softmax_cross_entropy(
+    logits: jnp.ndarray,
+    labels: jnp.ndarray,
+    reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
     """Computes softmax cross entropy given logits and one-hot class labels.
 
@@ -62,7 +60,9 @@ def softmax_cross_entropy(
 
 
 def l2_normalize(
-    x: jnp.ndarray, axis: Optional[int] = None, epsilon: float = 1e-12,
+    x: jnp.ndarray,
+    axis: Optional[int] = None,
+    epsilon: float = 1e-12,
 ) -> jnp.ndarray:
     """
     l2 normalize a tensor on an axis with numerical stability.

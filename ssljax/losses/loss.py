@@ -1,8 +1,13 @@
 import logging
 
+from ssljax.losses.byol import regression_loss
+
 logger = logging.getLogger(__name__)
 
 logger.error(f"{__name__}: THESE ARE PLACEHOLDERS!!")
+
+# TODO: should this be done instead in
+# the same way as Optimizer?
 
 
 class Loss:
@@ -10,18 +15,13 @@ class Loss:
     Base class for loss function.
     """
 
-    def __init__(self, lossfunction):
-        self.lossfunction = lossfunction
-
-    def __call__(self, x):
-        return self.lossfunction(x)
+    pass
 
 
-def loss(lossfunction):
-    """
-    lossbase is a decorator that wraps loss functions in the
-    LossBase class.
-    """
+losses = {
+    "byol_regression": regression_loss,
+    "byol_softmax_cross_entropy": byol_softmax_cross_entropy,
+}
 
-    lossclass = Loss(lossfunction)
-    return lossclass
+for name, func in losses.items():
+    register(Loss, func)
