@@ -1,15 +1,15 @@
-from collections import Counter
 import logging
+from collections import Counter
 from typing import Callable, Dict
 
-from ssljax.train.metrics.metric import MetricBase
+from ssljax.train.metrics.metric import Metric
 
 logger = logging.getLogger(__name__)
 
 
 # TODO(gabeorlanski): This will need to be modified to handle mean metrics or
 #  list metrics
-class MeterBase:
+class Meter:
     """
     The base class for tracking metrics during a task.
     Args:
@@ -19,7 +19,7 @@ class MeterBase:
          values calculated (by the Metric values in this Dict).
     """
 
-    def __init__(self, metrics: Dict[str, MetricBase]):
+    def __init__(self, metrics: Dict[str, Metric]):
         self._metrics = metrics
         self._batches_seen = 0
 

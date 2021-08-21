@@ -1,10 +1,10 @@
 import pytest
 from overrides import overrides
 
-from ssljax.train.metrics import MeterBase, MetricBase
+from ssljax.train.metrics import Meter, Metric
 
 
-class SimpleMetric(MetricBase):
+class SimpleMetric(Metric):
     def __init__(self):
         self.results = []
 
@@ -33,7 +33,7 @@ class TestMeterBase:
         return [1, 1, 1, 1, 1]
 
     def setup_method(self):
-        self.meter = MeterBase(
+        self.meter = Meter(
             {"A": SimpleMetric(), "B": SimpleMetric()}
         )
 

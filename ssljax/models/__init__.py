@@ -1,2 +1,2 @@
-from ssljax.models.model import ModelBase
-# from ssljax.models.base import BaseSSL
+from ssljax.models.model import Model
+from ssljax.models.sslmodel import SSLModel

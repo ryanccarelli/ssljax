@@ -2,31 +2,29 @@
 import logging
 
 # TODO(gabeorlanski): Change these to reflect init files
-from ssljax.augment.base import AugmentBase
+from ssljax.augment.base import Pipeline
 from ssljax.config import Config
-from ssljax.data import DataloaderBase
-from ssljax.losses import LossBase
-from ssljax.models import ModelBase
-from ssljax.optimizers import OptimizerBase
-from ssljax.train import MeterBase, SchedulerBase
+from ssljax.data import Dataloader
+from ssljax.losses import Loss
+from ssljax.models import Model
+from ssljax.optimizers import Optimizer
+from ssljax.train import Meter, Scheduler, Trainer
 
 logger = logging.getLogger(__name__)
 
 
-class TaskBase:
+class Task:
     """
     Abstract class for a task.
 
     A task constructs and holds:
         - model
-        - optimizer
-        - dataset
-        - dataloader
         - loss
-        - meters
-        - augmentations
+        - optimizer
         - scheduler
-            - lr
+        - meter
+        - pipeline
+        - dataloader
 
     Args:
         config (Config): The config to get parameters from.
@@ -34,61 +32,23 @@ class TaskBase:
 
     """
 
-    def __init__(self, config:Config):
-
+    def __init__(self, config: Config):
         super().__init__()
         self.config = config
+        self.trainer = self._get_trainer()
         self.model = self._get_model()
         self.loss = self._get_loss()
         self.optimizer = self._get_optimizer()
-        self.dataloader = self._get_dataloader()
+        self.scheduler = self._get_scheduler()
         self.meter = self._get_meter()
-        self.augment = self._get_augment()
+        self.pipeline = self._get_pipeline()
+        self.dataloader = self._get_dataloader()
 
-    #####################################################################
-    # Functions the children class must implement                       #
-    #####################################################################
-    def _get_optimizer(self) -> OptimizerBase:
-        """
-        Initialize the optimizer. This must be implemented by child tasks.
-
-        Returns (OptimizerBase): The optimizer to use for the task.
-        """
+    # Functions the children class must implement
+    def _get_trainer(self) -> Trainer:
         raise NotImplementedError()
 
-    def _get_dataloader(self) -> DataloaderBase:
-        """
-        Initialize the dataloader. This must be implemented by child tasks.
-
-        Returns (DataloaderBase): The dataloader to use for the task.
-        """
-        raise NotImplementedError()
-
-    def _get_scheduler(self) -> SchedulerBase:
-        """
-        Initialize the scheduler. This must be implemented by child tasks.
-
-        Returns (SchedulerBase): The scheduler to use for the task.
-        """
-        raise NotImplementedError()
-
-    def _get_loss(self) -> LossBase:
-        """
-        Initialize the loss calculator. This must be implemented by child tasks.
-
-        Returns (LossBase): The loss to use for the task.
-        """
-        raise NotImplementedError()
-
-    def _get_meter(self) -> MeterBase:
-        """
-        Initialize the metrics. This must be implemented by child tasks.
-
-        Returns (MeterBase): The metrics to use for the task.
-        """
-        raise NotImplementedError()
-
-    def _get_model(self) -> ModelBase:
+    def _get_model(self) -> Model:
         """
         Initialize the model for this task. This must be implemented by child
         tasks.
@@ -97,12 +57,51 @@ class TaskBase:
         """
         raise NotImplementedError()
 
-    def _get_augment(self) -> AugmentBase:
+    def _get_loss(self) -> Loss:
         """
-       Initialize the augment for this task. This must be implemented by child
-       tasks.
+        Initialize the loss calculator. This must be implemented by child tasks.
 
-       Returns (AugmentBase): The augment to use for this task.
-       """
+        Returns (LossBase): The loss to use for the task.
+        """
         raise NotImplementedError()
-    
+
+    def _get_optimizer(self) -> Optimizer:
+        """
+        Initialize the optimizer. This must be implemented by child tasks.
+
+        Returns (OptimizerBase): The optimizer to use for the task.
+        """
+        raise NotImplementedError()
+
+    def _get_scheduler(self) -> Scheduler:
+        """
+        Initialize the scheduler. This must be implemented by child tasks.
+
+        Returns (SchedulerBase): The scheduler to use for the task.
+        """
+        raise NotImplementedError()
+
+    def _get_meter(self) -> Meter:
+        """
+        Initialize the metrics. This must be implemented by child tasks.
+
+        Returns (MeterBase): The metrics to use for the task.
+        """
+        raise NotImplementedError()
+
+    def _get_pipeline(self) -> Pipeline:
+        """
+        Initialize the augment for this task. This must be implemented by child
+        tasks.
+
+        Returns (AugmentBase): The augment to use for this task.
+        """
+        raise NotImplementedError()
+
+    def _get_dataloader(self) -> Dataloader:
+        """
+        Initialize the dataloader. This must be implemented by child tasks.
+
+        Returns (DataloaderBase): The dataloader to use for the task.
+        """
+        raise NotImplementedError()

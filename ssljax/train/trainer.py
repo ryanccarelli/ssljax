@@ -3,10 +3,9 @@ import logging
 import flax.optim as optim
 import jax
 import jax.numpy as jnp
+import numpy as np
 from flax.training.train_state import TrainState
 from jax import random
-import numpy as np
-
 from ssljax.core.utils import prepare_environment
 from ssljax.tasks import SSLTask
 
@@ -22,8 +21,8 @@ class SSLTrainer:
         config (json): configuration file
     """
 
-    def __init__(self, rng, config):
-        self.config = config
+    def __init__(self, rng, task):
+        self.task = task
         self.rng = prepare_environment(self.config)
         self.task = self.build_task(config)
 
@@ -59,7 +58,7 @@ class SSLTrainer:
         train_data_size = len(train_data)
         steps_per_epoch = train_data_size // batch_size
         perms = jax.random.permutation(rng, train_data_size)
-        perms = perms[:steps_per_epoch * batch_size]
+        perms = perms[: steps_per_epoch * batch_size]
         perms = perms.reshape((steps_per_epoch, batch_size))
         # apply augmentations here?
         batch_metrics = []
@@ -76,7 +75,8 @@ class SSLTrainer:
         }
         # TODO: log
         logger.log(
-            f"train epoch: {epoch}, loss: {epoch_metrics_np['loss']}, accuracy: {epoch_metrics_np['accuracy']}")
+            f"train epoch: {epoch}, loss: {epoch_metrics_np['loss']}, accuracy: {epoch_metrics_np['accuracy']}"
+        )
         return state
 
     @jax.jit
@@ -99,6 +99,7 @@ class SSLTrainer:
 
     def build_task(self, config):
         task = SSLTask().from_params(config)
+
 
 if __name__ == "__main__":
     test = SSLTrainer(None, None)

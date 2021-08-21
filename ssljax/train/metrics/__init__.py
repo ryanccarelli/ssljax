@@ -1,2 +1,2 @@
-from ssljax.train.metrics.meter import MeterBase
-from ssljax.train.metrics.metric import MetricBase
+from ssljax.train.metrics.meter import Meter
+from ssljax.train.metrics.metric import Metric

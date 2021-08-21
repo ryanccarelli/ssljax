@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 logger.error(f"{__name__}: THESE ARE PLACEHOLDERS!!")
 
 
-class MetricBase:
+class Metric:
     def __call__(self, logits, targets, weights) -> float:
         raise NotImplementedError()
 
