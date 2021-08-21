@@ -3,7 +3,7 @@ from optax import (adabelief, adagrad, adam, adamw, dpsgd, fromage, lamb,
 from optax._src.alias import lars
 from ssljax.core.utils import register
 
-__all__ = ["OptimizerBase"]
+__all__ = ["Optimizer"]
 
 
 class Optimizer:
