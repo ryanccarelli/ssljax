@@ -23,5 +23,5 @@ def loss(lossfunction):
     LossBase class.
     """
 
-    lossclass = LossBase(lossfunction)
+    lossclass = Loss(lossfunction)
     return lossclass
