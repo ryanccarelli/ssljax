@@ -1,5 +1,5 @@
-from collections import Counter
 import logging
+from collections import Counter
 from typing import Callable, Dict
 
 from ssljax.train.metrics.metric import MetricBase
@@ -19,7 +19,7 @@ class Meter:
          values calculated (by the Metric values in this Dict).
     """
 
-    def __init__(self, metrics: Dict[str, MetricBase]):
+    def __init__(self, metrics: Dict[str, Metric]):
         self._metrics = metrics
         self._batches_seen = 0
 
