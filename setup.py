@@ -22,6 +22,9 @@ setuptools.setup(
         "torch",
         "flax",
         "tqdm",
+        "base58",
+        "dill",
+        "overrides",
     ],
     extras_require={
         "jax": [

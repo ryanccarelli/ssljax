@@ -29,8 +29,8 @@ except ImportError:
         return expr
 
 
-from allennlp.common.checks import ConfigurationError
-from allennlp.common.file_utils import cached_path
+from ssljax.core.utils.checks import ConfigurationError
+from ssljax.core.utils.file_utils import cached_path
 
 logger = logging.getLogger(__name__)
 
