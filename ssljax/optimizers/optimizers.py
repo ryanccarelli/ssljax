@@ -6,7 +6,7 @@ from ssljax.core.utils import register
 __all__ = ["OptimizerBase"]
 
 
-class OptimizerBase:
+class Optimizer:
     pass
 
 
@@ -27,4 +27,4 @@ optimizers = {
 }
 
 for name, func in optimizers.items():
-    register(OptimizerBase, func)
+    register(Optimizer, func)

@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 logger.error(f"{__name__}: THESE ARE PLACEHOLDERS!!")
 
 
-class LossBase:
+class Loss:
     """
     Base class for loss function.
     """
@@ -17,7 +17,7 @@ class LossBase:
         return self.lossfunction(x)
 
 
-def lossbase(lossfunction):
+def loss(lossfunction):
     """
     lossbase is a decorator that wraps loss functions in the
     LossBase class.

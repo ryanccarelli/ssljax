@@ -1,1 +1,1 @@
-from ssljax.optimizers.optimizers import OptimizerBase
+from ssljax.optimizers.optimizers import Optimizer

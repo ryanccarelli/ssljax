@@ -1,1 +1,1 @@
-from ssljax.augment.base import AugmentBase
+from ssljax.augment.base import Augment

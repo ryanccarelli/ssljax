@@ -17,10 +17,10 @@ import jax.numpy as jnp
 from flax import linen as nn
 from ssljax.augment import BaseAugment
 from ssljax.config import FromParams
-from ssljax.models import BaseBody, BaseHead
+from ssljax.models import Body, Head
 
 
-class BaseSSL(ModelBase, nn.Module, FromParams):
+class SSLModel(Model, nn.Module, FromParams):
     """
     Base class implementing self-supervised model.
 
