@@ -25,3 +25,4 @@ dependencies:
         - flax
         - base58
         - dill
+        - overrides

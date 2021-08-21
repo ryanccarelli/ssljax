@@ -25,7 +25,7 @@ class SSLTask(TaskBase):
         return fromParams(LossBase, self.config.pop("loss"))
 
     def _get_meter(self) -> MeterBase:
-        return fromParams(MeterBase, self.config.pop("meter"))
+        return fromParams(MeterBase, self.config.pop("metrics"))
 
     def _get_model(self) -> ModelBase:
         return fromParams(ModelBase, self.config.pop("model"))
