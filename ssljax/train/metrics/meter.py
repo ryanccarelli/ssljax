@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 # TODO(gabeorlanski): This will need to be modified to handle mean metrics or
 #  list metrics
-class MeterBase:
+class Meter:
     """
     The base class for tracking metrics during a task.
     Args:
