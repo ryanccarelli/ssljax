@@ -46,7 +46,7 @@ class SSLTrainer:
         lr = task.scheduler.lr(state.step)
         # TODO: If loss returns auxiliary data, pass has_aux=True
         grad_fn = jax.value_and_grad(task.loss)
-        for data, targets in iter(task.dataset)
+        for data, targets in iter(task.dataset):
             train_data = jax.device_put(data)
             targets = jax.device_put(targets)
             task.augment(train_data)
@@ -97,3 +97,7 @@ class SSLTrainer:
 
     def build_task(self, config):
         task = SSLTask().from_params(config)
+
+if __name__ == "__main__":
+    test = SSLTrainer(None, None)
+    print(test)
