@@ -6,15 +6,35 @@ import jax.numpy as jnp
 import numpy as np
 from flax.training.train_state import TrainState
 from jax import random
-from ssljax.core.utils import prepare_environment
 from ssljax.tasks import SSLTask
 
 logger = logging.getLogger(__name__)
 
 
-class SSLTrainer:
+class Trainer:
     """
     Class to manage model training and feature extraction.
+    """
+
+    def train(self):
+        raise NotImplementedError()
+
+    def epoch(self):
+        raise NotImplementedError()
+
+    def step(self):
+        raise NotImplementedError()
+
+    def eval(self):
+        raise NotImplementedError()
+
+    def evalstep(self):
+        raise NotImplementedError()
+
+
+class SSLTrainer(Trainer):
+    """
+    Class to manage SSL training and feature extraction.
 
     Args:
         rng (jnp.DeviceArray):
@@ -23,8 +43,6 @@ class SSLTrainer:
 
     def __init__(self, rng, task):
         self.task = task
-        self.rng = prepare_environment(self.config)
-        self.task = self.build_task(config)
 
     def train(self):
         # setup devices
@@ -62,6 +80,7 @@ class SSLTrainer:
         perms = perms.reshape((steps_per_epoch, batch_size))
         # apply augmentations here?
         batch_metrics = []
+        # TODO: sync cross-device w treemap?
         for perm in perms:
             batch = {k: v[perm, ...] for k, v in train_data.items()}
             state, metrics = self.step(batch, targets, grad_fn, state)
