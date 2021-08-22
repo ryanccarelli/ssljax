@@ -26,6 +26,7 @@ class Task:
         - meter
         - pipeline
         - dataloader
+        - trainer
 
     Args:
         config (Config): The config to get parameters from.
