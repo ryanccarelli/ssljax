@@ -37,7 +37,7 @@ class SSLTrainer:
             state = self._load_training_state(self.config.pop(""))
         else:
             # TODO: should be shape of input data
-            init_data = jnp.ones((task.batch_size, TODO), jnp.float32)
+            init_data = jnp.ones((task.batch_size, task.input_size), jnp.float32)
             state = TrainState.create(
                 apply_fn=self.task.model.apply,
                 params=self.task.model.init(key, init_data, self.rng)["params"],
@@ -96,9 +96,6 @@ class SSLTrainer:
 
     def evalstep(self):
         raise NotImplementedError
-
-    def build_task(self, config):
-        task = SSLTask().from_params(config)
 
 
 if __name__ == "__main__":
