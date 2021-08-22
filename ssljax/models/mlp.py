@@ -1,12 +1,24 @@
-from typing import List, Callable
+from typing import Callable, List
+
 import flax
 import flax.linen as nn
-import jax.numpy as jnp
 import jax
-#from ssljax.models.model import Model
+import jax.numpy as jnp
+
+# from ssljax.models.model import Model
 
 
 class MLP(nn.Module):
+    """
+    Flax implementation of multilayer perceptron.
+
+    Args:
+        layer_dims(List[int]): list indicating number of neurons in each layer
+        dtype: jnp datatype
+        dropout_prob(float): dropout rate hyperparameteri
+        batch_norm(bool): whether to use batchnorm between layers
+    """
+
     layer_dims: List[int]
     dtype: jax._src.numpy.lax_numpy._ScalarMeta = jnp.float32
     dropout_prob: float = 0.0
