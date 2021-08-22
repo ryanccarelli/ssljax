@@ -1,9 +1,10 @@
 # similar to https://github.com/facebookresearch/vissl/blob/master/vissl/trainer/train_task.py
 import logging
 
-# TODO(gabeorlanski): Change these to reflect init files
 from ssljax.augment.base import Pipeline
 from ssljax.config import Config
+# TODO(gabeorlanski): Change these to reflect init files
+from ssljax.core.utils.register import get_from_register
 from ssljax.data import Dataloader
 from ssljax.losses import Loss
 from ssljax.models import Model
@@ -55,7 +56,7 @@ class Task:
 
         Returns (ModelBase): The model to use for this task.
         """
-        raise NotImplementedError()
+        return get_from_register(self.config.model)
 
     def _get_loss(self) -> Loss:
         """
@@ -63,7 +64,7 @@ class Task:
 
         Returns (LossBase): The loss to use for the task.
         """
-        raise NotImplementedError()
+        return get_from_register(self.config.loss)
 
     def _get_optimizer(self) -> Optimizer:
         """
@@ -71,7 +72,7 @@ class Task:
 
         Returns (OptimizerBase): The optimizer to use for the task.
         """
-        raise NotImplementedError()
+        return get_from_register(self.config.optimizer)
 
     def _get_scheduler(self) -> Scheduler:
         """
@@ -79,7 +80,7 @@ class Task:
 
         Returns (SchedulerBase): The scheduler to use for the task.
         """
-        raise NotImplementedError()
+        return get_from_register(self.config.scheduler)
 
     def _get_meter(self) -> Meter:
         """
@@ -87,7 +88,7 @@ class Task:
 
         Returns (MeterBase): The metrics to use for the task.
         """
-        raise NotImplementedError()
+        return get_from_register(self.config.meter)
 
     def _get_pipeline(self) -> Pipeline:
         """
@@ -96,7 +97,7 @@ class Task:
 
         Returns (AugmentBase): The augment to use for this task.
         """
-        raise NotImplementedError()
+        return get_from_register(self.config.pipeline)
 
     def _get_dataloader(self) -> Dataloader:
         """
@@ -104,4 +105,4 @@ class Task:
 
         Returns (DataloaderBase): The dataloader to use for the task.
         """
-        raise NotImplementedError()
+        return get_from_register(self.config.dataloader)
