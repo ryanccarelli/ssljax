@@ -334,6 +334,24 @@ class Solarize(Augmentation):
         return jax.lax.cond(should_apply, inputs, apply_fn, inputs, lambda x: x)
 
 
+@register(Augmentation, "clip")
+class Clip(Augmentation):
+    """
+    Wrap jnp.clip.
+
+    Args:
+        x_min(float): Minimum value.
+        x_max(float): Maximum value.
+    """
+    def __init__(self, x_min=0., x_max=1.):
+        self.x_min = x_min
+        self.x_max = x_max
+
+    def __call__(self, x):
+        x = jnp.clip(x, x_min, x_max)
+        return x
+
+
 if __name__ == "__main__":
     augs = AugmentationDistribution([])
     print(augs)
