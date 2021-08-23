@@ -1,8 +1,7 @@
-import jax
-import jax.numpy as jnp
 from collections import OrderedDict
 
-from ssljax.augment.
+import jax
+import jax.numpy as jnp
 from ssljax.augment.pipeline.pipeline import Pipeline
 
 # TODO: clip is followed by stop_grad
@@ -24,7 +23,6 @@ byolaugmentations = collections.OrderedDict({0: {[
             sigma_min=0.1,
             sigma_max=2.0,
         ),
-        Solarize(prob=0.0),
         Clip(0,1),
     ]},
     1: {[

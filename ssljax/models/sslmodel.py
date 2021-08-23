@@ -17,7 +17,7 @@ import jax.numpy as jnp
 from flax import linen as nn
 from ssljax.augment import BaseAugment
 from ssljax.config import FromParams
-from ssljax.models import Body, Head
+from ssljax.models import Model
 
 
 class SSLModel(Model, nn.Module, FromParams):
@@ -28,20 +28,33 @@ class SSLModel(Model, nn.Module, FromParams):
         config (json/yaml?): model specification
     """
 
-    def __init__(self, config):
-        self.config = config
-        self.head = fromParams(BaseHead, self.config.pop("head"))
-        self.body = fromParams(BaseBody, self.config.pop("body"))
-        self.augment = fromParams(BaseAugment, self.config.pop("augment"))
+    # TODO: in the case of multiple heads and bodies
+    # do we have here lists?
+
+    def setup(config, head, body):
+        self.head = head
+        self.body = body
+        self.branches = []
+        for branch in len(self.body):
+            # iterate over first element of head and body?
+            pass
 
     def __call__(self, x):
         """
         Forward pass head and body.
+
+        Args:
+            x(tuple(jnp.array)): each element of x represents
+                raw data mapped through a different augmentation.Pipeline
         """
-        # augment
-        # call body
-        # call head
-        raise NotImplementedError
+        # TODO: this is terrible
+        outs = []
+        for bindex, branch in enumerate(branches):
+            xtemp = x
+            for layer in branch:
+                xtemp = layer(xtemp)
+            outs[bindex] = xtemp
+        return outs
 
     def freeze_head():
         raise NotImplementedError

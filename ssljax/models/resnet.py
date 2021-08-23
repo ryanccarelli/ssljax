@@ -17,13 +17,12 @@
 from functools import partial
 from typing import Any, Callable, Sequence, Tuple
 
-from flax import linen as nn
 import jax.numpy as jnp
+from flax import linen as nn
 
-from .utils import ResNetBlock ,BottleneckResNetBlock,
+from .utils import BottleneckResNetBlock, ResNetBlock
 
 ModuleDef = Any
-
 
 class ResNet(nn.Module):
   """ResNetV1."""
