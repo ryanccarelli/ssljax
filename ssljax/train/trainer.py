@@ -40,81 +40,67 @@ class SSLTrainer(Trainer):
 
     def __init__(self, rng, task):
         self.task = task
+        self.rng = rng
 
     def train(self):
         # setup devices
         platform = jax.local_devices()[0].platform
-        dynamic_scale = None
-        if self.config.pop("half_precision") and platform == "gpu":
-            dynamic_scale = optim.DynamicScale()
         # instantiate training state
         if self.config.pop("load_training_state"):
             state = self._load_training_state(self.config.pop("load_training_state"))
         else:
-            # TODO: should be shape of input data
-            init_data = jnp.ones((task.batch_size, task.input_size), jnp.float32)
+            init_data = jnp.ones(
+                (self.task.batch_size, self.task.input_shape), jnp.float32
+            )
+            key, self.rng = random.split(self.rng)
+            opt = self.task.optimizer
+            # TODO: we need to split the train state between online and target
             state = TrainState.create(
                 apply_fn=self.task.model.apply,
                 params=self.task.model.init(key, init_data, self.rng)["params"],
                 tx=opt,
             )
         # get parameters
-        # TODO: If loss returns auxiliary data, pass has_aux=True
-        for data, targets in iter(task.dataset):
+        for data, _ in iter(task.dataset):
             train_data = jax.device_put(data)
-            targets = jax.device_put(targets)
-            task.augment(train_data)
             state = self.epoch(train_data, targets, grad_fn, state)
 
-    def epoch(self, train_data, targets, grad_fn, state, batch_size, rng):
-        # get trainingset size
+    def epoch(self, train_data, grad_fn, state):
+        # TODO: should we use dataloaders
         train_data_size = len(train_data)
-        steps_per_epoch = train_data_size // batch_size
+        steps_per_epoch = train_data_size // self.task.batch_size
+        rng, self.rng = random.split(self.rng)
         perms = jax.random.permutation(rng, train_data_size)
-        perms = perms[: steps_per_epoch * batch_size]
-        perms = perms.reshape((steps_per_epoch, batch_size))
-        # apply augmentations here?
-        batch_metrics = []
-        # TODO: sync cross-device w treemap?
+        perms = perms[: steps_per_epoch * self.task.batch_size]
+        perms = perms.reshape((steps_per_epoch, self.task.batch_size))
         for perm in perms:
             batch = {k: v[perm, ...] for k, v in train_data.items()}
-            state, metrics = self.step(batch, targets, grad_fn, state)
-            # TODO: sync across batches?
-            batch_metrics.append(metrics)
-        # compute mean of metrics across each batch in epoch.
-        # log metrics
-        batch_metrics_np = jax.device_get(batch_metrics)
-        epoch_metrics_np = {
-            k: np.mean([metrics[k] for metrics in batch_metrics_np])
-            for k in batch_metrics_np[0]
-        }
-        # TODO: log
-        logger.log(
-            f"train epoch: {epoch}, loss: {epoch_metrics_np['loss']}, accuracy: {epoch_metrics_np['accuracy']}"
-        )
+            batch = self.task.augment(batch)
+            distributed_step = jax.pmap(self.step, axis_name="batch")
+            state = distributed_step(batch, grad_fn, state)
+        # TODO: call meter
+        self.task.meter.get_epoch_metrics()
         return state
 
     @jax.jit
-    def step(self, batch, targets, state):
+    def step(self, batch, state):
         """
         Compute gradients, loss, accuracy per batch
         """
-        dynamic_scale = state.dynamic_scale
-        lr = task.scheduler.lr(state.step)
-        if dynamic_scale:
-            grad_fn = dynamic_scale.value_and_grad(
-                self.task.loss, has_aux=True, axis_name="batch"
-            )
-            dynamic_scale, is_fin, aux, grads = grad_fn(state.params)
-        else:
-            grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-            aux, grads = grad_fn(state.params)
-            # grads = lax.pmean(grads, axis_name="batch")
-            grads = jax.tree_map(lambda v: jax.lax.pmean(v, axis_name="batch"), grads)
-        metrics = self.task.meter(aux[0])
-        metrics["learning_rate"] = lr
-        state = state.apply_gradients(grads=grads, batch_stats=aux[1])
-        return state, metrics
+        lr = self.task.scheduler.lr(state.step)
+        grad_fn = jax.value_and_grad(self.task.loss)
+        (aux), grad = grad_fn(state.params, batch)
+        # TODO: works for flax optimizer
+        # grad = jax.lax.pmean(grad, axis_name="batch")
+        grad = jax.tree_map(lambda v: jax.lax.pmean(v, axis_name="batch"), grads)
+        # TODO: sometimes we want to apply only to the online network and update
+        # the other network by ema
+        state = state.apply_gradients(grad)
+        # target_params = jax.tree_multimap(
+        #    lambda x, y: x + (1 - tau) * (y - x), target_params, online_params
+        # )
+        self.task.meter(aux)
+        return state
 
     def eval(self):
         raise NotImplementedError
