@@ -6,15 +6,32 @@ import jax.numpy as jnp
 import numpy as np
 from flax.training.train_state import TrainState
 from jax import random
-from ssljax.core.utils import prepare_environment
 from ssljax.tasks import SSLTask
 
 logger = logging.getLogger(__name__)
 
 
-class SSLTrainer:
+class Trainer:
     """
     Class to manage model training and feature extraction.
+    """
+
+    def train(self):
+        raise NotImplementedError()
+
+    def epoch(self):
+        raise NotImplementedError()
+
+    def step(self):
+        raise NotImplementedError()
+
+    def eval(self):
+        raise NotImplementedError()
+
+
+class SSLTrainer(Trainer):
+    """
+    Class to manage SSL training and feature extraction.
 
     Args:
         rng (jnp.DeviceArray):
@@ -23,8 +40,6 @@ class SSLTrainer:
 
     def __init__(self, rng, task):
         self.task = task
-        self.rng = prepare_environment(self.config)
-        self.task = self.build_task(config)
 
     def train(self):
         # setup devices
@@ -34,7 +49,7 @@ class SSLTrainer:
             dynamic_scale = optim.DynamicScale()
         # instantiate training state
         if self.config.pop("load_training_state"):
-            state = self._load_training_state(self.config.pop(""))
+            state = self._load_training_state(self.config.pop("load_training_state"))
         else:
             # TODO: should be shape of input data
             init_data = jnp.ones((task.batch_size, task.input_size), jnp.float32)
@@ -44,9 +59,7 @@ class SSLTrainer:
                 tx=opt,
             )
         # get parameters
-        lr = task.scheduler.lr(state.step)
         # TODO: If loss returns auxiliary data, pass has_aux=True
-        grad_fn = jax.value_and_grad(task.loss)
         for data, targets in iter(task.dataset):
             train_data = jax.device_put(data)
             targets = jax.device_put(targets)
@@ -62,9 +75,11 @@ class SSLTrainer:
         perms = perms.reshape((steps_per_epoch, batch_size))
         # apply augmentations here?
         batch_metrics = []
+        # TODO: sync cross-device w treemap?
         for perm in perms:
             batch = {k: v[perm, ...] for k, v in train_data.items()}
             state, metrics = self.step(batch, targets, grad_fn, state)
+            # TODO: sync across batches?
             batch_metrics.append(metrics)
         # compute mean of metrics across each batch in epoch.
         # log metrics
@@ -84,11 +99,21 @@ class SSLTrainer:
         """
         Compute gradients, loss, accuracy per batch
         """
-        (loss, logits), grads = grad_fn(self.state.params)
-        grads = jax.lax.pmean(grads, "batch")
-        state = state.apply_gradients(grads=grads)
-        metrics = self.task.meter(logits, targets, weights)
-        # summary = jax.tre_map(lambda x: x.mean(), train_metrics)
+        dynamic_scale = state.dynamic_scale
+        lr = task.scheduler.lr(state.step)
+        if dynamic_scale:
+            grad_fn = dynamic_scale.value_and_grad(
+                self.task.loss, has_aux=True, axis_name="batch"
+            )
+            dynamic_scale, is_fin, aux, grads = grad_fn(state.params)
+        else:
+            grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+            aux, grads = grad_fn(state.params)
+            # grads = lax.pmean(grads, axis_name="batch")
+            grads = jax.tree_map(lambda v: jax.lax.pmean(v, axis_name="batch"), grads)
+        metrics = self.task.meter(aux[0])
+        metrics["learning_rate"] = lr
+        state = state.apply_gradients(grads=grads, batch_stats=aux[1])
         return state, metrics
 
     def eval(self):

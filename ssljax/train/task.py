@@ -3,13 +3,13 @@ import logging
 
 from ssljax.augment.base import Pipeline
 from ssljax.config import Config
-# TODO(gabeorlanski): Change these to reflect init files
+from ssljax.core.utils import prepare_environment
 from ssljax.core.utils.register import get_from_register
 from ssljax.data import Dataloader
 from ssljax.losses import Loss
 from ssljax.models import Model
 from ssljax.optimizers import Optimizer
-from ssljax.train import Meter, Scheduler, Trainer
+from ssljax.train import Meter, Scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -26,16 +26,16 @@ class Task:
         - meter
         - pipeline
         - dataloader
+        - trainer
 
     Args:
         config (Config): The config to get parameters from.
-
-
     """
 
     def __init__(self, config: Config):
         super().__init__()
         self.config = config
+        self.rng = prepare_environment(self.config)
         self.trainer = self._get_trainer()
         self.model = self._get_model()
         self.loss = self._get_loss()
@@ -47,14 +47,18 @@ class Task:
 
     # Functions the children class must implement
     def _get_trainer(self) -> Trainer:
-        raise NotImplementedError()
+        """
+        Initialize the trainer for this task.
+        """
+        trainer = get_from_register(self.config.trainer)
+        return trainer(rng=self.rng, task=self)
 
     def _get_model(self) -> Model:
         """
         Initialize the model for this task. This must be implemented by child
         tasks.
 
-        Returns (ModelBase): The model to use for this task.
+        Returns (Model): The model to use for this task.
         """
         return get_from_register(self.config.model)
 
@@ -62,7 +66,7 @@ class Task:
         """
         Initialize the loss calculator. This must be implemented by child tasks.
 
-        Returns (LossBase): The loss to use for the task.
+        Returns (Loss): The loss to use for the task.
         """
         return get_from_register(self.config.loss)
 
@@ -70,7 +74,7 @@ class Task:
         """
         Initialize the optimizer. This must be implemented by child tasks.
 
-        Returns (OptimizerBase): The optimizer to use for the task.
+        Returns (Optimizer): The optimizer to use for the task.
         """
         return get_from_register(self.config.optimizer)
 
@@ -78,7 +82,7 @@ class Task:
         """
         Initialize the scheduler. This must be implemented by child tasks.
 
-        Returns (SchedulerBase): The scheduler to use for the task.
+        Returns (Scheduler): The scheduler to use for the task.
         """
         return get_from_register(self.config.scheduler)
 
@@ -86,7 +90,7 @@ class Task:
         """
         Initialize the metrics. This must be implemented by child tasks.
 
-        Returns (MeterBase): The metrics to use for the task.
+        Returns (Meter): The metrics to use for the task.
         """
         return get_from_register(self.config.meter)
 
@@ -95,7 +99,7 @@ class Task:
         Initialize the augment for this task. This must be implemented by child
         tasks.
 
-        Returns (AugmentBase): The augment to use for this task.
+        Returns (Pipeline): The augment to use for this task.
         """
         return get_from_register(self.config.pipeline)
 
@@ -103,6 +107,6 @@ class Task:
         """
         Initialize the dataloader. This must be implemented by child tasks.
 
-        Returns (DataloaderBase): The dataloader to use for the task.
+        Returns (Dataloader): The dataloader to use for the task.
         """
         return get_from_register(self.config.dataloader)
