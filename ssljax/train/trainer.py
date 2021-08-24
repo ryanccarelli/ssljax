@@ -6,7 +6,6 @@ import jax.numpy as jnp
 import numpy as np
 from flax.training.train_state import TrainState
 from jax import random
-from ssljax.tasks import SSLTask
 
 logger = logging.getLogger(__name__)
 
