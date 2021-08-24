@@ -45,22 +45,28 @@ class SSLTrainer(Trainer):
     def train(self):
         # setup devices
         platform = jax.local_devices()[0].platform
-        # instantiate training state
+        model_dtype = jnp.float32
+        if self.task.config.half_precision:
+            if platform == "tpu":
+                model_dtype = jnp.bfloat16
+            else:
+                model_dtype = jnp.float16
+        else:
+            model_dtype = jnp.float32
+        # initialize training state
         if self.config.pop("load_training_state"):
-            state = self._load_training_state(self.config.pop("load_training_state"))
+            state = self._load_training_state(self.task.config.load_training_state))
         else:
             init_data = jnp.ones(
-                (self.task.batch_size, self.task.input_shape), jnp.float32
+                (self.task.config.batch_size, self.task.config.input_shape), model_dtype
             )
             key, self.rng = random.split(self.rng)
-            opt = self.task.optimizer
-            # TODO: we need to split the train state between online and target
+            # optax.multi_transform
             state = TrainState.create(
                 apply_fn=self.task.model.apply,
                 params=self.task.model.init(key, init_data, self.rng)["params"],
                 tx=opt,
             )
-        # get parameters
         for data, _ in iter(task.dataset):
             train_data = jax.device_put(data)
             state = self.epoch(train_data, targets, grad_fn, state)
