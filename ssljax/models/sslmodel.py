@@ -15,12 +15,10 @@ both ema of bodies and bodies with shared parameters
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-from ssljax.augment import BaseAugment
-from ssljax.config import FromParams
 from ssljax.models import Model
 
 
-class SSLModel(Model, nn.Module, FromParams):
+class SSLModel(Model, nn.Module):
     """
     Base class implementing self-supervised model.
 
@@ -31,7 +29,7 @@ class SSLModel(Model, nn.Module, FromParams):
     # TODO: in the case of multiple heads and bodies
     # do we have here lists?
 
-    def setup(config, head, body):
+    def setup(self, config, head, body):
         self.head = head
         self.body = body
         self.branches = []
@@ -56,11 +54,11 @@ class SSLModel(Model, nn.Module, FromParams):
             outs[bindex] = xtemp
         return outs
 
-    def freeze_head():
+    def freeze_head(self):
         raise NotImplementedError
 
-    def freeze_body():
+    def freeze_body(self):
         raise NotImplementedError
 
-    def is_frozen():
+    def is_frozen(self):
         raise NotImplementedError
