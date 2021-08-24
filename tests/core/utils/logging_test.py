@@ -1,7 +1,7 @@
 import pytest
 import os
 
-from ssljax.core.utils import logging as common_logging
+from ssljax.core.utils import log_util as common_logging
 from ssljax.core.utils.tqdm import Tqdm
 
 
