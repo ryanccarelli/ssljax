@@ -14,7 +14,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     project_urls={
         "Documentation": "https://ssljax.readthedocs.io/en/stable",
-        "Source Code"  : "https://github.com/Dana-Farber-AIOS/pathml",
+        "Source Code": "https://github.com/ryanccarelli/ssljax",
     },
     install_requires=[
         "numpy",
