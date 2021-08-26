@@ -61,7 +61,7 @@ class SSLTrainer(Trainer):
                 (self.task.config.batch_size, self.task.config.input_shape), model_dtype
             )
             key, self.rng = random.split(self.rng)
-            # optax.multi_transform
+            opt = task.optimizer
             state = TrainState.create(
                 apply_fn=self.task.model.apply,
                 params=self.task.model.init(key, init_data, self.rng)["params"],
@@ -113,6 +113,13 @@ class SSLTrainer(Trainer):
 
     def evalstep(self):
         raise NotImplementedError
+
+
+def map_nested_fn(fn):
+    '''Recursively apply `fn` to the key-value pairs of a nested dict'''
+    def map_fn(nested_dict):
+        return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v)) for k, v in nested_dict.items()}
+    return map_fn
 
 
 if __name__ == "__main__":

@@ -12,16 +12,18 @@ stop gradient on target but not on predictor
 both ema of bodies and bodies with shared parameters
 
 """
+import collections
+
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
 from ssljax.augment import BaseAugment
 from ssljax.config import FromParams
 from ssljax.core.utils.register import get_from_register
-from ssljax.models import Model
+from ssljax.models import Branch, Model
 
 
-class SSLModel(Model, nn.Module, FromParams):
+class SSLModel(Model):
     """
     Base class implementing self-supervised model.
 
@@ -30,31 +32,24 @@ class SSLModel(Model, nn.Module, FromParams):
     """
 
     def setup(self, config):
-        # we want branches to be a nested dict where
-        # each entry is a branch
-        # then a forward pass is simply executing each
-        # entry of the dict and returning the
-        # tuple of outs
-        # we also want to indicate groups of parameters
-        # that share the same optimizer or are optimized
-        # wrt one another
+        # branch implements optax.multi_transform
         self.branches = get_from_register(config.branches)
+        assert all(
+            (isinstance(x, Branch) for x in self.branches)
+        ), "self.branches must be a list of branches"
 
     @nn.compact
     def __call__(self, x):
         """
-        Forward pass head and body.
+        Forward pass branches.
 
         Args:
             x(tuple(jnp.array)): each element of x represents
                 raw data mapped through a different augmentation.Pipeline
         """
-        # TODO:
-        # using self.variable, self.param initialize the variables
-        # from each branch separately and store in param dict?
-        outs = {}
-        for branchkey, branch in self.branches.items():
-            out = x.copy()
+        outs = collections.OrderedDict()
+        for index, (branchkey, branch) in enumerate(self.branches.items()):
+            out = x[index].copy()
             for layerkey, layer in branch.items():
                 out = layer(out)
             outs[branchkey] = out
