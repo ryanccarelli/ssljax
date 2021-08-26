@@ -17,7 +17,6 @@ import collections
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-<<<<<<< HEAD
 from ssljax.augment import BaseAugment
 from ssljax.config import FromParams
 from ssljax.core.utils.register import get_from_register
@@ -31,6 +30,7 @@ class SSLModel(Model):
     Args:
         config (json/yaml?): model specification
     """
+
     def setup(self, config):
         # branch implements optax.multi_transform
         self.branches = get_from_register(config.branches)
@@ -48,11 +48,10 @@ class SSLModel(Model):
                 raw data mapped through a different augmentation.Pipeline
         """
         outs = collections.OrderedDict()
-        for index, (branchkey, branch) in enumerate(self.branches.items()):
+        for index, branch in enumerate(self.branches):
             out = x[index].copy()
-            for layerkey, layer in branch.items():
-                out = layer(out)
-            outs[branchkey] = out
+            out = branch(out)
+            outs.append(out)
         return outs
 
     def freeze_head(self):
