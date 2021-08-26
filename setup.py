@@ -20,6 +20,7 @@ setuptools.setup(
         "numpy",
         "pre-commit==2.13.0",
         "torch",
+        "chex",
         "flax",
         "tqdm",
         "base58",
