@@ -47,7 +47,7 @@ class SSLModel(Model):
             x(tuple(jnp.array)): each element of x represents
                 raw data mapped through a different augmentation.Pipeline
         """
-        outs = collections.OrderedDict()
+        outs = []
         for index, branch in enumerate(self.branches):
             out = x[index].copy()
             out = branch(out)
