@@ -4,8 +4,20 @@ import flax
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
+from flax.training import train_state
+from ssljax.optimizers import adam
 
 # from ssljax.models.model import Model
+
+
+class StackedMLP(nn.Module):
+    def setup(self):
+        self.mlp1 = MLP(layer_dims=[500, 200, 10])
+
+    @nn.compact
+    def __call__(self, x, train=False):
+        x = self.mlp1(x, train)
+        return x
 
 
 class MLP(nn.Module):
@@ -45,7 +57,7 @@ class MLP(nn.Module):
     def __call__(self, x, train=False):
         for layer in self.layers:
             if isinstance(layer, flax.linen.stochastic.Dropout):
-                x = layer(x, deterministic=not train)
+                x = layer(x, deterministic=True)
             else:
                 x = layer(x)
         return x
@@ -55,7 +67,11 @@ if __name__ == "__main__":
     key = jax.random.PRNGKey(0)
     k1, k2, k3 = jax.random.split(key, 3)
     x = jax.random.normal(k1, (2000,))
-    model = MLP(layer_dims=[500, 200, 10])
-    params = model.init(k2, x)
-    out = model.apply(params, x, train=True, rngs={"dropout": k3})
-    print(out)
+    model = StackedMLP()
+    learning_rate = 1e-3
+    state = train_state.TrainState.create(
+        apply_fn=model.apply,
+        params=model.init(k2, x, k3)["params"],
+        tx=adam(learning_rate),
+    )
+    print(state.params)
