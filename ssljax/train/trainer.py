@@ -114,13 +114,6 @@ class SSLTrainer(Trainer):
         raise NotImplementedError
 
 
-def map_nested_fn(fn):
-    '''Recursively apply `fn` to the key-value pairs of a nested dict'''
-    def map_fn(nested_dict):
-        return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v)) for k, v in nested_dict.items()}
-    return map_fn
-
-
 if __name__ == "__main__":
     test = SSLTrainer(None, None)
     print(test)
