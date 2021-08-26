@@ -17,6 +17,7 @@ import collections
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
+<<<<<<< HEAD
 from ssljax.augment import BaseAugment
 from ssljax.config import FromParams
 from ssljax.core.utils.register import get_from_register
@@ -30,7 +31,6 @@ class SSLModel(Model):
     Args:
         config (json/yaml?): model specification
     """
-
     def setup(self, config):
         # branch implements optax.multi_transform
         self.branches = get_from_register(config.branches)

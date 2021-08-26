@@ -8,7 +8,7 @@ The TQDM handlers were taken from [AllenNLP's tqdm handler](https://github.com/a
 No changes were made to this file and thus it falls under the Apache 2.0 License.
 """
 import logging
-from ssljax.core.utils import logging as common_logging
+from ssljax.core.utils import log_util as common_logging
 import sys
 from time import time
 from typing import Optional

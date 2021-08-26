@@ -1,15 +1,15 @@
 # similar to https://github.com/facebookresearch/vissl/blob/master/vissl/trainer/train_task.py
 import logging
 
-from ssljax.augment.base import Pipeline
+# from ssljax.augment.base import Pipeline
 from ssljax.config import Config
 from ssljax.core.utils import prepare_environment
 from ssljax.core.utils.register import get_from_register
 from ssljax.data import Dataloader
-from ssljax.losses import Loss
+from ssljax.losses.loss import Loss
 from ssljax.models import Model
 from ssljax.optimizers import Optimizer
-from ssljax.train import Meter, Scheduler
+from ssljax.train import Meter, Scheduler, Trainer
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,8 @@ class Task:
         """
         return get_from_register(self.config.meter)
 
-    def _get_pipeline(self) -> Pipeline:
+    # TODO(gabeorlanski): THIS IS BROKEN
+    def _get_pipeline(self) -> None:
         """
         Initialize the augment for this task. This must be implemented by child
         tasks.

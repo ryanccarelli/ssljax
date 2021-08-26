@@ -18,7 +18,7 @@ from typing import Optional, Text
 import jax
 import jax.numpy as jnp
 from ssljax.core import register
-from ssljax.losses import LossBase
+from ssljax.losses.loss import Loss
 
 
 def byol_regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
