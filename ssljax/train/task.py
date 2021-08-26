@@ -7,9 +7,9 @@ from ssljax.core.utils import prepare_environment
 from ssljax.core.utils.register import get_from_register
 from ssljax.data import Dataloader
 from ssljax.losses.loss import Loss
-from ssljax.models import Model
+from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
-from ssljax.train import Meter, Scheduler, SSLTrainer
+from ssljax.train import Meter, Scheduler, SSLTrainer, Trainer
 
 logger = logging.getLogger(__name__)
 

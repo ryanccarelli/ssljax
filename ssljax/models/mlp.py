@@ -5,7 +5,7 @@ import flax.linen as nn
 import jax
 import jax.numpy as jnp
 from flax.training import train_state
-from ssljax.optimizers import adam
+from ssljax.optimizers.optimizers import adam
 
 # from ssljax.models.model import Model
 

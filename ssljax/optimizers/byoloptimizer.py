@@ -6,7 +6,7 @@ import optax
 from optax._src import base
 from optax._src import utils as outils
 from optax._src.transform import EmaState, _bias_correction, _update_moment
-from ssljax.optimizers import lars
+from ssljax.optimizers.optimizers import lars
 
 
 def byol_optimizer(learning_rate, decay_rate):
@@ -93,7 +93,7 @@ def _cosine_decay(
     global_step: jnp.ndarray, max_steps: int, initial_value: float
 ) -> jnp.ndarray:
     """
-    Taken from 
+    Taken from
     Simple implementation of cosine decay from TF1.
     This is used in BYOL optimizer to manage tau parameter.
     """

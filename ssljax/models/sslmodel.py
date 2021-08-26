@@ -17,10 +17,10 @@ import collections
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-from ssljax.augment import BaseAugment
-from ssljax.config import FromParams
+from ssljax.augment import Augment
 from ssljax.core.utils.register import get_from_register
-from ssljax.models import Branch, Model
+from ssljax.models.branch import Branch
+from ssljax.models.model import Model
 
 
 class SSLModel(Model):
