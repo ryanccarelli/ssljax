@@ -9,38 +9,28 @@ from optax._src.transform import EmaState, _bias_correction, _update_moment
 from ssljax.optimizers.optimizers import lars
 
 
-def byol_optimizer(learning_rate, decay_rate):
+def byol_optimizer(
+    learning_rate,
+    decay_rate,
+    debias: bool = True,
+    accumulator_dtype: Optional[Any] = None,
+):
     """
     Optimizer that applies LARS to online network and
     updates target network by exponential moving average.
 
-    Assumes that parameters are partitioned into
-    "online" and "target" groups.
+    Target branch is assumed to have params label "branch_0".
+    Online branch is assumed to have params label "branch_1".
     Args:
         learning_rate: for lars
         decay rate: for ema
-
-    TODO: There are potentially cleaner implementations.
-    1. Use combine.chain() to execute lars (while masking byol_ema) then byol_ema
-    current version has EMA trailing by one step. Sketch of improved implementation:
-
-    optax.chain(
-        [
-            optax.multi_transform({"branch_0": identity, "branch_1":lars}),
-            optax.multi_transform({"branch_0": byol_ema, "branch_1": identity}),
-        ]
-    )
-
-    2. Use masking. The problem here is that we do not have access to state at this level:
-
-    mask = jax.tree_map(lambda x: x in treedef_children(state.params["branch_0"])))
-    optax.chain(
-        [optax.masked(lars, mask), optax.masked(byol_ema, !mask)]
-    )
     """
     param_labels = ("branch_0", "branch_1")
     return optax.multi_transform(
-        {"branch_0": byol_ema(decay_rate), "branch_1": lars(learning_rate)},
+        {
+            "branch_0": byol_ema(decay_rate, debias, accumulator_dtype),
+            "branch_1": lars(learning_rate),
+        },
         param_labels,
     )
 
@@ -60,6 +50,8 @@ def byol_ema(
         An (init_fn, update_fn) tuple.
     """
 
+    accumulator_dtype = outils.canonicalize_dtype(accumulator_dtype)
+
     def init_fn(params):
         return EmaState(
             count=jnp.zeros([], jnp.int32),
@@ -70,8 +62,10 @@ def byol_ema(
 
     def update_fn(updates, state, params=None):
         del params
-        # branch_0 is online, branch_1 is target
-        _update_moment(state.params["branch_0"], state.ema, decay, order=1)
+        new_ema = state.ema
+        new_ema["branch_0"] = _update_moment(
+            updates["branch_0"], state.ema["branch_0"], decay, order=1
+        )
         count_inc = outils.safe_int32_increment(state.count)
         if debias:
             new_ema = _bias_correction(new_ema, decay, count_inc)
