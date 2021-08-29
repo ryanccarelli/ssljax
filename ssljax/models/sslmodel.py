@@ -19,7 +19,7 @@ import jax.numpy as jnp
 from flax import linen as nn
 from ssljax.augment import Augment
 from ssljax.core.utils.register import get_from_register
-from ssljax.models.branch import Branch
+from ssljax.models.branch.branch import Branch
 from ssljax.models.model import Model
 
 
@@ -48,11 +48,19 @@ class SSLModel(Model):
                 raw data mapped through a different augmentation.Pipeline
         """
         outs = []
-        for index, branch in enumerate(self.branches):
-            out = x[index].copy()
+        # implement as a map
+        def executebranch(x, branch):
+            out = x.copy()
             out = branch(out)
-            outs.append(out)
-        return outs
+            return out
+
+        # use enumerate
+        outs = map(
+            lambda x, b: executebranch(x, b),
+            x,
+            self.branches,
+        )
+        return list(outs)
 
     def freeze_head(self):
         raise NotImplementedError
