@@ -27,6 +27,10 @@ class SSLModel(Model):
     """
     Base class implementing self-supervised model.
 
+    A self-supervised model consists of a set of branches
+    that are executed in parallel on a list of augmented inputs,
+    returning a list of branch outs.
+
     Args:
         config (json/yaml?): model specification
     """
@@ -50,9 +54,8 @@ class SSLModel(Model):
         outs = []
         # implement as a map
         def executebranch(x, branch):
-            out = x.copy()
-            out = branch(out)
-            return out
+            x = branch(x)
+            return x
 
         # use enumerate
         outs = map(
