@@ -26,6 +26,7 @@ def byol_optimizer(
         decay rate: for ema
     """
     param_labels = ("branch_0", "branch_1")
+    """
     return optax.multi_transform(
         {
             "branch_0": byol_ema(decay_rate, debias, accumulator_dtype),
@@ -33,6 +34,13 @@ def byol_optimizer(
         },
         param_labels,
     )
+    """
+
+    #mask_fn = lambda p: jax.tree_map(lambda x: x in p["branch_0"], p)
+    return optax.chain([
+        optax.masked(byol_ema(decay_rate, debias, accumulator_dtype), {"branch_0":False, "branch_1":True}),
+        optax.masked(lars(learning_rate), {"branch_0":True, "branch_1":False})
+    ])
 
 
 def byol_ema(
