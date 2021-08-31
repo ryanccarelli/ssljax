@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from typing import Any, Callable, NamedTuple, Optional, Tuple
 
 import jax
@@ -34,13 +35,13 @@ def byol_optimizer(
         learning_rate: for lars
         decay_rate: for ema
     """
-    return {
-        "branch_0": optax.masked(
+    return [
+        optax.masked(
             lars(learning_rate),
             {"branch_0": False, "branch_1": True},
         ),
-        "branch_1": byol_ema(decay_rate, debias, accumulator_dtype),
-    }
+        byol_ema(decay_rate, debias, accumulator_dtype),
+    ]
 
 
 # We would like to update online params directly as an ema of target params.
@@ -90,10 +91,8 @@ def byol_ema(
         if params is None:
             raise ValueError(optax.base.NO_PARAMS_MSG)
         new_ema = state.ema
-        print("state ema is:")
-        print(state.ema)
-        new_ema["branch_0"] = _update_moment(
-            params["branch_1"], state.ema["branch_0"], decay, order=1
+        new_ema["branch_1"] = _update_moment(
+            params["branch_0"], state.ema["branch_1"], decay, order=1
         )
         count_inc = outils.safe_int32_increment(state.count)
         if debias:
