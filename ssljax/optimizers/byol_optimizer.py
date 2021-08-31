@@ -1,11 +1,11 @@
-from typing import Any, Optional
+from typing import Any, Callable, NamedTuple, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
 import optax
 from optax._src import base
 from optax._src import utils as outils
-from optax._src.transform import EmaState, _bias_correction, _update_moment
+from optax._src.transform import EmaState, _bias_correction
 from ssljax.optimizers.optimizers import lars
 
 
@@ -16,36 +16,54 @@ def byol_optimizer(
     accumulator_dtype: Optional[Any] = None,
 ):
     """
-    Optimizer that applies LARS to online network and
-    updates target network by exponential moving average.
+    Dict of optimizers defining a BYOL experiment.
+    Online branch is updated by LARS.
+    Target branch is updated as EMA of online branch.
 
-    Target branch is assumed to have params label "branch_0".
-    Online branch is assumed to have params label "branch_1".
+    These must be called sequentially and not chained since
+    chained transforms must all return GradientTransform but
+    byol_ema outputs directly the new parameter setting.
+
+    The target network must see online parameters. This is why
+    optax.multi_transform will not work (if we assign branch_0
+    to byol_ema, it will not get access to branch_1 parameters).
+
+    Online branch is assumed to have params label "branch_0".
+    Target branch is assumed to have params label "branch_1".
     Args:
         learning_rate: for lars
-        decay rate: for ema
+        decay_rate: for ema
     """
-    param_labels = ("branch_0", "branch_1")
-    """
-    return optax.multi_transform(
-        {
-            "branch_0": byol_ema(decay_rate, debias, accumulator_dtype),
-            "branch_1": lars(learning_rate),
-        },
-        param_labels,
-    )
-    """
+    return {
+        "branch_0": optax.masked(
+            lars(learning_rate),
+            {"branch_0": False, "branch_1": True},
+        ),
+        "branch_1": byol_ema(decay_rate, debias, accumulator_dtype),
+    }
 
-    #mask_fn = lambda p: jax.tree_map(lambda x: x in p["branch_0"], p)
-    return optax.chain([
-        optax.masked(byol_ema(decay_rate, debias, accumulator_dtype), {"branch_0":False, "branch_1":True}),
-        optax.masked(lars(learning_rate), {"branch_0":True, "branch_1":False})
-    ])
+
+# We would like to update online params directly as an ema of target params.
+# Optax optimizers return GradientTransformations which are then scaled
+# by learning rate and applied. EMA can't be managed in this way (it is not scaled).
+# Here we introduce base.ParameterTransformation, so that we can init and store
+# state as in optax, but separate the use case where we deal with direct updates
+# rather than gradient updates.
+ParameterUpdateFn = Callable[
+    [base.OptState, base.Params], Tuple[base.Params, base.OptState]
+]
+
+
+class ParameterTransformation(NamedTuple):
+    """Optax transformation concisting of a function pair: (initialise, update)."""
+
+    init: base.TransformInitFn
+    update: ParameterUpdateFn
 
 
 def byol_ema(
     decay: float, debias: bool = True, accumulator_dtype: Optional[Any] = None
-) -> base.GradientTransformation:
+) -> ParameterTransformation:
     """
     Update target network as an exponential moving average of the online network.
 
@@ -68,11 +86,14 @@ def byol_ema(
             ),
         )
 
-    def update_fn(updates, state, params=None):
-        del params
+    def update_fn(state, params):
+        if params is None:
+            raise ValueError(optax.base.NO_PARAMS_MSG)
         new_ema = state.ema
+        print("state ema is:")
+        print(state.ema)
         new_ema["branch_0"] = _update_moment(
-            updates["branch_0"], state.ema["branch_0"], decay, order=1
+            params["branch_1"], state.ema["branch_0"], decay, order=1
         )
         count_inc = outils.safe_int32_increment(state.count)
         if debias:
@@ -81,7 +102,7 @@ def byol_ema(
 
         return new_ema, EmaState(count=count_inc, ema=state_ema)
 
-    return base.GradientTransformation(init_fn, update_fn)
+    return ParameterTransformation(init_fn, update_fn)
 
 
 def _update_moment(updates, moments, decay, order):
