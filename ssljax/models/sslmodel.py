@@ -53,13 +53,13 @@ class SSLModel(Model):
         """
         outs = []
         # implement as a map
-        def executebranch(x, branch):
-            x = branch(x)
-            return x
+        def executebranch(_x, branch):
+            _x = branch(_x)
+            return _x
 
         # use enumerate
         outs = map(
-            lambda x, b: executebranch(x, b),
+            lambda a, b: executebranch(a, b),
             x,
             self.branches,
         )

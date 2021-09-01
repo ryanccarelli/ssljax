@@ -10,6 +10,8 @@ import optax
 from flax import jax_utils
 from flax.training.train_state import TrainState
 from jax import random
+from optax._src.base import GradientTransformation
+from ssljax.optimizers.base import ParameterTransformation
 from ssljax.train import Trainer
 
 
@@ -70,19 +72,17 @@ class SSLTrainer(Trainer):
         grads = jax.tree_map(lambda v: jax.lax.pmean(v, axis_name="batch"), grads)
         opt = self.task.optimizers(lr, decay)
 
-        def update_fn(opt, grads, states, params):
-            return opt.update(grads, states, params)
+        # TODO: shadow
+        def update_fn(_opt, _grads, _state, _params):
+            _update, _state = _opt.update(_grads, _state, _params)
+            if isinstance(_opt, GradientTransformation):
+                _params = optax.apply_updates(_params, _update)
+            elif isinstance(_opt, ParameterTransformation):
+                _params = _update
+            return _params, _state
 
-        updates, states = zip([update_fn(op, grads, states, params) for op in opt])
+        params, states = zip([update_fn(op, grads, states, params) for op in opt])
 
-        # TODO: this needs to be generalized, there should not
-        # be ad hoc check for ema here
-        for index, update in enumerate(updates):
-            if states[index].ema:
-                params = update
-            else:
-                params = optax.apply_updates(params)
-        params = optax.apply_updates(params, updates)
         # TODO: call meter (aux)
         return params, states
 

@@ -1,4 +1,4 @@
-from typing import Any, Callable, NamedTuple, Optional, Tuple
+from typing import Any, Optional
 
 import jax
 import jax.numpy as jnp
@@ -6,6 +6,7 @@ import optax
 from optax._src import base
 from optax._src import utils as outils
 from optax._src.transform import EmaState, _bias_correction
+from ssljax.optimizers.base import ParameterTransformation, ParameterUpdateFn
 from ssljax.optimizers.optimizers import lars
 
 
@@ -51,18 +52,6 @@ def byol_optimizer(
 # Here we introduce base.ParameterTransformation, so that we can init and store
 # state as in optax, but separate the use case where we deal with direct updates
 # rather than gradient updates.
-ParameterUpdateFn = Callable[
-    [base.OptState, base.Params], Tuple[base.Params, base.OptState]
-]
-
-
-class ParameterTransformation(NamedTuple):
-    """Optax transformation concisting of a function pair: (initialise, update)."""
-
-    init: base.TransformInitFn
-    update: ParameterUpdateFn
-
-
 def byol_ema(
     decay: float,
     debias: bool = True,
