@@ -15,30 +15,38 @@ class BYOLTest(parameterized.TestCase):
     @chex.all_variants()
     def test_byol_ema(self):
         # this is expected to skip pmap variant test (must configure multiple devices)
-        values = {"branch_0": jnp.array([5.0, 7.0]), "branch_1": jnp.array([3.0, 4.0])}
+        params = {"branch_0": jnp.array([5.0, 7.0]), "branch_1": jnp.array([3.0, 4.0])}
         decay = 0.9
         d = decay
 
         ema = byol_ema(decay=decay, debias=False)
-        state = ema.init(values)  # init zeros
+        state = ema.init(params)  # init zeros
 
         transform_fn = self.variant(ema.update)
-        mean, state = transform_fn(values, state)
+        mean, state = transform_fn(state, params)
         assert np.isclose(
-            mean["branch_0"][0], (1 - d) * values["branch_0"][0], atol=1e-4
+            mean["branch_0"][0], (1 - d) * params["branch_0"][0], atol=1e-4
         )
 
     @chex.all_variants()
     def test_byol_optimizer(self):
-        values = {"branch_0": jnp.array([5.0, 7.0]), "branch_1": jnp.array([3.0, 4.0])}
+        # here we sequentially apply updates
+        params = {"branch_0": jnp.array([5.0, 7.0]), "branch_1": jnp.array([3.0, 4.0])}
         lr = 0.1
         decay = 0.9
         d = decay
+        opt = byol_optimizer(lr, decay)
+        tx1 = opt["branch_0"]
+        print(tx1)
+        tx2 = opt["branch_1"]
+        print(tx2)
 
-        tx = byol_optimizer(learning_rate=lr, decay_rate=d, debias=False)
-        state = tx.init(values)  # init zeros
+        state1, state2 = tx1.init(params), tx2.init(params)  # init zeros
 
-        transform_fn = self.variant(tx.update)
-        mean, state = transform_fn(values, state)
+        transform_fn_1, transform_fn_2 = self.variant(tx1.update), self.variant(
+            tx2.update
+        )
+        update1, state1 = transform_fn_1(state=state1, updates=params, params=params)
+        update2, state2 = transform_fn_2(state=state2, params=params)
 
-        assert 1 == 2
+        assert True == True

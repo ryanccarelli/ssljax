@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from typing import Any, Callable, NamedTuple, Optional, Tuple
 
 import jax
@@ -15,6 +14,8 @@ def byol_optimizer(
     decay_rate,
     debias: bool = True,
     accumulator_dtype: Optional[Any] = None,
+    *args,
+    **kwargs,
 ):
     """
     Dict of optimizers defining a BYOL experiment.
@@ -63,7 +64,9 @@ class ParameterTransformation(NamedTuple):
 
 
 def byol_ema(
-    decay: float, debias: bool = True, accumulator_dtype: Optional[Any] = None
+    decay: float,
+    debias: bool = True,
+    accumulator_dtype: Optional[Any] = None,
 ) -> ParameterTransformation:
     """
     Update target network as an exponential moving average of the online network.
@@ -91,8 +94,10 @@ def byol_ema(
         if params is None:
             raise ValueError(optax.base.NO_PARAMS_MSG)
         new_ema = state.ema
-        new_ema["branch_1"] = _update_moment(
-            params["branch_0"], state.ema["branch_1"], decay, order=1
+        print("state ema is:")
+        print(state.ema)
+        new_ema["branch_0"] = _update_moment(
+            params["branch_1"], state.ema["branch_0"], decay, order=1
         )
         count_inc = outils.safe_int32_increment(state.count)
         if debias:

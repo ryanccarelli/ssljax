@@ -92,7 +92,6 @@ class Task:
         """
         return get_from_register(self.config.meter)
 
-    # TODO(gabeorlanski): THIS IS BROKEN
     def _get_pipeline(self) -> None:
         """
         Initialize the augment for this task. This must be implemented by child
