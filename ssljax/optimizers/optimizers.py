@@ -24,6 +24,7 @@ optimizers = {
     "rmsprop": rmsprop,
     "sgd": sgd,
     "yogi": yogi,
+    "lars": lars,
 }
 
 for name, func in optimizers.items():

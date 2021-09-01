@@ -12,47 +12,58 @@ stop gradient on target but not on predictor
 both ema of bodies and bodies with shared parameters
 
 """
+import collections
+
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-from ssljax.models import Model
+from ssljax.augment import Augment
+from ssljax.core.utils.register import get_from_register
+from ssljax.models.branch.branch import Branch
+from ssljax.models.model import Model
 
 
-class SSLModel(Model, nn.Module):
+class SSLModel(Model):
     """
     Base class implementing self-supervised model.
+
+    A self-supervised model consists of a set of branches
+    that are executed in parallel on a list of augmented inputs,
+    returning a list of branch outs.
 
     Args:
         config (json/yaml?): model specification
     """
 
-    # TODO: in the case of multiple heads and bodies
-    # do we have here lists?
+    def setup(self, config):
+        # branch implements optax.multi_transform
+        self.branches = get_from_register(config.branches)
+        assert all(
+            (isinstance(x, Branch) for x in self.branches)
+        ), "self.branches must be a list of branches"
 
-    def setup(self, config, head, body):
-        self.head = head
-        self.body = body
-        self.branches = []
-        for branch in len(self.body):
-            # iterate over first element of head and body?
-            pass
-
+    @nn.compact
     def __call__(self, x):
         """
-        Forward pass head and body.
+        Forward pass branches.
 
         Args:
             x(tuple(jnp.array)): each element of x represents
                 raw data mapped through a different augmentation.Pipeline
         """
-        # TODO: this is terrible
         outs = []
-        for bindex, branch in enumerate(branches):
-            xtemp = x
-            for layer in branch:
-                xtemp = layer(xtemp)
-            outs[bindex] = xtemp
-        return outs
+        # implement as a map
+        def executebranch(_x, branch):
+            _x = branch(_x)
+            return _x
+
+        # use enumerate
+        outs = map(
+            lambda a, b: executebranch(a, b),
+            x,
+            self.branches,
+        )
+        return list(outs)
 
     def freeze_head(self):
         raise NotImplementedError

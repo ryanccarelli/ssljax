@@ -7,9 +7,9 @@ from ssljax.core.utils import prepare_environment
 from ssljax.core.utils.register import get_from_register
 from ssljax.data import Dataloader
 from ssljax.losses.loss import Loss
-from ssljax.models import Model
+from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
-from ssljax.train import Meter, Scheduler, Trainer
+from ssljax.train import Meter, Scheduler, SSLTrainer, Trainer
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +34,8 @@ class Task:
 
     def __init__(self, config: Config):
         super().__init__()
-        self.config = config
         self.rng = prepare_environment(self.config)
-        self.trainer = self._get_trainer()
+        self.trainer = self._get_trainer(self, self.rng)
         self.model = self._get_model()
         self.loss = self._get_loss()
         self.optimizer = self._get_optimizer()
@@ -45,7 +44,6 @@ class Task:
         self.pipeline = self._get_pipeline()
         self.dataloader = self._get_dataloader()
 
-    # Functions the children class must implement
     def _get_trainer(self) -> Trainer:
         """
         Initialize the trainer for this task.
@@ -94,7 +92,6 @@ class Task:
         """
         return get_from_register(self.config.meter)
 
-    # TODO(gabeorlanski): THIS IS BROKEN
     def _get_pipeline(self) -> None:
         """
         Initialize the augment for this task. This must be implemented by child
