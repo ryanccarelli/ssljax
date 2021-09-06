@@ -18,11 +18,11 @@ import jax
 import jax.numpy as jnp
 from flax import linen as nn
 from ssljax.augment import Augment
-from ssljax.core.utils.register import get_from_register
+from ssljax.core.utils.register import get_from_register, register
 from ssljax.models.branch.branch import Branch
 from ssljax.models.model import Model
 
-
+@register(Model, "SSLModel")
 class SSLModel(Model):
     """
     Base class implementing self-supervised model.
@@ -37,12 +37,12 @@ class SSLModel(Model):
 
     def setup(self, config):
         # branch implements optax.multi_transform
-        self.branches = get_from_register(config.branches)
+        self.branches = map(lambda branch: get_from_register(Branch, branch), config.branches)
         assert all(
             (isinstance(x, Branch) for x in self.branches)
         ), "self.branches must be a list of branches"
 
-    @nn.compact
+
     def __call__(self, x):
         """
         Forward pass branches.

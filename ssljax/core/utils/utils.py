@@ -23,9 +23,9 @@ def prepare_environment(config) -> jax.numpy.DeviceArray:
 
     # Get the seed values from the config.
     # TODO(gabeorlanski): Replace the pop and cast with a `pop_int` function
-    seed = int(config.pop("random_seed", 13370))
-    numpy_seed = int(config.pop("numpy_seed", 1337))
-    jax_seed = int(config.pop("jax_seed", 123))
+    seed = config.env.seed if config.env.seed else 0
+    numpy_seed = config.env.numpy_seed if config.env.numpy_seed else 0
+    jax_seed = config.env.jax_seed if config.env.jax_seed else 0
 
     if seed is not None:
         random.seed(seed)

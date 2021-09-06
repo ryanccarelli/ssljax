@@ -1,7 +1,17 @@
 import collections
 import inspect
+import pprint
 
 GLOBAL_TYPE_REGISTRY = collections.defaultdict(dict)
+
+def print_registry():
+  """
+  Pretty print the registry
+
+  Args: None
+  """
+  pp = pprint.PrettyPrinter(indent=4)
+  pp.pprint(GLOBAL_TYPE_REGISTRY)
 
 def register(type_, name,override=False):
   """
@@ -62,3 +72,5 @@ def get_from_register(type_, name):
         raise ValueError(msg.format(name, type_))
 
     return GLOBAL_TYPE_REGISTRY[type_][name]
+
+

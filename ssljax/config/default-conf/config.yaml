@@ -1,0 +1,38 @@
+env:
+  seed: 1337
+  numpy_seed: 1337
+  jax_seed: 1337
+
+trainer:
+  name: SSLTrainer
+
+loss: l2_normalize
+
+model:
+  name: SSLModel
+  branches: ["ByolOnlineBranch", "ByolTargetBranch"]
+
+optimizer:
+  name: byol_optimizer
+  params:
+    learning_rate: 0.001
+    decay_rate: 1.0
+
+scheduler: 
+  name: cosine_decay
+  params:
+    init_value: 0.01
+    decay_steps: 1000
+
+meter:
+  name: SSLMeter
+
+
+pipeline:
+  name: a 
+  params: b
+
+dataloader:
+  name: a 
+  params: b
+

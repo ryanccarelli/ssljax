@@ -4,12 +4,13 @@ import logging
 # from ssljax.augment.base import Pipeline
 from ssljax.config import Config
 from ssljax.core.utils import prepare_environment
-from ssljax.core.utils.register import get_from_register
 from ssljax.data import Dataloader
 from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
 from ssljax.train import Meter, Scheduler, SSLTrainer, Trainer
+from ssljax.core.utils.register import get_from_register, print_registry
+from ssljax.augment.pipeline.pipeline import Pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,9 @@ class Task:
 
     def __init__(self, config: Config):
         super().__init__()
+        self.config = config
         self.rng = prepare_environment(self.config)
-        self.trainer = self._get_trainer(self, self.rng)
+        self.trainer = self._get_trainer()
         self.model = self._get_model()
         self.loss = self._get_loss()
         self.optimizer = self._get_optimizer()
@@ -48,7 +50,7 @@ class Task:
         """
         Initialize the trainer for this task.
         """
-        trainer = get_from_register(self.config.trainer)
+        trainer = get_from_register(Trainer, self.config.trainer.name)
         return trainer(rng=self.rng, task=self)
 
     def _get_model(self) -> Model:
@@ -58,7 +60,7 @@ class Task:
 
         Returns (Model): The model to use for this task.
         """
-        return get_from_register(self.config.model)
+        return get_from_register(Model, self.config.model.name)
 
     def _get_loss(self) -> Loss:
         """
@@ -66,7 +68,8 @@ class Task:
 
         Returns (Loss): The loss to use for the task.
         """
-        return get_from_register(self.config.loss)
+        print_registry()
+        return get_from_register(Loss, self.config.loss)
 
     def _get_optimizer(self) -> Optimizer:
         """
@@ -74,7 +77,7 @@ class Task:
 
         Returns (Optimizer): The optimizer to use for the task.
         """
-        return get_from_register(self.config.optimizer)
+        return get_from_register(Optimizer, self.config.optimizer.name)
 
     def _get_scheduler(self) -> Scheduler:
         """
@@ -82,7 +85,7 @@ class Task:
 
         Returns (Scheduler): The scheduler to use for the task.
         """
-        return get_from_register(self.config.scheduler)
+        return get_from_register(Scheduler, self.config.scheduler.name)
 
     def _get_meter(self) -> Meter:
         """
@@ -90,7 +93,7 @@ class Task:
 
         Returns (Meter): The metrics to use for the task.
         """
-        return get_from_register(self.config.meter)
+        return get_from_register(Meter, self.config.meter.name)
 
     def _get_pipeline(self) -> None:
         """
@@ -99,7 +102,7 @@ class Task:
 
         Returns (Pipeline): The augment to use for this task.
         """
-        return get_from_register(self.config.pipeline)
+        return get_from_register(Pipeline, self.config.pipeline)
 
     def _get_dataloader(self) -> Dataloader:
         """

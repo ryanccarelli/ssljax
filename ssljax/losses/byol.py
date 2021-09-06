@@ -20,7 +20,7 @@ import jax.numpy as jnp
 from ssljax.core import register
 from ssljax.losses.loss import Loss
 
-
+@register(Loss, "byol_regression_loss")
 def byol_regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
     """
     Cosine similarity regression loss.
@@ -28,7 +28,7 @@ def byol_regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
     normed_x, normed_y = l2_normalize(x, axis=-1), l2_normalize(y, axis=-1)
     return jnp.sum((normed_x - normed_y) ** 2, axis=-1)
 
-
+@register(Loss, "byol_softmax_cross_entropy_loss")
 def byol_softmax_cross_entropy(
     logits: jnp.ndarray,
     labels: jnp.ndarray,
@@ -58,7 +58,7 @@ def byol_softmax_cross_entropy(
     else:
         raise ValueError(f"Incorrect reduction mode {reduction}")
 
-
+@register(Loss, "l2_normalize")
 def l2_normalize(
     x: jnp.ndarray,
     axis: Optional[int] = None,

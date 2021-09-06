@@ -1,8 +1,10 @@
 from collections import OrderedDict
+import collections
 
 import jax
 import jax.numpy as jnp
 from ssljax.augment.pipeline.pipeline import Pipeline
+from ssljax.augment.augmentation.augmentation import ColorTransform, RandomFlip
 
 # TODO: clip is followed by stop_grad
 byolaugmentations = collections.OrderedDict({0: {[

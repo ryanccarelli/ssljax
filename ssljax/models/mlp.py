@@ -7,9 +7,9 @@ import jax.numpy as jnp
 from flax.training import train_state
 from ssljax.optimizers.optimizers import adam
 
-# from ssljax.models.model import Model
+from ssljax.models.model import Model
 
-
+@register(Model, "StackedMLP")
 class StackedMLP(nn.Module):
     def setup(self):
         self.mlp1 = MLP(layer_dims=[500, 200, 10])
@@ -19,7 +19,7 @@ class StackedMLP(nn.Module):
         x = self.mlp1(x, train)
         return x
 
-
+@register(Model, "MLP")
 class MLP(nn.Module):
     """
     Flax implementation of multilayer perceptron.
