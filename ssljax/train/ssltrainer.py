@@ -13,8 +13,9 @@ from jax import random
 from optax._src.base import GradientTransformation
 from ssljax.optimizers.base import ParameterTransformation
 from ssljax.train import Trainer
+from ssljax.core.utils import register
 
-
+@register(Trainer, "SSLTrainer")
 class SSLTrainer(Trainer):
     """
     Class to manage SSL training and feature extraction.
@@ -51,7 +52,7 @@ class SSLTrainer(Trainer):
         # TODO: meter must implement distributed version
         # batch_metrics = jax.tree_multimap(lambda *xs: np.array(xs), *batch_metrics)
         # epoch_metrics ={k:np.mean(batch_metrics[k], axis=0) for k in batch_metrics}
-        self.task.meter.get_epoch_metrics()
+        # self.task.meter.get_epoch_metrics()
         return params, states
 
     @jax.pmap

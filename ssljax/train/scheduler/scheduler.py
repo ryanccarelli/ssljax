@@ -26,4 +26,4 @@ schedulers = {
 }
 
 for name, func in schedulers.items():
-    register(Scheduler, func)
+    register(Scheduler, name)(func)

@@ -7,9 +7,12 @@ from optax._src import base
 from optax._src import utils as outils
 from optax._src.transform import EmaState, _bias_correction
 from ssljax.optimizers.base import ParameterTransformation, ParameterUpdateFn
-from ssljax.optimizers.optimizers import lars
+from ssljax.optimizers.optimizers import lars, Optimizer
+from ssljax.core.utils import register
 
 
+
+@register(Optimizer, "byol_optimizer")
 def byol_optimizer(
     learning_rate,
     decay_rate,

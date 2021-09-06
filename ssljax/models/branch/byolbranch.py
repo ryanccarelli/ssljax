@@ -3,6 +3,7 @@ from ssljax.models.branch import Branch
 from ssljax.models.resnet import Resnet50
 
 
+@register(Branch, "ByolOnlineBranch")
 class ByolOnlineBranch(Branch):
     """
     The online branch in BYOL model.
@@ -19,7 +20,7 @@ class ByolOnlineBranch(Branch):
         x = self.mlp(x)
         return x
 
-
+@register(Branch, "ByolTargetBranch")
 class ByolTargetBranch(Branch):
     """
     The target branch in BYOL model.
