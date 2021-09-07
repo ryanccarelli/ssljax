@@ -1,12 +1,14 @@
+import parameterized
 import pytest
+from ssljax.train.task import Task
 
 
-class TaskTest(parameterized.TestCase):
-    def setUp(self):
+class TaskTest:
+    def setUp(self, cputestconfig):
         super().setUp()
-        # create a null config
-        pass
+        # create a cputestconfig
+        self.cfg = cputestconfig
 
-    def test_init(self, nullconfig):
+    def test_init(self):
         # declare the most minimal task
-        pass
+        task = Task(self.cfg)
