@@ -99,7 +99,7 @@ class Task:
         """
         return get_from_register(Meter, self.config.meter.name)
 
-    def _get_pipeline(self) -> list(Pipeline):
+    def _get_pipelines(self) -> list[Pipeline]:
         """
         Initialize the augment for this task. This must be implemented by child
         tasks.
