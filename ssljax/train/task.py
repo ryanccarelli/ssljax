@@ -68,7 +68,6 @@ class Task:
 
         Returns (Loss): The loss to use for the task.
         """
-        print_registry()
         return get_from_register(Loss, self.config.loss)
 
     def _get_optimizer(self) -> Optimizer:
@@ -79,7 +78,7 @@ class Task:
         """
         return get_from_register(Optimizer, self.config.optimizer.name)
 
-    def _get_schedulers(self) -> dict(Scheduler):
+    def _get_schedulers(self) -> dict[Scheduler]:
         """
         Initialize the scheduler. This must be implemented by child tasks.
 
