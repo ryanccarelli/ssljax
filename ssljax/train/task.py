@@ -1,16 +1,16 @@
 # similar to https://github.com/facebookresearch/vissl/blob/master/vissl/trainer/train_task.py
 import logging
 
+from ssljax.augment.pipeline.pipeline import Pipeline
 # from ssljax.augment.base import Pipeline
 from ssljax.config import Config
 from ssljax.core.utils import prepare_environment
+from ssljax.core.utils.register import get_from_register, print_registry
 from ssljax.data import Dataloader
 from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
 from ssljax.train import Meter, Scheduler, SSLTrainer, Trainer
-from ssljax.core.utils.register import get_from_register, print_registry
-from ssljax.augment.pipeline.pipeline import Pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class Task:
         - model
         - loss
         - optimizer
-        - scheduler
+        - schedulers
         - meter
         - pipeline
         - dataloader
@@ -73,19 +73,24 @@ class Task:
 
     def _get_optimizer(self) -> Optimizer:
         """
-        Initialize the optimizer. This must be implemented by child tasks.
+        Initialize optimizer.
 
-        Returns (Optimizer): The optimizer to use for the task.
+        Returns ([Optimizer]): The optimizers to use for the task.
         """
         return get_from_register(Optimizer, self.config.optimizer.name)
 
-    def _get_scheduler(self) -> Scheduler:
+    def _get_schedulers(self) -> Scheduler:
         """
         Initialize the scheduler. This must be implemented by child tasks.
 
         Returns (Scheduler): The scheduler to use for the task.
         """
-        return get_from_register(Scheduler, self.config.scheduler.name)
+        schedulers = {}
+        for scheduler_key, scheduler_params in self.config.schedulers.items()
+            scheduler = get_from_register(Scheduler, scheduler_params.name)(scheduler_params.params)
+            schedulers[scheduler_key] = scheduler
+
+        return schedulers
 
     def _get_meter(self) -> Meter:
         """
