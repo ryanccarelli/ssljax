@@ -75,11 +75,11 @@ class Task:
         """
         Initialize optimizer.
 
-        Returns ([Optimizer]): The optimizers to use for the task.
+        Returns (Optimizer): The optimizers to use for the task.
         """
         return get_from_register(Optimizer, self.config.optimizer.name)
 
-    def _get_schedulers(self) -> Scheduler:
+    def _get_schedulers(self) -> dict(Scheduler):
         """
         Initialize the scheduler. This must be implemented by child tasks.
 
@@ -100,7 +100,7 @@ class Task:
         """
         return get_from_register(Meter, self.config.meter.name)
 
-    def _get_pipeline(self) -> None:
+    def _get_pipeline(self) -> list(Pipeline):
         """
         Initialize the augment for this task. This must be implemented by child
         tasks.
