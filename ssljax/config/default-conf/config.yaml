@@ -27,11 +27,12 @@ optimizer:
     learning_rate: 0.001
     decay_rate: 1.0
 
-scheduler: 
-  name: cosine_decay
-  params:
-    init_value: 0.01
-    decay_steps: 1000
+schedulers:
+  0:
+    name: cosine_decay
+    params:
+      init_value: 0.01
+      decay_steps: 1000
 
 meter:
   name: SSLMeter

@@ -41,9 +41,9 @@ class Task:
         self.model = self._get_model()
         self.loss = self._get_loss()
         self.optimizer = self._get_optimizer()
-        self.scheduler = self._get_scheduler()
+        self.schedulers = self._get_schedulers()
         self.meter = self._get_meter()
-        self.pipelines = self._get_pipeline()
+        self.pipelines = self._get_pipelines()
         self.dataloader = self._get_dataloader()
 
     def _get_trainer(self) -> Trainer:
@@ -86,8 +86,8 @@ class Task:
         Returns (Scheduler): The scheduler to use for the task.
         """
         schedulers = {}
-        for scheduler_key, scheduler_params in self.config.schedulers.items()
-            scheduler = get_from_register(Scheduler, scheduler_params.name)(scheduler_params.params)
+        for scheduler_key, scheduler_params in self.config.schedulers.items():
+            scheduler = get_from_register(Scheduler, scheduler_params.name)(**scheduler_params.params)
             schedulers[scheduler_key] = scheduler
 
         return schedulers
