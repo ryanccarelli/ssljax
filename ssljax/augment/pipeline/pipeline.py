@@ -16,6 +16,7 @@ class Pipeline(Augmentation):
     """
 
     def __init__(self, augmentation_distributions, rng=False):
+        print("aaa", augmentation_distributions)
         assert all([isinstance(t, AugmentationDistribution) for t in augmentation_distributions]), (
             f"All elements in input list must be of"
             f" type ssljax.augment.AugmentationDistribution"
