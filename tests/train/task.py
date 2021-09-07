@@ -1,14 +1,17 @@
 import parameterized
 import pytest
 from ssljax.train.task import Task
+from ssljax.train.ssltrainer import SSLTrainer
+from ssljax.losses import l2_normalize
+from ssljax.train.scheduler.scheduler import cosine_decay_schedule
+from ssljax.train.metrics.meter import SSLMeter
 
 
-class TaskTest:
-    def setUp(self, cputestconfig):
-        super().setUp()
-        # create a cputestconfig
-        self.cfg = cputestconfig
-
-    def test_init(self):
-        # declare the most minimal task
-        task = Task(self.cfg)
+def test_init(cputestconfig):
+    task = Task(cputestconfig)
+    assert task.trainer == SSLTrainer
+    assert task.model == SSLModel
+    assert task.loss == l2_normalize
+    assert task.optimizer == [sgd]
+    assert task.scheduler == [cosine_decay_schedule]
+    assert task.meter == SSLMeter

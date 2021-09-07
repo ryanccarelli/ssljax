@@ -1,0 +1,47 @@
+env:
+  seed: 1337
+  numpy_seed: 1337
+  jax_seed: 1337
+
+trainer:
+  name: SSLTrainer
+
+model:
+  name: SSLModel
+  branches:
+  0:
+    name: CPUOnlineBranch
+    params: {}
+  1:
+    name: CPUTargetBranch
+    params: {}
+
+
+loss: l2_normalize
+
+optimizer:
+  name: sgd
+  params: {}
+
+scheduler:
+  0:
+    name: cosine_decay
+    params:
+      init_value: 0.01
+      decay_steps: 1000
+
+meter:
+  name: SSLMeter
+
+pipeline:
+  branches:
+    0:
+      name: CPUPipeline
+      params: {}
+    1:
+      name: CPUPipeline
+      params: {}
+
+dataloader:
+  name: mnist
+  params: {}
