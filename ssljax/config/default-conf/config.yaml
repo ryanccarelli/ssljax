@@ -39,11 +39,11 @@ meter:
 pipeline:
   branches:
     0:
-      name: "ByolOnlinePipeline"
-      params:
+      name: "BYOLOnlinePipeline"
+      params: {}
     1:
-      name: "ByolTargetPipeline"
-      params:
+      name: "BYOLTargetPipeline"
+      params: {}
 
 dataloader:
   name: a 

@@ -108,8 +108,10 @@ class Task:
         Returns (Pipeline): The augment to use for this task.
         """
         pipelines = []
+        print("printing registry")
+        print_registry()
         for pipeline_idx, pipeline_params in self.config.pipeline.branches.items():
-            pipeline = get_from_register(Pipeline, pipeline_params.name)(pipeline_params.params)
+            pipeline = get_from_register(Pipeline, pipeline_params.name)(**pipeline_params.params)
             pipelines.append(pipeline)
 
         return pipelines
