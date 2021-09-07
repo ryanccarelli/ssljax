@@ -1,8 +1,8 @@
 # similar to https://github.com/facebookresearch/vissl/blob/master/vissl/trainer/train_task.py
 import logging
+from typing import Dict, List
 
 from ssljax.augment.pipeline.pipeline import Pipeline
-# from ssljax.augment.base import Pipeline
 from ssljax.config import Config
 from ssljax.core.utils import prepare_environment
 from ssljax.core.utils.register import get_from_register, print_registry
@@ -78,7 +78,7 @@ class Task:
         """
         return get_from_register(Optimizer, self.config.optimizer.name)
 
-    def _get_schedulers(self) -> dict[Scheduler]:
+    def _get_schedulers(self) -> Dict[str, Scheduler]:
         """
         Initialize the scheduler. This must be implemented by child tasks.
 
@@ -99,7 +99,7 @@ class Task:
         """
         return get_from_register(Meter, self.config.meter.name)
 
-    def _get_pipelines(self) -> list[Pipeline]:
+    def _get_pipelines(self) -> List[Pipeline]:
         """
         Initialize the augment for this task. This must be implemented by child
         tasks.

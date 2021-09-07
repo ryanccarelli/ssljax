@@ -8,8 +8,7 @@ from ssljax.augment.augmentation.augmentation import AugmentationDistribution, C
 from ssljax.core.utils import register
 
 
-# TODO: clip is followed by stop_grad
-byolaugmentations = collections.OrderedDict({0: [
+byoltargetaugmentations = [
         RandomFlip(prob=1.0),
         ColorTransform(
             prob=1.0,
@@ -29,8 +28,8 @@ byolaugmentations = collections.OrderedDict({0: [
             sigma_max=2.0,
         ),
         Clip(0,1),
-    ],
-    1: [
+    ]
+byolonlineaugmentations = [
         RandomFlip(prob=1.0),
         ColorTransform(
             prob=1.0,
@@ -52,9 +51,8 @@ byolaugmentations = collections.OrderedDict({0: [
         Solarize(prob=0.2, threshold=0.5),
         Clip(0,1),
     ]
-})
-
-byolaugmentationdist = [AugmentationDistribution(x) for x in byolaugmentations]
+byolonlineaugmentations = [AugmentationDistribution(x) for x in byolonlineaugmentations]
+byoltargetaugmentations = [AugmentationDistribution(x) for x in byoltargetaugmentations]
 
 
 
@@ -81,7 +79,7 @@ class BYOLOnlinePipeline(Pipeline):
     """
 
     def __init__(self):
-        super().__init__(byolaugmentationdist[0])
+        super().__init__(byolonlineaugmentations)
 
 
 @register(Pipeline, "BYOLTargetPipeline")
@@ -108,4 +106,4 @@ class BYOLTargetPipeline(Pipeline):
     """
 
     def __init__(self):
-        super().__init__(byolaugmentationdist[1])
+        super().__init__(byoltargetaugmentations)
