@@ -36,12 +36,10 @@ class SSLModel(Model):
     """
 
     def setup(self, config):
-        # branch implements optax.multi_transform
-        self.branches = map(lambda branch: get_from_register(Branch, branch), config.branches)
-        assert all(
-            (isinstance(x, Branch) for x in self.branches)
-        ), "self.branches must be a list of branches"
-
+        self.branches = []
+        for branch_idx, branch_params in config.model.branches.items():
+            branch = get_from_register(Branch, branch_params.name)(branch_params.params)
+            self.branches.append(branch)
 
     def __call__(self, x):
         """

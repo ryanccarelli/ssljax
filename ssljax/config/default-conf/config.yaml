@@ -10,7 +10,16 @@ loss: l2_normalize
 
 model:
   name: SSLModel
-  branches: ["ByolOnlineBranch", "ByolTargetBranch"]
+  shared: [(0, 1)]
+  branches:
+    0:
+      name: "ByolOnlineBranch"
+      params:
+        model: "resnet50"
+    1:
+      name: "ByolTargetBranch"
+      params:
+        model: "mlp"
 
 optimizer:
   name: byol_optimizer
@@ -27,10 +36,14 @@ scheduler:
 meter:
   name: SSLMeter
 
-
 pipeline:
-  name: a 
-  params: b
+  branches:
+    0:
+      name: "ByolOnlinePipeline"
+      params:
+    1:
+      name: "ByolTargetPipeline"
+      params:
 
 dataloader:
   name: a 

@@ -43,7 +43,7 @@ class Task:
         self.optimizer = self._get_optimizer()
         self.scheduler = self._get_scheduler()
         self.meter = self._get_meter()
-        self.pipeline = self._get_pipeline()
+        self.pipelines = self._get_pipeline()
         self.dataloader = self._get_dataloader()
 
     def _get_trainer(self) -> Trainer:
@@ -102,7 +102,12 @@ class Task:
 
         Returns (Pipeline): The augment to use for this task.
         """
-        return get_from_register(Pipeline, self.config.pipeline)
+        pipelines = []
+        for pipeline_idx, pipeline_params in self.config.pipeline.branches.items():
+            pipeline = get_from_register(Pipeline, pipeline_params.name)(pipeline_params.params)
+            pipelines.append(pipeline)
+
+        return pipelines
 
     def _get_dataloader(self) -> Dataloader:
         """

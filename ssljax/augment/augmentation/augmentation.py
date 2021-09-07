@@ -87,7 +87,7 @@ class RandomGaussianBlur(Augmentation):
             sigma_min,
             sigma_max,
     ):
-        super().__init__(self, prob)
+        super().__init__(prob)
         self.kernel_size = kernel_size
         self.padding = padding
         self.sigma_min = sigma_min
@@ -188,7 +188,8 @@ class ColorTransform(Augmentation):
             apply_prob=1.0,
             shuffle=True,
     ):
-        super().__init__(self, prob)
+        print("prob", prob)
+        super().__init__(prob)
         self.brightness = brightness
         self.contrast = contrast
         self.saturation = saturation
@@ -313,7 +314,7 @@ class Solarize(Augmentation):
     """
 
     def __init__(self, prob=1.0, threshold=0.5):
-        super().__init__(self, prob)
+        super().__init__(prob)
         self.threshold = threshold
 
     def __call__(self, x, rng):
