@@ -1,6 +1,9 @@
 import pytest
+from ssljax.train.task import Task
 
-def test_ssltrainer():
-    task = Task(cputestconfig)
-    trainer = task.trainer
-    trainer.train()
+
+class TestTrainer:
+    def test_train(cputestconfig):
+        task = Task(cputestconfig)
+        trainer = task.trainer
+        trainer.train()

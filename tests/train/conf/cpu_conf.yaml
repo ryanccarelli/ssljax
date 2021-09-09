@@ -44,4 +44,5 @@ pipeline:
 
 dataloader:
   name: mnist
-  params: {}
+  params:
+    batch_size: 32
