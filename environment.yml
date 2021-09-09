@@ -26,3 +26,5 @@ dependencies:
         - base58
         - dill
         - overrides
+        - hydra-core
+        - torchvision
