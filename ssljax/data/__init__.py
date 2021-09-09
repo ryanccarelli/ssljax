@@ -1,1 +1,1 @@
-from ssljax.data.dataloader import Dataloader
+from ssljax.data.dataloader import DataLoader

@@ -6,7 +6,7 @@ from ssljax.augment.pipeline.pipeline import Pipeline
 from ssljax.config import Config
 from ssljax.core.utils import prepare_environment
 from ssljax.core.utils.register import get_from_register, print_registry
-from ssljax.data import Dataloader
+from ssljax.data import DataLoader
 from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
@@ -115,7 +115,7 @@ class Task:
 
         return pipelines
 
-    def _get_dataloader(self) -> Dataloader:
+    def _get_dataloader(self) -> DataLoader:
         """
         Initialize the dataloader. This must be implemented by child tasks.
 
