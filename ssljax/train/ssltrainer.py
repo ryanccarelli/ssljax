@@ -11,9 +11,10 @@ from flax import jax_utils
 from flax.training.train_state import TrainState
 from jax import random
 from optax._src.base import GradientTransformation
+from ssljax.core.utils import register
 from ssljax.optimizers.base import ParameterTransformation
 from ssljax.train import Trainer
-from ssljax.core.utils import register
+
 
 @register(Trainer, "SSLTrainer")
 class SSLTrainer(Trainer):
@@ -94,13 +95,13 @@ class SSLTrainer(Trainer):
     def evalstep(self):
         raise NotImplementedError
 
-    @jax.pmap
+    # TODO: working pmap
     def initialize(self, rng):
         # setup devices
         platform = jax.local_devices()[0].platform
         # set model_dtype
         model_dtype = jnp.float32
-        if self.task.config.half_precision:
+        if self.task.config.env.half_precision:
             if platform == "tpu":
                 model_dtype = jnp.bfloat16
             else:
@@ -108,14 +109,18 @@ class SSLTrainer(Trainer):
         else:
             model_dtype = jnp.float32
         # init training state
-        if self.config.pop("load_from_checkpoint"):
+        if self.task.config.env.checkpoint:
             params, state = self._load_from_checkpoint(
                 self.task.config.load_from_checkpoint
             )
         else:
             # init model
             init_data = jnp.ones(
-                (self.task.config.batch_size, self.task.config.input_shape), model_dtype
+                (
+                    self.task.config.dataloader.params.batch_size,
+                    self.task.config.env.input_shape,
+                ),
+                model_dtype,
             )
             params = self.task.model.init(rng, init_data, is_training=True)
 
@@ -127,8 +132,3 @@ class SSLTrainer(Trainer):
             states = map(self.task.optimizers, init_fn)
 
             return params, states
-
-
-if __name__ == "__main__":
-    test = SSLTrainer(None, None)
-    print(test)
