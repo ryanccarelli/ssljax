@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 logger.error(f"{__name__}: THESE ARE PLACEHOLDERS!!")
 
 
-class NumpyLoader(data.DataLoader):
+class DataLoader(data.DataLoader):
     """
     SSLJax enforces Pytorch dataloaders inheriting from NumpyLoader.
     NumpyLoader implements collate for numpy arrays.
@@ -63,7 +63,7 @@ class FlattenAndCast:
 # packaged dataloaders here
 
 
-@register(NumpyLoader, "MNIST")
+@register(DataLoader, "mnist")
 def MNISTLoader(batch_size, **kwargs):
     mnist_dataset = MNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
     return NumpyLoader(mnist_dataset, batch_size=batch_size, num_workers=0, **kwargs)
