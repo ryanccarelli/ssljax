@@ -9,8 +9,8 @@ from ssljax.core.utils import register
 
 @pytest.fixture
 def cputestconfig():
-    initialize(config_path="../train/conf/cpu_conf")
-    cfg = compose(config_name="config")
+    initialize(config_path="../train/conf")
+    cfg = compose(config_name="cpu_conf.yaml")
     return cfg
 
 

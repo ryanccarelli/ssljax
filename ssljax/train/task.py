@@ -121,4 +121,4 @@ class Task:
 
         Returns (Dataloader): The dataloader to use for the task.
         """
-        return get_from_register(self.config.dataloader)
+        return get_from_register(DataLoader, self.config.dataloader.name)(**self.config.dataloader.params)

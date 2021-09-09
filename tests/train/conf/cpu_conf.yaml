@@ -23,7 +23,7 @@ optimizer:
   name: sgd
   params: {}
 
-scheduler:
+schedulers:
   0:
     name: cosine_decay
     params:

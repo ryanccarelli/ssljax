@@ -8,8 +8,6 @@ from torchvision.datasets import MNIST
 
 logger = logging.getLogger(__name__)
 
-logger.error(f"{__name__}: THESE ARE PLACEHOLDERS!!")
-
 
 class DataLoader(data.DataLoader):
     """
@@ -66,4 +64,4 @@ class FlattenAndCast:
 @register(DataLoader, "mnist")
 def MNISTLoader(batch_size, **kwargs):
     mnist_dataset = MNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
-    return NumpyLoader(mnist_dataset, batch_size=batch_size, num_workers=0, **kwargs)
+    return DataLoader(mnist_dataset, batch_size=batch_size, num_workers=0, **kwargs)
