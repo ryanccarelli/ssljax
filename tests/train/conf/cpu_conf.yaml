@@ -37,7 +37,7 @@ schedulers:
 meter:
   name: SSLMeter
 
-pipeline:
+pipelines:
   branches:
     0:
       name: CPUPipeline

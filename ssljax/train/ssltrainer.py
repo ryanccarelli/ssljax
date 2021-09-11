@@ -33,22 +33,15 @@ class SSLTrainer(Trainer):
     def train(self):
         key, self.rng = random.split(self.rng)
         params, states = self.initialize(key)
-        for data, _ in iter(self.task.dataset):
-            train_data = jax.device_put(data)
-            params, states = self.epoch(train_data, states)
+        params, states = self.epoch(params, states)
 
-    def epoch(self, train_data, params, states):
+    def epoch(self, params, states):
         # TODO: should we use dataloaders
-        train_data_size = len(train_data)
-        steps_per_epoch = train_data_size // self.task.batch_size
-        rng, self.rng = random.split(self.rng)
-        perms = jax.random.permutation(rng, train_data_size)
-        perms = perms[: steps_per_epoch * self.task.batch_size]
-        perms = perms.reshape((steps_per_epoch, self.task.batch_size))
-        for perm in perms:
-            batch = {k: v[perm, ...] for k, v in train_data.items()}
+        for data, _ in iter(self.task.dataloader):
+            batch = jax.device_put(data)
             batch = jax_utils.replicate(batch)
-            batch = self.task.augment(batch)
+            print(self.task.pipelines)
+            batch = self.task.pipelines(batch)
             params, states = self.step(batch, params, states)
         # TODO: meter must implement distributed version
         # batch_metrics = jax.tree_multimap(lambda *xs: np.array(xs), *batch_metrics)
@@ -125,11 +118,6 @@ class SSLTrainer(Trainer):
             model = self.task.model(config=self.task.config)
             params = model.init(rng, init_data)
 
-            # init optimizers
-            def init_fn(op, params=params):
-                """Initialize an optax optimizer"""
-                return op.init(params)
-
-            states = map(self.task.optimizers, init_fn)
+            states = map(lambda opt: opt.init(params), self.task.optimizers)
 
             return params, states
