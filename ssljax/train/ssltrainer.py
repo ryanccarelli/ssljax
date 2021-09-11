@@ -118,11 +118,10 @@ class SSLTrainer(Trainer):
             init_shape = [self.task.config.dataloader.params.batch_size] + list(
                 eval(self.task.config.env.input_shape)
             )
-            init_data = jnp.ones(
-                tuple(init_shape),
-                model_dtype,
-            )
-            params = self.task.model(self.task.config).init(jnp.array(rng), init_data)
+            init_data = jnp.ones(tuple(init_shape), model_dtype,)
+
+            model = self.task.model(self.task.config)
+            params = model.init(rng, init_data)
 
             # init optimizers
             def init_fn(op, params=params):
