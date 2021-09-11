@@ -41,7 +41,7 @@ class AugmentationDistribution:
 
     def sample(self, rng):
         key, subkey = jax.random.split(rng)
-        sampledIndex = jax.random.choice(subkey, a=len(self.augmentations), p=[aug.prob for aug in self.augmentations])
+        sampledIndex = jax.random.choice(subkey, a=len(self.augmentations), p=jnp.array([aug.prob for aug in self.augmentations]))
         return self.augmentations[sampledIndex]
 
 
