@@ -4,7 +4,6 @@ env:
   jax_seed: 1337
   half_precision: False
   checkpoint: False
-  input_shape: (28, 28)
 
 trainer:
   name: SSLTrainer
@@ -49,3 +48,4 @@ dataloader:
   name: mnist
   params:
     batch_size: 32
+    input_shape: (28, 28, 1)

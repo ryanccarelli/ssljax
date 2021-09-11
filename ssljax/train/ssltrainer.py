@@ -15,6 +15,7 @@ from ssljax.core.utils import register
 from ssljax.optimizers.base import ParameterTransformation
 from ssljax.train import Trainer
 
+
 @register(Trainer, "SSLTrainer")
 class SSLTrainer(Trainer):
     """
@@ -115,10 +116,11 @@ class SSLTrainer(Trainer):
         else:
             # init model
             init_shape = [self.task.config.dataloader.params.batch_size] + list(
-                eval(self.task.config.env.input_shape)
+                eval(self.task.config.dataloader.params.input_shape)
             )
 
             init_data = jnp.ones(tuple(init_shape), model_dtype,)
+            print(init_data.shape)
 
             model = self.task.model(config=self.task.config)
             params = model.init(rng, init_data)

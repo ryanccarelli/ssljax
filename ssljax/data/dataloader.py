@@ -27,6 +27,7 @@ class DataLoader(data.DataLoader):
         drop_last=False,
         timeout=0,
         worker_init_fn=None,
+        **kwargs,
     ):
         super(self.__class__, self).__init__(
             dataset,
