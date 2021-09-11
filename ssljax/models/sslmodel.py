@@ -41,7 +41,6 @@ class SSLModel(Model):
 
     def setup(self):
         branches = []
-        print("ASDF", self.config.model)
         for branch_idx, branch_params in self.config.model.branches.items():
             branch = get_from_register(Branch, branch_params.name)(**branch_params.params)
             branches.append(branch)
