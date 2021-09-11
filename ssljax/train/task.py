@@ -86,7 +86,9 @@ class Task:
         """
         schedulers = {}
         for scheduler_key, scheduler_params in self.config.schedulers.items():
-            scheduler = get_from_register(Scheduler, scheduler_params.name)(**scheduler_params.params)
+            scheduler = get_from_register(Scheduler, scheduler_params.name)(
+                **scheduler_params.params
+            )
             schedulers[scheduler_key] = scheduler
 
         return schedulers
@@ -107,10 +109,10 @@ class Task:
         Returns (Pipeline): The augment to use for this task.
         """
         pipelines = []
-        print("printing registry")
-        print_registry()
         for pipeline_idx, pipeline_params in self.config.pipeline.branches.items():
-            pipeline = get_from_register(Pipeline, pipeline_params.name)(**pipeline_params.params)
+            pipeline = get_from_register(Pipeline, pipeline_params.name)(
+                **pipeline_params.params
+            )
             pipelines.append(pipeline)
 
         return pipelines
@@ -121,4 +123,6 @@ class Task:
 
         Returns (Dataloader): The dataloader to use for the task.
         """
-        return get_from_register(DataLoader, self.config.dataloader.name)(**self.config.dataloader.params)
+        return get_from_register(DataLoader, self.config.dataloader.name)(
+            **self.config.dataloader.params
+        )

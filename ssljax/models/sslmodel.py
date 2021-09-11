@@ -13,6 +13,7 @@ both ema of bodies and bodies with shared parameters
 
 """
 import collections
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -22,7 +23,9 @@ from ssljax.core.utils.register import get_from_register, register
 from ssljax.models.branch.branch import Branch
 from ssljax.models.model import Model
 
+
 @register(Model, "SSLModel")
+@dataclass
 class SSLModel(Model):
     """
     Base class implementing self-supervised model.
@@ -32,7 +35,7 @@ class SSLModel(Model):
     returning a list of branch outs.
 
     Args:
-        config (json/yaml?): model specification
+        config (ssljax.conf.config): model specification
     """
 
     def setup(self, config):
@@ -41,6 +44,7 @@ class SSLModel(Model):
             branch = get_from_register(Branch, branch_params.name)(branch_params.params)
             self.branches.append(branch)
 
+    @nn.compact
     def __call__(self, x):
         """
         Forward pass branches.
