@@ -6,14 +6,13 @@ import optax
 from optax._src import base
 from optax._src import utils as outils
 from optax._src.transform import EmaState, _bias_correction
-from ssljax.optimizers.base import ParameterTransformation, ParameterUpdateFn
-from ssljax.optimizers.optimizers import lars, Optimizer
 from ssljax.core.utils import register
+from ssljax.optimizers.base import ParameterTransformation, ParameterUpdateFn
+from ssljax.optimizers.optimizers import Optimizer, lars
 
 
-
-@register(Optimizer, "byol_optimizer")
-def byol_optimizer(
+@register(Optimizer, "byol_online_optimizer")
+def byol_online_optimizer(
     learning_rate,
     decay_rate,
     debias: bool = True,
@@ -40,13 +39,36 @@ def byol_optimizer(
         learning_rate: for lars
         decay_rate: for ema
     """
-    return [
-        optax.masked(
-            lars(learning_rate),
-            {"branch_0": False, "branch_1": True},
-        ),
-        byol_ema(decay_rate, debias, accumulator_dtype),
-    ]
+    return optax.masked(lars(learning_rate), {"branch_0": False, "branch_1": True})
+
+
+@register(Optimizer, "byol_target_optimizer")
+def byol_target_optimizer(
+    decay_rate,
+    debias: bool = True,
+    accumulator_dtype: Optional[Any] = None,
+    *args,
+    **kwargs,
+):
+    """
+    Dict of optimizers defining a BYOL experiment.
+    Online branch is updated by LARS.
+    Target branch is updated as EMA of online branch.
+
+    These must be called sequentially and not chained since
+    chained transforms must all return GradientTransform but
+    byol_ema outputs directly the new parameter setting.
+
+    The target network must see online parameters. This is why
+    optax.multi_transform will not work (if we assign branch_0
+    to byol_ema, it will not get access to branch_1 parameters).
+
+    Online branch is assumed to have params label "branch_0".
+    Target branch is assumed to have params label "branch_1".
+    Args:
+        decay_rate: for ema
+    """
+    return byol_ema(decay_rate, debias, accumulator_dtype)
 
 
 # We would like to update online params directly as an ema of target params.
@@ -56,9 +78,7 @@ def byol_optimizer(
 # state as in optax, but separate the use case where we deal with direct updates
 # rather than gradient updates.
 def byol_ema(
-    decay: float,
-    debias: bool = True,
-    accumulator_dtype: Optional[Any] = None,
+    decay: float, debias: bool = True, accumulator_dtype: Optional[Any] = None,
 ) -> ParameterTransformation:
     """
     Update target network as an exponential moving average of the online network.

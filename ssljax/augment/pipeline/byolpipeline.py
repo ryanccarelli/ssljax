@@ -51,8 +51,8 @@ byolonlineaugmentations = [
         Solarize(prob=0.2, threshold=0.5),
         Clip(0,1),
     ]
-byolonlineaugmentations = [AugmentationDistribution(x) for x in byolonlineaugmentations]
-byoltargetaugmentations = [AugmentationDistribution(x) for x in byoltargetaugmentations]
+byolonlineaugmentations = [AugmentationDistribution([x]) for x in byolonlineaugmentations]
+byoltargetaugmentations = [AugmentationDistribution([x]) for x in byoltargetaugmentations]
 
 
 

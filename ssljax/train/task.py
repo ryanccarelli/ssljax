@@ -77,7 +77,7 @@ class Task:
         Returns (Optimizer): The optimizers to use for the task.
         """
         optimizers = {}
-        for optimizer_key, optimizer_params in self.config.optimizers.items():
+        for optimizer_key, optimizer_params in self.config.optimizers.branches.items():
             optimizer = get_from_register(Optimizer, optimizer_params.name)(
                 **optimizer_params.params
             )
@@ -92,7 +92,7 @@ class Task:
         Returns (Scheduler): The scheduler to use for the task.
         """
         schedulers = {}
-        for scheduler_key, scheduler_params in self.config.schedulers.items():
+        for scheduler_key, scheduler_params in self.config.schedulers.branches.items():
             scheduler = get_from_register(Scheduler, scheduler_params.name)(
                 **scheduler_params.params
             )

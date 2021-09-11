@@ -40,11 +40,15 @@ class SSLTrainer(Trainer):
         for data, _ in iter(self.task.dataloader):
             batch = jax.device_put(data)
             batch = jax_utils.replicate(batch)
-            rngkeys = jax.random.split(self.rng, len(self.task.pipelines)+1)
+            rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
             self.rng = rngkeys[-1]
-            batch = list(map(lambda rng, pipeline:
-                             pipeline(batch, rng),
-                             rngkeys[:-1], self.task.pipelines))
+            batch = list(
+                map(
+                    lambda rng, pipeline: pipeline(batch, rng),
+                    rngkeys[:-1],
+                    self.task.pipelines,
+                )
+            )
             params, states = self.step(batch, params, states)
         # TODO: meter must implement distributed version
         # batch_metrics = jax.tree_multimap(lambda *xs: np.array(xs), *batch_metrics)
@@ -52,25 +56,16 @@ class SSLTrainer(Trainer):
         # self.task.meter.get_epoch_metrics()
         return params, states
 
-
     def step(self, batch, params, states):
         """
         Compute gradients, loss, accuracy per batch
         """
-        lr = None
-        decay = None
         step = states[0].count
         # TODO: correctly get step from the state
-        if self.task.scheduler.lr:
-            lr = self.task.scheduler.lr(step)
-        if self.task.scheduler.decay:
-            decay = self.task.scheduler.decay(step)
         grad_fn = jax.value_and_grad(self.task.loss)
         (aux), grad = grad_fn(params, batch)
         grads = jax.tree_map(lambda v: jax.lax.pmean(v, axis_name="batch"), grads)
-        opt = self.task.optimizers(lr, decay)
 
-        # TODO: shadow
         def update_fn(_opt, _grads, _state, _params):
             _update, _state = _opt.update(_grads, _state, _params)
             if isinstance(_opt, GradientTransformation):
@@ -79,7 +74,8 @@ class SSLTrainer(Trainer):
                 _params = _update
             return _params, _state
 
-        params, states = zip([update_fn(op, grads, states, params) for op in opt])
+        for idx, opt in enumerate(self.task.optimizers):
+            params, states[idx] = update_fn(opt, grads, states, params)
 
         # TODO: call meter (aux)
         return params, states
@@ -121,6 +117,8 @@ class SSLTrainer(Trainer):
             model = self.task.model(config=self.task.config)
             params = model.init(rng, init_data)
 
-            states = map(lambda opt: opt.init(params), self.task.optimizers)
+            states = list(
+                map(lambda opt: opt.init(params), self.task.optimizers.values())
+            )
 
             return params, states

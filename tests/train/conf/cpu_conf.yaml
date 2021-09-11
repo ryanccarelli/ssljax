@@ -22,17 +22,29 @@ model:
 loss: l2_normalize
 
 optimizers:
-  0:
-    name: sgd
-    params:
-      learning_rate: 0.01
+  branches:
+    0:
+      name: sgd
+      params:
+        learning_rate: 0.01
+    1:
+      name: sgd
+      params:
+        learning_rate: 0.01
 
 schedulers:
-  0:
-    name: cosine_decay
-    params:
-      init_value: 0.01
-      decay_steps: 1000
+  branches:
+    0:
+      name: cosine_decay
+      params:
+        init_value: 0.01
+        decay_steps: 1000
+    1:
+      name: cosine_decay
+      params:
+        init_value: 0.01
+        decay_steps: 1000
+
 
 meter:
   name: SSLMeter
