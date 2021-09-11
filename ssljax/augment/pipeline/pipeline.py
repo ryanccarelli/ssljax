@@ -17,7 +17,7 @@ class Pipeline(Augmentation):
 
     def __init__(self, augmentation_distributions):
         assert all([isinstance(t, AugmentationDistribution) for t in augmentation_distributions]), (
-            f"All elements in input list must be of"
+            f"all elements in input list must be of"
             f" type ssljax.augment.AugmentationDistribution"
         )
         self.pipeline = augmentation_distributions
@@ -49,6 +49,3 @@ class Pipeline(Augmentation):
             path (str): save path on disk
         """
         raise NotImplementedError
-
-
-# TODO: implement a class to sample augmentations

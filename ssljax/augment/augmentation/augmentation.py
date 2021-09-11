@@ -17,6 +17,7 @@ class Augmentation:
     """
 
     def __init__(self, prob=1.0):
+        assert isinstance(prob, float), "prob must be of type float"
         self.prob = prob
 
     def __repr__(self):
@@ -32,6 +33,10 @@ class AugmentationDistribution:
     """
 
     def __init__(self, augmentations):
+        assert all([isinstance(t, Augmentation) for t in augmentations]), (
+            f"All elements in input list must be of"
+            f" type ssljax.augment.Augmentation"
+        )
         self.augmentations = augmentations
 
     def sample(self, rng):
