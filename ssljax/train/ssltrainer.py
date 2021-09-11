@@ -40,8 +40,11 @@ class SSLTrainer(Trainer):
         for data, _ in iter(self.task.dataloader):
             batch = jax.device_put(data)
             batch = jax_utils.replicate(batch)
-            print(self.task.pipelines)
-            batch = self.task.pipelines(batch)
+            rngkeys = jax.random.split(self.rng, len(self.task.pipelines)+1)
+            self.rng = rngkeys[-1]
+            batch = list(map(lambda rng, pipeline:
+                             pipeline(batch, rng),
+                             rngkeys[:-1], self.task.pipelines))
             params, states = self.step(batch, params, states)
         # TODO: meter must implement distributed version
         # batch_metrics = jax.tree_multimap(lambda *xs: np.array(xs), *batch_metrics)
@@ -49,7 +52,7 @@ class SSLTrainer(Trainer):
         # self.task.meter.get_epoch_metrics()
         return params, states
 
-    @jax.pmap
+
     def step(self, batch, params, states):
         """
         Compute gradients, loss, accuracy per batch

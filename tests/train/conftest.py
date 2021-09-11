@@ -40,10 +40,10 @@ class Identity(Augmentation):
     """
     Map image by identity.
     """
-    def __call__(self, x):
+    def __call__(self, x, rng):
         return x
 
 @register(Pipeline, "CPUPipeline")
 class CPUPipeline(Pipeline):
     def __init__(self):
-        super().__init__([AugmentationDistribution(Identity())])
+        super().__init__([AugmentationDistribution([Identity()])])

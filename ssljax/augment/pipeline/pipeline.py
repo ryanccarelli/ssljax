@@ -15,13 +15,12 @@ class Pipeline(Augmentation):
         augmentations (list): sequence of AugmentationDistribution to be sampled in sequence
     """
 
-    def __init__(self, augmentation_distributions, rng=False):
+    def __init__(self, augmentation_distributions):
         assert all([isinstance(t, AugmentationDistribution) for t in augmentation_distributions]), (
             f"All elements in input list must be of"
             f" type ssljax.augment.AugmentationDistribution"
         )
         self.pipeline = augmentation_distributions
-        self.rng = rng
 
     def __len__(self):
         return len(self.pipeline)
@@ -33,11 +32,12 @@ class Pipeline(Augmentation):
         out += "])"
         return out
 
-    def __call__(self, x):
-        assert isinstance(x, jnp.array), f"argument of type {type(x)} must be __."
+    def __call__(self, x, rng):
+        # assert isinstance(x, jnp.array), f"argument of type {type(x)} must be __."
         for aug_distribution in self.pipeline:
-            rng, _ = jax.random.split(self.rng)
+            rng, _ = jax.random.split(rng)
             aug = aug_distribution.sample(rng)
+            print("TypeAug", type(aug))
             x = aug(x, rng)
         return x
 
