@@ -40,7 +40,7 @@ class Task:
         self.trainer = self._get_trainer()
         self.model = self._get_model()
         self.loss = self._get_loss()
-        self.optimizer = self._get_optimizer()
+        self.optimizers = self._get_optimizers()
         self.schedulers = self._get_schedulers()
         self.meter = self._get_meter()
         self.pipelines = self._get_pipelines()
@@ -70,13 +70,20 @@ class Task:
         """
         return get_from_register(Loss, self.config.loss)
 
-    def _get_optimizer(self) -> Optimizer:
+    def _get_optimizers(self) -> List[Optimizer]:
         """
         Initialize optimizer.
 
         Returns (Optimizer): The optimizers to use for the task.
         """
-        return get_from_register(Optimizer, self.config.optimizer.name)
+        optimizers = {}
+        for optimizer_key, optimizer_params in self.config.optimizers.items():
+            optimizer = get_from_register(Optimizer, optimizer_params.name)(
+                **optimizer_params.params
+            )
+            optimizers[optimizer_key] = optimizer
+
+        return optimizers
 
     def _get_schedulers(self) -> Dict[str, Scheduler]:
         """

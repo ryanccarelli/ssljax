@@ -21,9 +21,11 @@ model:
 
 loss: l2_normalize
 
-optimizer:
-  name: sgd
-  params: {}
+optimizers:
+  0:
+    name: sgd
+    params:
+      learning_rate: 0.01
 
 schedulers:
   0:
