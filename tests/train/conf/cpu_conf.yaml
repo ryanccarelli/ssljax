@@ -12,12 +12,12 @@ trainer:
 model:
   name: SSLModel
   branches:
-  0:
-    name: CPUOnlineBranch
-    params: {}
-  1:
-    name: CPUTargetBranch
-    params: {}
+    0:
+      name: CPUOnlineBranch
+      params: {}
+    1:
+      name: CPUTargetBranch
+      params: {}
 
 
 loss: l2_normalize
