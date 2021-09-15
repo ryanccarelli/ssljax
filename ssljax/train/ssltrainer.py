@@ -62,7 +62,10 @@ class SSLTrainer(Trainer):
         """
         step = states[0].count
         # TODO: correctly get step from the state
-        grad_fn = jax.value_and_grad(self.task.loss)
+        grad_fn = jax.value_and_grad(self.loss)
+        print("grad fn is: ", grad_fn)
+        print("params is: ", params)
+        print("batch is: ", batch)
         (aux), grad = grad_fn(params, batch)
         grads = jax.tree_map(lambda v: jax.lax.pmean(v, axis_name="batch"), grads)
 
@@ -80,10 +83,14 @@ class SSLTrainer(Trainer):
         # TODO: call meter (aux)
         return params, states
 
+    def loss(self, params, batch):
+        outs = self.model.apply({"params": params}, batch)
+        loss = self.task.loss(outs)
+        return loss
+
     def eval(self):
         raise NotImplementedError
 
-    @jax.pmap
     def evalstep(self):
         raise NotImplementedError
 
@@ -112,10 +119,9 @@ class SSLTrainer(Trainer):
             )
 
             init_data = jnp.ones(tuple(init_shape), model_dtype,)
-            print(init_data.shape)
 
-            model = self.task.model(config=self.task.config)
-            params = model.init(rng, init_data)
+            self.model = self.task.model(config=self.task.config)
+            params = self.model.init(rng, init_data)
 
             states = list(
                 map(lambda opt: opt.init(params), self.task.optimizers.values())

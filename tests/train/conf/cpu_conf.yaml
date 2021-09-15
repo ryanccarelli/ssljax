@@ -19,7 +19,7 @@ model:
       params: {}
 
 
-loss: l2_normalize
+loss: byol_regression_loss
 
 optimizers:
   branches:

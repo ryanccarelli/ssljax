@@ -18,11 +18,11 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
+from omegaconf import DictConfig
 from ssljax.augment import Augment
 from ssljax.core.utils.register import get_from_register, register
 from ssljax.models.branch.branch import Branch
 from ssljax.models.model import Model
-from omegaconf import DictConfig
 
 
 @register(Model, "SSLModel")
@@ -37,15 +37,19 @@ class SSLModel(Model):
     Args:
         config (ssljax.conf.config): model specification
     """
+
     config: DictConfig
 
     def setup(self):
         branches = []
         for branch_idx, branch_params in self.config.model.branches.items():
-            branch = get_from_register(Branch, branch_params.name)(**branch_params.params)
+            branch = get_from_register(Branch, branch_params.name)(
+                **branch_params.params
+            )
             branches.append(branch)
         self.branches = branches
 
+    @nn.compact
     def __call__(self, x):
         """
         Forward pass branches.
@@ -61,11 +65,7 @@ class SSLModel(Model):
             return _x
 
         # use enumerate
-        outs = map(
-            lambda a, b: executebranch(a, b),
-            x,
-            self.branches,
-        )
+        outs = map(lambda a, b: executebranch(a, b), x, self.branches,)
         return list(outs)
 
     def freeze_head(self):
