@@ -58,6 +58,7 @@ class SSLModel(Model):
             x(tuple(jnp.array)): each element of x represents
                 raw data mapped through a different augmentation.Pipeline
         """
+        print("x shape is:", x.shape)
         outs = []
         # implement as a map
         def executebranch(_x, branch):

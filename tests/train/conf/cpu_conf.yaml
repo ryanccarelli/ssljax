@@ -62,4 +62,4 @@ dataloader:
   name: mnist
   params:
     batch_size: 32
-    input_shape: (784, 1)
+    input_shape: (784,)

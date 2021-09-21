@@ -47,6 +47,8 @@ class SSLTrainer(Trainer):
                     self.task.pipelines,
                 )
             )
+            batch = jnp.stack(batch, axis=-1)
+            print("original batch is:", batch.shape)
             params, states = self.step(batch, params, states)
         # TODO: meter must implement distributed version
         # batch_metrics = jax.tree_multimap(lambda *xs: np.array(xs), *batch_metrics)
@@ -95,8 +97,9 @@ class SSLTrainer(Trainer):
         def get_initial_params(rng):
             init_shape = [self.task.config.dataloader.params.batch_size] + list(
                 eval(self.task.config.dataloader.params.input_shape)
-            )
+                ) + [len(self.task.config.model.branches)]
             init_data = jnp.ones(tuple(init_shape), model_dtype,)
+            print("init data shape is:", init_data.shape)
             params = self.model.init(rng, init_data)
             return params
 
