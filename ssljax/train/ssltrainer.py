@@ -31,8 +31,8 @@ class SSLTrainer(Trainer):
         self.rng = rng
 
     def train(self):
-        *keys, self.rng = random.split(self.rng, jax.device_count()+1)
-        params, states = self.initialize(keys)
+        key, self.rng = random.split(self.rng)
+        params, states = self.initialize(jax.random.split(key,jax.device_count()))
         params, states = self.epoch(params, states)
 
     def epoch(self, params, states):
@@ -93,6 +93,17 @@ class SSLTrainer(Trainer):
 
     # TODO: working pmap
     def initialize(self, rng):
+
+        @jax.pmap
+        def get_initial_params(rng):
+            init_shape = [self.task.config.dataloader.params.batch_size] + list(
+                eval(self.task.config.dataloader.params.input_shape)
+            )
+            init_data = jnp.ones(tuple(init_shape), model_dtype,)
+            params = self.model.init(rng, init_data)
+            return params
+
+
         # setup devices
         platform = jax.local_devices()[0].platform
         # set model_dtype
@@ -112,17 +123,11 @@ class SSLTrainer(Trainer):
         else:
             # init model
             self.model = self.task.model(config=self.task.config)
-            params = self.get_initial_params(rng)
+            params = get_initial_params(rng)
             states = list(
                 map(lambda opt: opt.init(params), self.task.optimizers.values())
             )
             return params, states
 
-    @jax.pmap
-    def get_initial_params(rng):
-        init_shape = [self.task.config.dataloader.params.batch_size] + list(
-            eval(self.task.config.dataloader.params.input_shape)
-        )
-        init_data = jnp.ones(tuple(init_shape), model_dtype,)
-        params = self.model.init(rng, init_data)["params"]
-        return params
+    
+    
