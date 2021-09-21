@@ -62,11 +62,8 @@ class SSLTrainer(Trainer):
         step = states[0].count
         # TODO: correctly get step from the state
         grad_fn = jax.value_and_grad(self.loss)
-        print("grad fn is: ", grad_fn)
-        print("params is: ", params)
-        print("batch is: ", batch)
         (aux), grad = grad_fn(params, batch)
-        grads = jax.tree_map(lambda v: jax.lax.pmean(v, axis_name="batch"), grads)
+        grads = jax.tree_map(lambda v: jax.lax.pmean(v, axis_name="batch"), grad)
 
         def update_fn(_opt, _grads, _state, _params):
             _update, _state = _opt.update(_grads, _state, _params)
@@ -85,8 +82,7 @@ class SSLTrainer(Trainer):
     def loss(self, params, batch):
         outs = self.model.apply(params, batch)
         loss = self.task.loss(*outs)
-        print(loss)
-        loss = jax.lax.pmean(loss, axis_name="batch")
+        loss = jnp.mean(loss)
         return loss
 
     def eval(self):
