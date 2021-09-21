@@ -84,7 +84,9 @@ class SSLTrainer(Trainer):
         return params, states
 
     def loss(self, params, batch):
-        outs = self.model.apply({"params": params}, batch)
+        print("Params in loss", params)
+        outs = self.model.apply(params, batch)
+        print("outs in loss", outs)
         loss = self.task.loss(outs)
         return loss
 

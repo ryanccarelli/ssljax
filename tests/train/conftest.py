@@ -19,7 +19,6 @@ class CPUOnlineBranch(Branch):
     def setup(self):
         self.linear = nn.Dense(1)
 
-    @nn.compact
     def __call__(self, x):
         x = self.linear(x)
         x = self.linear(x)
@@ -31,7 +30,7 @@ class CPUTargetBranch(Branch):
     def setup(self):
         self.linear = nn.Dense(1)
 
-    @nn.compact
+
     def __call__(self, x):
         x = self.linear(x)
         return x
