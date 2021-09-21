@@ -85,6 +85,8 @@ class SSLTrainer(Trainer):
     def loss(self, params, batch):
         outs = self.model.apply(params, batch)
         loss = self.task.loss(*outs)
+        print(loss)
+        loss = jax.lax.pmean(loss, axis_name="batch")
         return loss
 
     def eval(self):
