@@ -36,7 +36,6 @@ class SSLTrainer(Trainer):
         params, states = self.epoch(params, states)
 
     def epoch(self, params, states):
-        # TODO: should we use dataloaders
         for data, _ in iter(self.task.dataloader):
             batch = jax.device_put(data)
             rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
@@ -91,9 +90,7 @@ class SSLTrainer(Trainer):
     def evalstep(self):
         raise NotImplementedError
 
-    # TODO: working pmap
     def initialize(self, rng):
-
         @jax.pmap
         def get_initial_params(rng):
             init_shape = [self.task.config.dataloader.params.batch_size] + list(
@@ -102,7 +99,6 @@ class SSLTrainer(Trainer):
             init_data = jnp.ones(tuple(init_shape), model_dtype,)
             params = self.model.init(rng, init_data)
             return params
-
 
         # setup devices
         platform = jax.local_devices()[0].platform
@@ -128,6 +124,3 @@ class SSLTrainer(Trainer):
                 map(lambda opt: opt.init(params), self.task.optimizers.values())
             )
             return params, states
-
-    
-    
