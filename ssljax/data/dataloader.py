@@ -56,7 +56,7 @@ def numpy_collate(batch):
 
 class FlattenAndCast:
     def __call__(self, pic):
-        return np.ravel(np.array(pic, dtype=jnp.float32))
+        return np.expand_dims(np.ravel(np.array(pic, dtype=jnp.float32)), axis=-1)
 
 
 # packaged dataloaders here

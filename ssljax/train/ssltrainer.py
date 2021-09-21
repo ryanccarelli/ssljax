@@ -39,7 +39,6 @@ class SSLTrainer(Trainer):
         # TODO: should we use dataloaders
         for data, _ in iter(self.task.dataloader):
             batch = jax.device_put(data)
-            batch = jax_utils.replicate(batch)
             rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
             self.rng = rngkeys[-1]
             batch = list(
@@ -84,7 +83,6 @@ class SSLTrainer(Trainer):
         return params, states
 
     def loss(self, params, batch):
-        print("Params in loss", params)
         outs = self.model.apply(params, batch)
         print("outs in loss", outs)
         loss = self.task.loss(outs)

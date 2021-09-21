@@ -49,7 +49,7 @@ class SSLModel(Model):
             branches.append(branch)
         self.branches = branches
 
-    @nn.compact
+
     def __call__(self, x):
         """
         Forward pass branches.
