@@ -1,10 +1,11 @@
 import flax.linen as nn
 import pytest
 from hydra import compose, initialize
-from ssljax.models.branch.branch import Branch
+from ssljax.augment.augmentation.augmentation import (Augmentation,
+                                                      AugmentationDistribution)
 from ssljax.augment.pipeline.pipeline import Pipeline
-from ssljax.augment.augmentation.augmentation import Augmentation, AugmentationDistribution
 from ssljax.core.utils import register
+from ssljax.models.branch.branch import Branch
 
 
 @pytest.fixture
@@ -20,8 +21,11 @@ class CPUOnlineBranch(Branch):
         self.linear = nn.Dense(1)
 
     def __call__(self, x):
+        print("target1", x.shape)
         x = self.linear(x)
+        print("target2", x.shape)
         x = self.linear(x)
+        print("target3", x.shape)
         return x
 
 
@@ -30,17 +34,19 @@ class CPUTargetBranch(Branch):
     def setup(self):
         self.linear = nn.Dense(1)
 
-
     def __call__(self, x):
         x = self.linear(x)
         return x
+
 
 class Identity(Augmentation):
     """
     Map image by identity.
     """
+
     def __call__(self, x, rng):
         return x
+
 
 @register(Pipeline, "CPUPipeline")
 class CPUPipeline(Pipeline):

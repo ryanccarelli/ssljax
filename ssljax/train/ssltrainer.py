@@ -32,7 +32,7 @@ class SSLTrainer(Trainer):
 
     def train(self):
         key, self.rng = random.split(self.rng)
-        params, states = self.initialize(jax.random.split(key,jax.device_count()))
+        params, states = self.initialize(jax.random.split(key, jax.device_count()))
         params, states = self.epoch(params, states)
 
     def epoch(self, params, states):
@@ -95,9 +95,11 @@ class SSLTrainer(Trainer):
     def initialize(self, rng):
         @jax.pmap
         def get_initial_params(rng):
-            init_shape = [self.task.config.dataloader.params.batch_size] + list(
-                eval(self.task.config.dataloader.params.input_shape)
-                ) + [len(self.task.config.model.branches)]
+            init_shape = (
+                [self.task.config.dataloader.params.batch_size]
+                + list(eval(self.task.config.dataloader.params.input_shape))
+                + [len(self.task.config.model.branches)]
+            )
             init_data = jnp.ones(tuple(init_shape), model_dtype,)
             print("init data shape is:", init_data.shape)
             params = self.model.init(rng, init_data)
