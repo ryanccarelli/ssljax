@@ -49,7 +49,6 @@ class SSLModel(Model):
             branches.append(branch)
         self.branches = branches
 
-
     def __call__(self, x):
         """
         Forward pass branches.
@@ -58,16 +57,19 @@ class SSLModel(Model):
             x(tuple(jnp.array)): each element of x represents
                 raw data mapped through a different augmentation.Pipeline
         """
-        print("x shape is:", x.shape)
+        x = jnp.split(x, x.shape[-1], axis=-1)
+        # split x
         outs = []
-        # implement as a map
+
         def executebranch(_x, branch):
             _x = branch(_x)
             return _x
 
         # use enumerate
-        outs = map(lambda a, b: executebranch(a, b), x, self.branches,)
-        return list(outs)
+        for x, branch in zip(x, self.branches):
+            outs.append(executebranch(x, branch))
+        # outs = map(lambda a, b: executebranch(a, b), x, self.branches,)
+        return outs
 
     def freeze_head(self):
         raise NotImplementedError
