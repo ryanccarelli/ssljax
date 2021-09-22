@@ -57,18 +57,15 @@ class SSLModel(Model):
             x(tuple(jnp.array)): each element of x represents
                 raw data mapped through a different augmentation.Pipeline
         """
-        x = jnp.split(x, x.shape[-1], axis=-1)
-        # split x
         outs = []
+        x = jnp.split(x, x.shape[-1], axis=-1)
 
         def executebranch(_x, branch):
             _x = branch(_x)
             return _x
 
-        # use enumerate
         for x, branch in zip(x, self.branches):
             outs.append(executebranch(x, branch))
-        # outs = map(lambda a, b: executebranch(a, b), x, self.branches,)
         return outs
 
     def freeze_head(self):
