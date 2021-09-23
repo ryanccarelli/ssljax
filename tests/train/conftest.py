@@ -17,15 +17,13 @@ def cputestconfig():
 
 @register(Branch, "CPUOnlineBranch")
 class CPUOnlineBranch(Branch):
-    def setup(self):
-        self.linear = nn.Dense(1)
-
+    @nn.compact
     def __call__(self, x):
-        print("target1", x.shape)
-        x = self.linear(x)
-        print("target2", x.shape)
-        x = self.linear(x)
-        print("target3", x.shape)
+        print("online1", x.shape)
+        x = nn.Dense(1)(x)
+        print("online2", x.shape)
+        x = nn.Dense(1)(x)
+        print("online3", x.shape)
         return x
 
 
@@ -35,7 +33,9 @@ class CPUTargetBranch(Branch):
         self.linear = nn.Dense(1)
 
     def __call__(self, x):
+        print("target1", x.shape)
         x = self.linear(x)
+        print("target2", x.shape)
         return x
 
 
