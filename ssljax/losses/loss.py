@@ -16,12 +16,3 @@ class Loss:
     """
 
     pass
-
-
-losses = {
-    # "byol_regression": regression_loss,
-    # "byol_softmax_cross_entropy": byol_softmax_cross_entropy,
-}
-
-for name, func in losses.items():
-    register(Loss, func)

@@ -28,4 +28,4 @@ optimizers = {
 }
 
 for name, func in optimizers.items():
-    register(Optimizer, func)
+    register(Optimizer, name)(func)

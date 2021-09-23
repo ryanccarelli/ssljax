@@ -1,11 +1,14 @@
 from collections import OrderedDict
+import collections
 
 import jax
 import jax.numpy as jnp
 from ssljax.augment.pipeline.pipeline import Pipeline
+from ssljax.augment.augmentation.augmentation import AugmentationDistribution, Clip, ColorTransform, RandomFlip, RandomGaussianBlur, Solarize
+from ssljax.core.utils import register
 
-# TODO: clip is followed by stop_grad
-byolaugmentations = collections.OrderedDict({0: {[
+
+byoltargetaugmentations = [
         RandomFlip(prob=1.0),
         ColorTransform(
             prob=1.0,
@@ -19,13 +22,14 @@ byolaugmentations = collections.OrderedDict({0: {[
         ),
         RandomGaussianBlur(
             prob=1.0,
-            blur_divider=10.,
+            kernel_size=3,
+            padding=0,
             sigma_min=0.1,
             sigma_max=2.0,
         ),
         Clip(0,1),
-    ]},
-    1: {[
+    ]
+byolonlineaugmentations = [
         RandomFlip(prob=1.0),
         ColorTransform(
             prob=1.0,
@@ -39,16 +43,47 @@ byolaugmentations = collections.OrderedDict({0: {[
         ),
         RandomGaussianBlur(
             prob=0.1,
-            blur_divider=10.,
+            kernel_size=3,
+            padding=0,
             sigma_min=0.1,
             sigma_max=2.0,
         ),
         Solarize(prob=0.2, threshold=0.5),
         Clip(0,1),
-    ]}
-})
-byolaugmentationdist = [AugmentationDistribution(x) for x in byolaugmentations]
-class BYOLPipeline(Pipeline):
+    ]
+byolonlineaugmentations = [AugmentationDistribution([x]) for x in byolonlineaugmentations]
+byoltargetaugmentations = [AugmentationDistribution([x]) for x in byoltargetaugmentations]
+
+
+
+@register(Pipeline, "BYOLOnlinePipeline")
+class BYOLOnlinePipeline(Pipeline):
+    """
+    Augmentations for BYOL.
+    From 3.3 of https://arxiv.org/pdf/2006.07733.pdf
+    Transformations are:
+        - Random crop (p=1.0)
+        - Horizontal flip (0.5)
+        - Color jitter (0.8)
+        - Brightness (0.4)
+        - Contrast (0.4)
+        - Saturation (0.2)
+        - Hue (0.1)
+        - Color dropping (0.2)
+        - Gaussian blur (T=1.0, T'=0.1)
+        - Solarize (T=0.0, T'=0.2)
+    Dict of lists of augmentations indexed by view number.
+
+    Args:
+       augmentations(Dict[int: List[AugmentationDict]]): list of augmentations
+    """
+
+    def __init__(self):
+        super().__init__(byolonlineaugmentations)
+
+
+@register(Pipeline, "BYOLTargetPipeline")
+class BYOLTargetPipeline(Pipeline):
     """
     Augmentations for BYOL.
     From 3.3 of https://arxiv.org/pdf/2006.07733.pdf
@@ -70,5 +105,5 @@ class BYOLPipeline(Pipeline):
        view(int): which view (set of augmentations)
     """
 
-    def __init__(self, augmentations=byolaugmentationsdict, view):
-        super().__init__(augmentations[view])
+    def __init__(self):
+        super().__init__(byoltargetaugmentations)

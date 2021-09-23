@@ -13,16 +13,19 @@ both ema of bodies and bodies with shared parameters
 
 """
 import collections
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
+from omegaconf import DictConfig
 from ssljax.augment import Augment
-from ssljax.core.utils.register import get_from_register
+from ssljax.core.utils.register import get_from_register, register
 from ssljax.models.branch.branch import Branch
 from ssljax.models.model import Model
 
 
+@register(Model, "SSLModel")
 class SSLModel(Model):
     """
     Base class implementing self-supervised model.
@@ -32,17 +35,20 @@ class SSLModel(Model):
     returning a list of branch outs.
 
     Args:
-        config (json/yaml?): model specification
+        config (ssljax.conf.config): model specification
     """
 
-    def setup(self, config):
-        # branch implements optax.multi_transform
-        self.branches = get_from_register(config.branches)
-        assert all(
-            (isinstance(x, Branch) for x in self.branches)
-        ), "self.branches must be a list of branches"
+    config: DictConfig
 
-    @nn.compact
+    def setup(self):
+        branches = []
+        for branch_idx, branch_params in self.config.model.branches.items():
+            branch = get_from_register(Branch, branch_params.name)(
+                **branch_params.params
+            )
+            branches.append(branch)
+        self.branches = branches
+
     def __call__(self, x):
         """
         Forward pass branches.
@@ -52,18 +58,17 @@ class SSLModel(Model):
                 raw data mapped through a different augmentation.Pipeline
         """
         outs = []
-        # implement as a map
+        x = jnp.split(x, x.shape[-1], axis=-1)
+        x = [jnp.squeeze(y, axis=-1) for y in x]
+        print([y.shape for y in x])
+
         def executebranch(_x, branch):
             _x = branch(_x)
             return _x
 
-        # use enumerate
-        outs = map(
-            lambda a, b: executebranch(a, b),
-            x,
-            self.branches,
-        )
-        return list(outs)
+        for x, branch in zip(x, self.branches):
+            outs.append(executebranch(x, branch))
+        return outs
 
     def freeze_head(self):
         raise NotImplementedError

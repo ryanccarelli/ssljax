@@ -1,0 +1,65 @@
+env:
+  seed: 1337
+  numpy_seed: 1337
+  jax_seed: 1337
+  half_precision: False
+  checkpoint: False
+
+trainer:
+  name: SSLTrainer
+
+model:
+  name: SSLModel
+  branches:
+    0:
+      name: CPUOnlineBranch
+      params: {}
+    1:
+      name: CPUTargetBranch
+      params: {}
+
+
+loss: byol_regression_loss
+
+optimizers:
+  branches:
+    0:
+      name: sgd
+      params:
+        learning_rate: 0.01
+    1:
+      name: sgd
+      params:
+        learning_rate: 0.01
+
+schedulers:
+  branches:
+    0:
+      name: cosine_decay
+      params:
+        init_value: 0.01
+        decay_steps: 1000
+    1:
+      name: cosine_decay
+      params:
+        init_value: 0.01
+        decay_steps: 1000
+
+
+meter:
+  name: SSLMeter
+
+pipelines:
+  branches:
+    0:
+      name: CPUPipeline
+      params: {}
+    1:
+      name: CPUPipeline
+      params: {}
+
+dataloader:
+  name: mnist
+  params:
+    batch_size: 32
+    input_shape: (784,)

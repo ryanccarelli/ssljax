@@ -17,6 +17,7 @@ class Augmentation:
     """
 
     def __init__(self, prob=1.0):
+        assert isinstance(prob, float), "prob must be of type float"
         self.prob = prob
 
     def __repr__(self):
@@ -32,11 +33,15 @@ class AugmentationDistribution:
     """
 
     def __init__(self, augmentations):
+        assert all([isinstance(t, Augmentation) for t in augmentations]), (
+            f"All elements in input list must be of"
+            f" type ssljax.augment.Augmentation"
+        )
         self.augmentations = augmentations
 
     def sample(self, rng):
         key, subkey = jax.random.split(rng)
-        sampledIndex = jax.random.choice(subkey, a=len(self.augmentations), p=[aug.prob for aug in self.augmentations])
+        sampledIndex = jax.random.choice(subkey, a=len(self.augmentations), p=jnp.array([aug.prob for aug in self.augmentations]))
         return self.augmentations[sampledIndex]
 
 
@@ -87,7 +92,7 @@ class RandomGaussianBlur(Augmentation):
             sigma_min,
             sigma_max,
     ):
-        super().__init__(self, prob)
+        super().__init__(prob)
         self.kernel_size = kernel_size
         self.padding = padding
         self.sigma_min = sigma_min
@@ -188,7 +193,8 @@ class ColorTransform(Augmentation):
             apply_prob=1.0,
             shuffle=True,
     ):
-        super().__init__(self, prob)
+        print("prob", prob)
+        super().__init__(prob)
         self.brightness = brightness
         self.contrast = contrast
         self.saturation = saturation
@@ -313,7 +319,7 @@ class Solarize(Augmentation):
     """
 
     def __init__(self, prob=1.0, threshold=0.5):
-        super().__init__(self, prob)
+        super().__init__(prob)
         self.threshold = threshold
 
     def __call__(self, x, rng):

@@ -26,6 +26,8 @@ setuptools.setup(
         "base58",
         "dill",
         "overrides",
+        "torchvision",
+        "hydra-core",
     ],
     extras_require={
         "jax": [

@@ -20,15 +20,17 @@ import jax.numpy as jnp
 from ssljax.core import register
 from ssljax.losses.loss import Loss
 
-
+@register(Loss, "byol_regression_loss")
 def byol_regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
     """
     Cosine similarity regression loss.
     """
+    assert isinstance(x, jnp.ndarray), "loss functions act on jnp.arrays"
+    assert isinstance(y, jnp.ndarray), "loss functions act on jnp.arrays"
     normed_x, normed_y = l2_normalize(x, axis=-1), l2_normalize(y, axis=-1)
     return jnp.sum((normed_x - normed_y) ** 2, axis=-1)
 
-
+@register(Loss, "byol_softmax_cross_entropy_loss")
 def byol_softmax_cross_entropy(
     logits: jnp.ndarray,
     labels: jnp.ndarray,
@@ -48,6 +50,8 @@ def byol_softmax_cross_entropy(
     Raises:
         ValueError: If the type of `reduction` is unsupported.
     """
+    assert isinstance(logits, jnp.ndarray), "loss functions act on jnp.arrays"
+    assert isinstance(labels, jnp.ndarray), "loss functions act on jnp.arrays"
     loss = -jnp.sum(labels * jax.nn.log_softmax(logits), axis=-1)
     if reduction == "sum":
         return jnp.sum(loss)
@@ -58,7 +62,7 @@ def byol_softmax_cross_entropy(
     else:
         raise ValueError(f"Incorrect reduction mode {reduction}")
 
-
+@register(Loss, "l2_normalize")
 def l2_normalize(
     x: jnp.ndarray,
     axis: Optional[int] = None,
@@ -70,6 +74,8 @@ def l2_normalize(
     Args:
         x (jnp.mdarray):
     """
+    assert isinstance(x, jnp.ndarray), "loss functions act on jnp.arrays"
+    assert isinstance(axis, int), "axis must be int"
     square_sum = jnp.sum(jnp.square(x), axis=axis, keepdims=True)
     x_inv_norm = jax.lax.rsqrt(jnp.maximum(square_sum, epsilon))
     return x * x_inv_norm

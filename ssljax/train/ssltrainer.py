@@ -11,10 +11,12 @@ from flax import jax_utils
 from flax.training.train_state import TrainState
 from jax import random
 from optax._src.base import GradientTransformation
+from ssljax.core.utils import register
 from ssljax.optimizers.base import ParameterTransformation
 from ssljax.train import Trainer
+from flax import jax_utils
 
-
+@register(Trainer, "SSLTrainer")
 class SSLTrainer(Trainer):
     """
     Class to manage SSL training and feature extraction.
@@ -27,79 +29,92 @@ class SSLTrainer(Trainer):
     def __init__(self, rng, task):
         self.task = task
         self.rng = rng
+        self.p_step = jax.pmap(self.step, axis_name="batch")
 
     def train(self):
         key, self.rng = random.split(self.rng)
-        params, states = self.initialize(key)
-        for data, _ in iter(self.task.dataset):
-            train_data = jax.device_put(data)
-            params, states = self.epoch(train_data, states)
+        params, states = self.initialize(jax.random.split(key, jax.device_count()))
+        params, states = self.epoch(params, states)
 
-    def epoch(self, train_data, params, states):
-        # TODO: should we use dataloaders
-        train_data_size = len(train_data)
-        steps_per_epoch = train_data_size // self.task.batch_size
-        rng, self.rng = random.split(self.rng)
-        perms = jax.random.permutation(rng, train_data_size)
-        perms = perms[: steps_per_epoch * self.task.batch_size]
-        perms = perms.reshape((steps_per_epoch, self.task.batch_size))
-        for perm in perms:
-            batch = {k: v[perm, ...] for k, v in train_data.items()}
+    def epoch(self, params, states):
+        for data, _ in iter(self.task.dataloader):
+            batch = jax.device_put(data)
+            rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
+            self.rng = rngkeys[-1]
+            batch = list(
+                map(
+                    lambda rng, pipeline: pipeline(batch, rng),
+                    rngkeys[:-1],
+                    self.task.pipelines,
+                )
+            )
+            batch = jnp.stack(batch, axis=-1)
             batch = jax_utils.replicate(batch)
-            batch = self.task.augment(batch)
-            params, states = self.step(batch, params, states)
+            print("original batch is:", batch.shape)
+            # TODO: p_step
+            params, states = self.p_step(batch, params, states)
         # TODO: meter must implement distributed version
         # batch_metrics = jax.tree_multimap(lambda *xs: np.array(xs), *batch_metrics)
         # epoch_metrics ={k:np.mean(batch_metrics[k], axis=0) for k in batch_metrics}
-        self.task.meter.get_epoch_metrics()
+        # self.task.meter.get_epoch_metrics()
         return params, states
 
-    @jax.pmap
     def step(self, batch, params, states):
         """
         Compute gradients, loss, accuracy per batch
         """
-        lr = None
-        decay = None
         step = states[0].count
         # TODO: correctly get step from the state
-        if self.task.scheduler.lr:
-            lr = self.task.scheduler.lr(step)
-        if self.task.scheduler.decay:
-            decay = self.task.scheduler.decay(step)
-        grad_fn = jax.value_and_grad(self.task.loss)
-        (aux), grad = grad_fn(params, batch)
-        grads = jax.tree_map(lambda v: jax.lax.pmean(v, axis_name="batch"), grads)
-        opt = self.task.optimizers(lr, decay)
+        grad_fn = jax.value_and_grad(self.loss, has_aux=False)
+        grad = grad_fn(params, batch)
+        grad = jax.lax.pmean(grad, axis_name="batch")
 
-        # TODO: shadow
         def update_fn(_opt, _grads, _state, _params):
             _update, _state = _opt.update(_grads, _state, _params)
             if isinstance(_opt, GradientTransformation):
-                _params = optax.apply_updates(_params, _update)
+                _params = optax.apply_updates(_params, _update[1])
             elif isinstance(_opt, ParameterTransformation):
                 _params = _update
             return _params, _state
 
-        params, states = zip([update_fn(op, grads, states, params) for op in opt])
-
+        for idx, opt in self.task.optimizers.items():
+            update, states[idx] = update_fn(opt, grad, states[idx], params)
         # TODO: call meter (aux)
         return params, states
+
+    def loss(self, params, batch):
+        outs = self.model.apply(params, batch)
+        loss = self.task.loss(*outs)
+        loss = jnp.mean(loss)
+        return loss
 
     def eval(self):
         raise NotImplementedError
 
-    @jax.pmap
     def evalstep(self):
         raise NotImplementedError
 
-    @jax.pmap
     def initialize(self, rng):
+        @jax.pmap
+        def get_initial_params(rng):
+            init_shape = (
+                [self.task.config.dataloader.params.batch_size]
+                + list(eval(self.task.config.dataloader.params.input_shape))
+                + [len(self.task.config.model.branches)]
+            )
+            init_data = jnp.ones(
+                tuple(init_shape),
+                model_dtype,
+            )
+            print("init data shape is:", init_data.shape)
+            params = self.model.init(rng, init_data)
+            return params
+
         # setup devices
         platform = jax.local_devices()[0].platform
         # set model_dtype
         model_dtype = jnp.float32
-        if self.task.config.half_precision:
+        if self.task.config.env.half_precision:
             if platform == "tpu":
                 model_dtype = jnp.bfloat16
             else:
@@ -107,27 +122,14 @@ class SSLTrainer(Trainer):
         else:
             model_dtype = jnp.float32
         # init training state
-        if self.config.pop("load_from_checkpoint"):
+        if self.task.config.env.checkpoint:
             params, state = self._load_from_checkpoint(
                 self.task.config.load_from_checkpoint
             )
         else:
             # init model
-            init_data = jnp.ones(
-                (self.task.config.batch_size, self.task.config.input_shape), model_dtype
-            )
-            params = self.task.model.init(rng, init_data, is_training=True)
-
-            # init optimizers
-            def init_fn(op, params=params):
-                """Initialize an optax optimizer"""
-                return op.init(params)
-
-            states = map(self.task.optimizers, init_fn)
-
+            self.model = self.task.model(config=self.task.config)
+            params = get_initial_params(rng)
+            states = list(map(lambda opt: opt.init(params), self.task.optimizers.values()))
             return params, states
 
-
-if __name__ == "__main__":
-    test = SSLTrainer(None, None)
-    print(test)

@@ -1,1 +1,2 @@
-from .optimizers import Optimizer
+from .optimizers import *
+from .byol_optimizer import *
