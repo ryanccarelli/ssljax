@@ -11,6 +11,7 @@ from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
 from ssljax.train import Meter, Scheduler, SSLTrainer, Trainer
+from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +77,8 @@ class Task:
 
         Returns (Optimizer): The optimizers to use for the task.
         """
-        optimizers = {}
+
+        optimizers = OrderedDict()
         for optimizer_key, optimizer_params in self.config.optimizers.branches.items():
             optimizer = get_from_register(Optimizer, optimizer_params.name)(
                 **optimizer_params.params

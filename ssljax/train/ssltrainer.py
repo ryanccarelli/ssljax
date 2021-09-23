@@ -14,7 +14,7 @@ from optax._src.base import GradientTransformation
 from ssljax.core.utils import register
 from ssljax.optimizers.base import ParameterTransformation
 from ssljax.train import Trainer
-
+from flax import jax_utils
 
 @register(Trainer, "SSLTrainer")
 class SSLTrainer(Trainer):
@@ -29,6 +29,7 @@ class SSLTrainer(Trainer):
     def __init__(self, rng, task):
         self.task = task
         self.rng = rng
+        self.p_step = jax.pmap(self.step, axis_name="batch")
 
     def train(self):
         key, self.rng = random.split(self.rng)
@@ -48,9 +49,10 @@ class SSLTrainer(Trainer):
                 )
             )
             batch = jnp.stack(batch, axis=-1)
+            batch = jax_utils.replicate(batch)
             print("original batch is:", batch.shape)
             # TODO: p_step
-            params, states = self.step(batch, params, states)
+            params, states = self.p_step(batch, params, states)
         # TODO: meter must implement distributed version
         # batch_metrics = jax.tree_multimap(lambda *xs: np.array(xs), *batch_metrics)
         # epoch_metrics ={k:np.mean(batch_metrics[k], axis=0) for k in batch_metrics}
@@ -63,21 +65,20 @@ class SSLTrainer(Trainer):
         """
         step = states[0].count
         # TODO: correctly get step from the state
-        grad_fn = jax.value_and_grad(self.loss)
-        (aux), grad = grad_fn(params, batch)
-        grads = jax.tree_map(lambda v: jax.lax.pmean(v, axis_name="batch"), grad)
+        grad_fn = jax.value_and_grad(self.loss, has_aux=False)
+        grad = grad_fn(params, batch)
+        grad = jax.lax.pmean(grad, axis_name="batch")
 
         def update_fn(_opt, _grads, _state, _params):
             _update, _state = _opt.update(_grads, _state, _params)
             if isinstance(_opt, GradientTransformation):
-                _params = optax.apply_updates(_params, _update)
+                _params = optax.apply_updates(_params, _update[1])
             elif isinstance(_opt, ParameterTransformation):
                 _params = _update
             return _params, _state
 
-        for idx, opt in enumerate(self.task.optimizers):
-            params, states[idx] = update_fn(opt, grads, states, params)
-
+        for idx, opt in self.task.optimizers.items():
+            update, states[idx] = update_fn(opt, grad, states[idx], params)
         # TODO: call meter (aux)
         return params, states
 
@@ -129,7 +130,6 @@ class SSLTrainer(Trainer):
             # init model
             self.model = self.task.model(config=self.task.config)
             params = get_initial_params(rng)
-            states = list(
-                map(lambda opt: opt.init(params), self.task.optimizers.values())
-            )
+            states = list(map(lambda opt: opt.init(params), self.task.optimizers.values()))
             return params, states
+
