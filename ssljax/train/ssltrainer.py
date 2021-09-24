@@ -14,7 +14,7 @@ from optax._src.base import GradientTransformation
 from ssljax.core.utils import register
 from ssljax.optimizers.base import ParameterTransformation
 from ssljax.train import Trainer
-from flax import jax_utils
+
 
 @register(Trainer, "SSLTrainer")
 class SSLTrainer(Trainer):
@@ -50,7 +50,6 @@ class SSLTrainer(Trainer):
             )
             batch = jnp.stack(batch, axis=-1)
             batch = jax_utils.replicate(batch)
-            print("original batch is:", batch.shape)
             # TODO: p_step
             params, states = self.p_step(batch, params, states)
         # TODO: meter must implement distributed version
@@ -63,16 +62,26 @@ class SSLTrainer(Trainer):
         """
         Compute gradients, loss, accuracy per batch
         """
-        step = states[0].count
-        # TODO: correctly get step from the state
-        grad_fn = jax.value_and_grad(self.loss, has_aux=False)
-        grad = grad_fn(params, batch)
+        if "dynamic_scale" in self.task.config.env:
+            grad_fn = jax.jit(
+                optim.DynamicScale(
+                    **self.task.config.env.dynamic_scale.params
+                ).value_and_grad(self.loss, has_aux=False)
+            )
+            # optim.DynamicScale returns a DynamicScaleResult object
+            dyn_scale, is_fin, loss, grad = grad_fn(params, batch)
+        else:
+            grad_fn = jax.value_and_grad(self.loss, has_aux=False)
+            grad = grad_fn(params, batch)
         grad = jax.lax.pmean(grad, axis_name="batch")
 
         def update_fn(_opt, _grads, _state, _params):
             _update, _state = _opt.update(_grads, _state, _params)
             if isinstance(_opt, GradientTransformation):
-                _params = optax.apply_updates(_params, _update[1])
+                if "dynamic_scale" in self.task.config.env:
+                    _params = optax.apply_updates(_params, _update)
+                else:
+                    _params = optax.apply_updates(_params, _update[1])
             elif isinstance(_opt, ParameterTransformation):
                 _params = _update
             return _params, _state
@@ -102,11 +111,7 @@ class SSLTrainer(Trainer):
                 + list(eval(self.task.config.dataloader.params.input_shape))
                 + [len(self.task.config.model.branches)]
             )
-            init_data = jnp.ones(
-                tuple(init_shape),
-                model_dtype,
-            )
-            print("init data shape is:", init_data.shape)
+            init_data = jnp.ones(tuple(init_shape), model_dtype,)
             params = self.model.init(rng, init_data)
             return params
 
@@ -114,6 +119,7 @@ class SSLTrainer(Trainer):
         platform = jax.local_devices()[0].platform
         # set model_dtype
         model_dtype = jnp.float32
+        # TODO: cast different parts of model to different precisions
         if self.task.config.env.half_precision:
             if platform == "tpu":
                 model_dtype = jnp.bfloat16
@@ -130,6 +136,7 @@ class SSLTrainer(Trainer):
             # init model
             self.model = self.task.model(config=self.task.config)
             params = get_initial_params(rng)
-            states = list(map(lambda opt: opt.init(params), self.task.optimizers.values()))
+            states = list(
+                map(lambda opt: opt.init(params), self.task.optimizers.values())
+            )
             return params, states
-
