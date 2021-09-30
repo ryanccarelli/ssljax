@@ -2,8 +2,10 @@ env:
   seed: 1337
   numpy_seed: 1337
   jax_seed: 1337
-  half_precision: False
   checkpoint: False
+  half_precision: False
+  dynamic_scale:
+    params: {}
 
 trainer:
   name: SSLTrainer
