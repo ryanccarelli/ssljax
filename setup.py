@@ -18,7 +18,7 @@ setuptools.setup(
     },
     install_requires=[
         "numpy",
-        "pre-commit==2.13.0",
+        "pre-commit",
         "torch",
         "chex",
         "flax",
