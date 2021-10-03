@@ -1,6 +1,7 @@
+from typing import Dict
+
 from ssljax.core.utils import register
 from ssljax.train.metrics import Meter, Metric
-from typing import Dict
 
 
 @register(Meter, "SSLMeter")
@@ -15,50 +16,4 @@ class SSLMeter(Meter):
     """
 
     def __init__(self, metrics: Dict[str, Metric]):
-        self._metrics = metrics
-        self._batches_seen = 0
-
-    def __call__(self, logits, targets, weights) -> Dict[str, float]:
-        """
-        Calculate the metrics for
-        Args:
-            logits:
-            targets:
-            weights:
-
-        Returns:
-
-        """
-        batch_metrics = {}
-
-        # Go through the dictionary of metrics and calculate each one. Each
-        # metric is responsible for tracking the overall epoch metrics
-        for metric_name, metric in self._metrics.items():
-            # Save it to the batch metrics dict so that we can return it.
-            batch_metrics[metric_name] = metric(logits, targets, weights)
-
-        self._batches_seen += 1
-
-        return batch_metrics
-
-    def get_epoch_metrics(self) -> Dict[str, float]:
-        """
-        Get the metrics for the END of the epoch.
-
-        Returns (Dict[str, float]): The average metrics for the epoch.
-        """
-
-        epoch_metrics = {}
-
-        # Go through each metric
-        for metric_name, metric in self._metrics.items():
-            epoch_metrics[metric_name] = metric.get_epoch_value(self._batches_seen)
-
-            # Because this is the end of the epoch, we reset the metrics for the
-            # next epoch.
-            metric.reset()
-
-        # Reset the number of batches seen because it is the end of the epoch.
-        self._batches_seen = 0
-
-        return epoch_metrics
+        super().__init__(self, metrics)
