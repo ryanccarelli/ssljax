@@ -2,10 +2,15 @@ env:
   seed: 1337
   numpy_seed: 1337
   jax_seed: 1337
-  epochs: 100
-  checkpoint:
-    keep: 1
-    keep_every_n_steps: 5
+  epochs: 11
+  save_checkpoint:
+    params:
+      ckpt_dir: "outs/checkpoints/"
+      keep: 1
+      overwrite: True
+      keep_every_n_steps: 10
+  restore_checkpoint:
+    params: {}
   half_precision: False
   dynamic_scale:
     params: {}

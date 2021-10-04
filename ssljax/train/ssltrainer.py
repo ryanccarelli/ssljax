@@ -5,20 +5,20 @@ logger = logging.getLogger(__name__)
 from pathlib import Path
 
 import flax.optim as optim
-import flax.training as training
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
 from flax import jax_utils
 from flax.training.train_state import TrainState
+from flax.training import checkpoints
 from jax import random
 from optax._src.base import GradientTransformation
 from ssljax.core.utils import register
 from ssljax.optimizers.base import ParameterTransformation
 from ssljax.train import Trainer
 
-CHECKPOINTSDIR = Path("/outs/checkpoints/")
+CHECKPOINTSDIR = Path("outs/checkpoints/")
 CHECKPOINTSDIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -44,13 +44,11 @@ class SSLTrainer(Trainer):
         for epoch in range(self.task.config.env.epochs):
             params, states = self.epoch(params, states)
             for idx, state in enumerate(states):
-                training.checkpoint.save_checkpoint(
-                    CHECKPOINTSDIR,
-                    state,
+                checkpoints.save_checkpoint(
+                    target=state,
                     step=epoch,
                     prefix=f"checkpoint_{idx}_",
-                    keep=self.task.config.checkpoint.keep,
-                    keep_every_n_steps=self.task.config.env.checkpoint.keep_every_n_steps,
+                    **self.task.config.env.save_checkpoint.params,
                 )
 
     def epoch(self, params, states):
@@ -146,14 +144,16 @@ class SSLTrainer(Trainer):
                 model_dtype = jnp.float16
         else:
             model_dtype = jnp.float32
+        # init model
+        self.model = self.task.model(config=self.task.config)
         # init training state
-        if self.task.config.env.checkpoint:
-            params, state = self._load_from_checkpoint(
-                self.task.config.load_from_checkpoint
+        if self.task.config.env.restore_checkpoint.params:
+            params, state = checkpoints.restore_checkpoint(
+                target=self.model,
+                **self.task.config.env.restore_checkpoint,
             )
         else:
             # init model
-            self.model = self.task.model(config=self.task.config)
             params = get_initial_params(rng)
             states = list(
                 map(lambda opt: opt.init(params), self.task.optimizers.values())
