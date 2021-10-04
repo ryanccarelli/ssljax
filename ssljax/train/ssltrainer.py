@@ -2,7 +2,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from pathlib import Path
+
 import flax.optim as optim
+import flax.training as training
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -14,6 +17,9 @@ from optax._src.base import GradientTransformation
 from ssljax.core.utils import register
 from ssljax.optimizers.base import ParameterTransformation
 from ssljax.train import Trainer
+
+CHECKPOINTSDIR = Path("/outs/checkpoints/")
+CHECKPOINTSDIR.mkdir(parents=True, exist_ok=True)
 
 
 @register(Trainer, "SSLTrainer")
@@ -34,7 +40,18 @@ class SSLTrainer(Trainer):
     def train(self):
         key, self.rng = random.split(self.rng)
         params, states = self.initialize(jax.random.split(key, jax.device_count()))
-        params, states = self.epoch(params, states)
+        # TODO: iterate over epochs
+        for epoch in range(self.task.config.env.epochs):
+            params, states = self.epoch(params, states)
+            for idx, state in enumerate(states):
+                training.checkpoint.save_checkpoint(
+                    CHECKPOINTSDIR,
+                    state,
+                    step=epoch,
+                    prefix=f"checkpoint_{idx}_",
+                    keep=self.task.config.checkpoint.keep,
+                    keep_every_n_steps=self.task.config.env.checkpoint.keep_every_n_steps,
+                )
 
     def epoch(self, params, states):
         for data, _ in iter(self.task.dataloader):
@@ -50,7 +67,6 @@ class SSLTrainer(Trainer):
             )
             batch = jnp.stack(batch, axis=-1)
             batch = jax_utils.replicate(batch)
-            # TODO: p_step
             params, states = self.p_step(batch, params, states)
         # TODO: meter must implement distributed version
         # batch_metrics = jax.tree_multimap(lambda *xs: np.array(xs), *batch_metrics)
@@ -111,7 +127,10 @@ class SSLTrainer(Trainer):
                 + list(eval(self.task.config.dataloader.params.input_shape))
                 + [len(self.task.config.model.branches)]
             )
-            init_data = jnp.ones(tuple(init_shape), model_dtype,)
+            init_data = jnp.ones(
+                tuple(init_shape),
+                model_dtype,
+            )
             params = self.model.init(rng, init_data)
             return params
 
