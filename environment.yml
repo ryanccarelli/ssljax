@@ -28,3 +28,4 @@ dependencies:
         - overrides
         - hydra-core
         - torchvision
+        - tensorboardX

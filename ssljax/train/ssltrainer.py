@@ -17,9 +17,12 @@ from optax._src.base import GradientTransformation
 from ssljax.core.utils import register
 from ssljax.optimizers.base import ParameterTransformation
 from ssljax.train import Trainer
+from tensorboardX import SummaryWriter
 
 CHECKPOINTSDIR = Path("outs/checkpoints/")
 CHECKPOINTSDIR.mkdir(parents=True, exist_ok=True)
+TBDIR = Path("outs/tensorboard/")
+TBDIR.mkdir(parents=True, exist_ok=True)
 
 
 @register(Trainer, "SSLTrainer")
@@ -36,6 +39,7 @@ class SSLTrainer(Trainer):
         self.task = task
         self.rng = rng
         self.p_step = jax.pmap(self.step, axis_name="batch")
+        self.writer = SummaryWriter()
 
     def train(self):
         key, self.rng = random.split(self.rng)

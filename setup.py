@@ -28,6 +28,7 @@ setuptools.setup(
         "overrides",
         "torchvision",
         "hydra-core",
+        "tensorboardX",
     ],
     extras_require={
         "jax": [
