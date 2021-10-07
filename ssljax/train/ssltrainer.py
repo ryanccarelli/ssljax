@@ -10,19 +10,21 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 from flax import jax_utils
-from flax.training.train_state import TrainState
 from flax.training import checkpoints
+from flax.training.train_state import TrainState
 from jax import random
 from optax._src.base import GradientTransformation
 from ssljax.core.utils import register
 from ssljax.optimizers.base import ParameterTransformation
 from ssljax.train import Trainer
-from tensorboardX import SummaryWriter
+from tensorboardX import GlobalSummaryWriter
 
 CHECKPOINTSDIR = Path("outs/checkpoints/")
 CHECKPOINTSDIR.mkdir(parents=True, exist_ok=True)
 TBDIR = Path("outs/tensorboard/")
 TBDIR.mkdir(parents=True, exist_ok=True)
+
+writer = GlobalSummaryWriter(TBDIR)
 
 
 @register(Trainer, "SSLTrainer")
@@ -39,12 +41,10 @@ class SSLTrainer(Trainer):
         self.task = task
         self.rng = rng
         self.p_step = jax.pmap(self.step, axis_name="batch")
-        self.writer = SummaryWriter()
 
     def train(self):
         key, self.rng = random.split(self.rng)
         params, states = self.initialize(jax.random.split(key, jax.device_count()))
-        # TODO: iterate over epochs
         for epoch in range(self.task.config.env.epochs):
             params, states = self.epoch(params, states)
             for idx, state in enumerate(states):
@@ -69,7 +69,8 @@ class SSLTrainer(Trainer):
             )
             batch = jnp.stack(batch, axis=-1)
             batch = jax_utils.replicate(batch)
-            params, states = self.p_step(batch, params, states)
+            params, states, loss = self.p_step(batch, params, states)
+            writer.add_scalar("loss", np.array(loss))
         # TODO: meter must implement distributed version
         # batch_metrics = jax.tree_multimap(lambda *xs: np.array(xs), *batch_metrics)
         # epoch_metrics ={k:np.mean(batch_metrics[k], axis=0) for k in batch_metrics}
@@ -90,7 +91,7 @@ class SSLTrainer(Trainer):
             dyn_scale, is_fin, loss, grad = grad_fn(params, batch)
         else:
             grad_fn = jax.value_and_grad(self.loss, has_aux=False)
-            grad = grad_fn(params, batch)
+            loss, grad = grad_fn(params, batch)
         grad = jax.lax.pmean(grad, axis_name="batch")
 
         def update_fn(_opt, _grads, _state, _params):
@@ -107,7 +108,7 @@ class SSLTrainer(Trainer):
         for idx, opt in self.task.optimizers.items():
             update, states[idx] = update_fn(opt, grad, states[idx], params)
         # TODO: call meter (aux)
-        return params, states
+        return params, states, loss
 
     def loss(self, params, batch):
         outs = self.model.apply(params, batch)
@@ -129,10 +130,7 @@ class SSLTrainer(Trainer):
                 + list(eval(self.task.config.dataloader.params.input_shape))
                 + [len(self.task.config.model.branches)]
             )
-            init_data = jnp.ones(
-                tuple(init_shape),
-                model_dtype,
-            )
+            init_data = jnp.ones(tuple(init_shape), model_dtype,)
             params = self.model.init(rng, init_data)
             return params
 
@@ -153,8 +151,7 @@ class SSLTrainer(Trainer):
         # init training state
         if self.task.config.env.restore_checkpoint.params:
             params, state = checkpoints.restore_checkpoint(
-                target=self.model,
-                **self.task.config.env.restore_checkpoint,
+                target=self.model, **self.task.config.env.restore_checkpoint,
             )
         else:
             # init model

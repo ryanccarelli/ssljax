@@ -11,12 +11,12 @@ class Meter:
         self._metrics = metrics
         self._batches_seen = 0
 
-    def __call__(self, logits, targets, weights) -> Dict[str, float]:
+    def __call__(self, preds, targets, weights) -> Dict[str, float]:
         """
-        Calculate the metrics for
+        Calculate metrics
         Args:
-            logits:
-            targets:
+            preds: model predictions
+            targets:  
             weights:
 
         Returns:

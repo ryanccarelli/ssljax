@@ -60,7 +60,6 @@ class SSLModel(Model):
         outs = []
         x = jnp.split(x, x.shape[-1], axis=-1)
         x = [jnp.squeeze(y, axis=-1) for y in x]
-        print([y.shape for y in x])
 
         def executebranch(_x, branch):
             _x = branch(_x)
