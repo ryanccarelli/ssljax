@@ -193,7 +193,6 @@ class ColorTransform(Augmentation):
             apply_prob=1.0,
             shuffle=True,
     ):
-        print("prob", prob)
         super().__init__(prob)
         self.brightness = brightness
         self.contrast = contrast
@@ -360,4 +359,3 @@ class Clip(Augmentation):
 
 if __name__ == "__main__":
     augs = AugmentationDistribution([])
-    print(augs)
