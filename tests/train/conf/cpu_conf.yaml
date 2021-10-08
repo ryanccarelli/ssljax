@@ -29,10 +29,10 @@ optimizers:
       name: sgd
       params:
         learning_rate: 0.01
-    1:
-      name: sgd
-      params:
-        learning_rate: 0.01
+    # 1:
+    #   name: sgd
+    #   params:
+    #     learning_rate: 0.01
 
 schedulers:
   branches:
@@ -46,6 +46,16 @@ schedulers:
       params:
         init_value: 0.01
         decay_steps: 1000
+
+post_process:
+  funcs:
+    0:
+      name: ema
+      params:
+        online_branch_name: branches_0
+        target_branch_name: branches_1
+        tau:  0.2
+
 
 
 meter:

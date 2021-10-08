@@ -1,6 +1,7 @@
 # similar to https://github.com/facebookresearch/vissl/blob/master/vissl/trainer/train_task.py
 import logging
 from typing import Dict, List
+from typing import Callable
 
 from ssljax.augment.pipeline.pipeline import Pipeline
 from ssljax.config import Config
@@ -12,6 +13,7 @@ from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
 from ssljax.train import Meter, Scheduler, SSLTrainer, Trainer
 from collections import OrderedDict
+from ssljax.train.postprocess import PostProcess
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,7 @@ class Task:
         - pipeline
         - dataloader
         - trainer
+        - post_process functions
 
     Args:
         config (Config): The config to get parameters from.
@@ -46,6 +49,7 @@ class Task:
         self.meter = self._get_meter()
         self.pipelines = self._get_pipelines()
         self.dataloader = self._get_dataloader()
+        self.post_process_funcs = self._get_post_process_list()
 
     def _get_trainer(self) -> Trainer:
         """
@@ -135,3 +139,16 @@ class Task:
         return get_from_register(DataLoader, self.config.dataloader.name)(
             **self.config.dataloader.params
         )
+
+
+    def _get_post_process_list(self) -> List[Callable]:
+        print_registry()
+        post_process_list = []
+
+        for post_process_idx, post_process_params in self.config.post_process.funcs.items():
+            post_process = get_from_register(PostProcess, post_process_params.name)(
+                **post_process_params.params
+            )
+            post_process_list.append(post_process)
+
+        return post_process_list
