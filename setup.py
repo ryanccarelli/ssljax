@@ -28,6 +28,7 @@ setuptools.setup(
         "overrides",
         "torchvision",
         "hydra-core",
+        "tensorflow",
         "tensorboardX",
         "tensorboard",
     ],

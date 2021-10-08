@@ -30,3 +30,4 @@ dependencies:
         - torchvision
         - tensorboardX
         - tensorboard
+        - tensorflow
