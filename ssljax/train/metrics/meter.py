@@ -2,24 +2,24 @@ import logging
 from collections import Counter
 from typing import Callable, Dict
 
-from ssljax.train.metrics.metric import Metric
 from ssljax.core.utils import register
+from ssljax.train.metrics.metric import Metric
+
 logger = logging.getLogger(__name__)
+
 
 class Meter:
     def __init__(self, metrics: Dict[str, Metric]):
         self._metrics = metrics
         self._batches_seen = 0
 
-    def __call__(self, logits, targets, weights) -> Dict[str, float]:
+    def __call__(self, preds, targets, params) -> Dict[str, float]:
         """
-        Calculate the metrics for
+        Calculate metrics
         Args:
-            logits:
-            targets:
-            weights:
-
-        Returns:
+            preds: model predictions
+            targets: model targets
+            params: model parameters (state.params)
 
         """
         batch_metrics = {}
@@ -28,7 +28,7 @@ class Meter:
         # metric is responsible for tracking the overall epoch metrics
         for metric_name, metric in self._metrics.items():
             # Save it to the batch metrics dict so that we can return it.
-            batch_metrics[metric_name] = metric(logits, targets, weights)
+            batch_metrics[metric_name] = metric(preds, targets, params)
 
         self._batches_seen += 1
 
