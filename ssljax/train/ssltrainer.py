@@ -110,6 +110,34 @@ class SSLTrainer(Trainer):
         # TODO: call meter (aux)
         return params, states, loss
 
+    def accumulate_gradients(
+        batch, params, state,
+    ):
+        if self.config.env.accum_steps > 1:
+            assert (
+                batch.shape[0] % self.config.env.accum_steps == 0
+            ), f"Bad accum_steps {self.config.env.accum_steps} for batch size {batch.shape[0]}"
+        step_size = batch.shape[0] // self.config.env.accum_steps
+
+        if "dynamic_scale" in self.task.config.env:
+            grad_fn = jax.jit(
+                optim.DynamicScale(
+                    **self.task.config.env.dynamic_scale.params
+                ).value_and_grad(self.loss, has_aux=False)
+            )
+            # optim.DynamicScale returns a DynamicScaleResult object
+            dyn_scale, is_fin, loss, grad = grad_fn(params, batch[:step_size])
+        else:
+            grad_fn = jax.value_and_grad(self.loss, has_aux=False)
+            loss, grad = grad_fn(params, batch[:step_size])
+        grad = jax.lax.pmean(grad, axis_name="batch")
+
+        def acc_grad_and_loss(i, loss_and_grad):
+            btch = jax.lax.dynamic_slice(
+                inputs, (i * step_size, 0), (step_size,) + inputs.shape[1:]
+            )
+
+
     def loss(self, params, batch):
         outs = self.model.apply(params, batch)
         loss = self.task.loss(*outs)
