@@ -43,11 +43,9 @@ class SSLModel(Model):
     def setup(self):
         branch = []
         for branch_idx, branch_params in self.config.model.branches.items():
-            b = get_from_register(Branch, branch_params.name)(
-                **branch_params.params
-            )
+            b = get_from_register(Branch, branch_params.name)(**branch_params.params)
             branch.append(b)
-        self.branches = branches
+        self.branches = branch
 
     def __call__(self, x):
         """
