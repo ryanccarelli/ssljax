@@ -37,7 +37,6 @@ class Pipeline(Augmentation):
         for aug_distribution in self.pipeline:
             rng, _ = jax.random.split(rng)
             aug = aug_distribution.sample(rng)
-            print("TypeAug", type(aug))
             x = aug(x, rng)
         return x
 

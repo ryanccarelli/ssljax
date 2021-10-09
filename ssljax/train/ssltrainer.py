@@ -81,18 +81,18 @@ class SSLTrainer(Trainer):
         """
         Compute gradients, loss, accuracy per batch
         """
+        # get losses
         if "dynamic_scale" in self.task.config.env:
+            # optim.DynamicScale returns a DynamicScaleResult object
             grad_fn = jax.jit(
                 optim.DynamicScale(
                     **self.task.config.env.dynamic_scale.params
                 ).value_and_grad(self.loss, has_aux=False)
             )
-            # optim.DynamicScale returns a DynamicScaleResult object
-            dyn_scale, is_fin, loss, grad = grad_fn(params, batch)
         else:
             grad_fn = jax.value_and_grad(self.loss, has_aux=False)
-            loss, grad = grad_fn(params, batch)
-        grad = jax.lax.pmean(grad, axis_name="batch")
+
+        loss, grad = self.accumulate_gradients(grad_fn, batch, params)
 
         def update_fn(_opt, _grads, _state, _params):
             _update, _state = _opt.update(_grads, _state, _params)
@@ -109,6 +109,40 @@ class SSLTrainer(Trainer):
             update, states[idx] = update_fn(opt, grad, states[idx], params)
         # TODO: call meter (aux)
         return params, states, loss
+
+    def accumulate_gradients(self, grad_fn, batch, params):
+        if self.task.config.env.accum_steps > 1:
+            assert (
+                batch.shape[0] % self.task.config.env.accum_steps == 0
+            ), f"Bad accum_steps {self.task.config.env.accum_steps} for batch size {batch.shape[0]}"
+            step_size = batch.shape[0] // self.task.config.env.accum_steps
+            if "dynamic_scale" in self.task.config.env:
+                dyn_scale, is_fin, loss, grad = grad_fn(params, batch)
+            else:
+                loss, grad = grad_fn(params, btch)
+
+            def acc_grad_and_loss(i, loss_and_grad):
+                btch = jax.lax.dynamic_slice(
+                    batch, (i * step_size, 0, 0), (step_size,) + batch.shape[1:]
+                )
+                if "dynamic_scale" in self.task.config.env:
+                    dyn_scale, is_fin, loss_i, grad_i = grad_fn(params, btch)
+                else:
+                    loss_i, grad_i = grad_fn(params, btch)
+                grad_i = jax.lax.pmean(grad_i, axis_name="batch")
+                return (
+                    loss + loss_i,
+                    jax.tree_multimap(lambda x, y: x + y, grad, grad_i),
+                )
+
+            loss, grad = jax.lax.fori_loop(
+                1, self.task.config.env.accum_steps, acc_grad_and_loss, (loss, grad)
+            )
+            return jax.tree_map(
+                lambda x: x / self.task.config.env.accum_steps, (loss, grad)
+            )
+        else:
+            return grad_fn(params, batch)
 
     def loss(self, params, batch):
         outs = self.model.apply(params, batch)

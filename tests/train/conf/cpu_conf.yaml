@@ -3,6 +3,7 @@ env:
   numpy_seed: 1337
   jax_seed: 1337
   epochs: 11
+  accum_steps: 8
   save_checkpoint:
     params:
       ckpt_dir: "outs/checkpoints/"
