@@ -97,8 +97,6 @@ class SSLTrainer(Trainer):
                     **self.task.config.env.dynamic_scale.params
                 ).value_and_grad(self.loss, has_aux=False)
             )
-            # optim.DynamicScale returns a DynamicScaleResult object
-            dyn_scale, is_fin, loss, grad = grad_fn(state.params, batch)
         else:
             grad_fn = jax.value_and_grad(self.loss, has_aux=False)
 

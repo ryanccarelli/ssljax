@@ -45,7 +45,7 @@ class SSLModel(Model):
         for branch_idx, branch_params in self.config.model.branches.items():
             b = get_from_register(Branch, branch_params.name)(**branch_params.params)
             branch.append(b)
-        self.branches = branch
+        self.branch = branch
 
     def __call__(self, x):
         """
@@ -59,8 +59,8 @@ class SSLModel(Model):
         x = jnp.split(x, x.shape[-1], axis=-1)
         x = [jnp.squeeze(y, axis=-1) for y in x]
 
-        for x, branch in zip(x, self.branches):
-            outs.append(branch(x))
+        for x, b in zip(x, self.branch):
+            outs.append(b(x))
 
         return outs
 
