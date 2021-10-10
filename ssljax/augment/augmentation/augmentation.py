@@ -359,4 +359,3 @@ class Clip(Augmentation):
 
 if __name__ == "__main__":
     augs = AugmentationDistribution([])
-    print(augs)

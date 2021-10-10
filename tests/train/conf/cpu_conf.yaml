@@ -2,7 +2,16 @@ env:
   seed: 1337
   numpy_seed: 1337
   jax_seed: 1337
-  checkpoint: False
+  epochs: 11
+  accum_steps: 8
+  save_checkpoint:
+    params:
+      ckpt_dir: "outs/checkpoints/"
+      keep: 1
+      overwrite: True
+      keep_every_n_steps: 10
+  restore_checkpoint:
+    params: {}
   half_precision: False
   dynamic_scale:
     params: {}
@@ -29,9 +38,6 @@ optimizers:
       name: sgd
       params:
         learning_rate: 0.01
-    # 1:
-    #   name: zerog
-    #   params: {}
 
 schedulers:
   branches:
@@ -51,11 +57,9 @@ post_process:
     0:
       name: ema
       params:
-        online_branch_name: branches_0
-        target_branch_name: branches_1
+        online_branch_name: branch_0
+        target_branch_name: branch_1
         tau:  0.2
-
-
 
 meter:
   name: SSLMeter

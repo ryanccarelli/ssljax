@@ -41,13 +41,11 @@ class SSLModel(Model):
     config: DictConfig
 
     def setup(self):
-        branches = []
+        branch = []
         for branch_idx, branch_params in self.config.model.branches.items():
-            branch = get_from_register(Branch, branch_params.name)(
-                **branch_params.params
-            )
-            branches.append(branch)
-        self.branches = branches
+            b = get_from_register(Branch, branch_params.name)(**branch_params.params)
+            branch.append(b)
+        self.branches = branch
 
     def __call__(self, x):
         """

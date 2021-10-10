@@ -6,7 +6,7 @@ logger.error(f"{__name__}: THESE ARE PLACEHOLDERS!!")
 
 
 class Metric:
-    def __call__(self, logits, targets, weights) -> float:
+    def __call__(self, preds, targets, params) -> float:
         raise NotImplementedError()
 
     def get_epoch_value(self, batches_seen: int) -> float:
@@ -14,6 +14,3 @@ class Metric:
 
     def reset(self):
         raise NotImplementedError()
-
-
-

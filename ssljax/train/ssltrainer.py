@@ -2,32 +2,35 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from functools import reduce
+from pathlib import Path
+from typing import Callable
+
+import flax
 import flax.optim as optim
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
-from flax import jax_utils
+from flax import jax_utils, traverse_util
+from flax.training import checkpoints
 from flax.training.train_state import TrainState
 from jax import random
 from optax._src.base import GradientTransformation
-from ssljax.core.utils import register, get_from_register
-from ssljax.optimizers.base import ParameterTransformation
+from ssljax.core.utils import get_from_register, register
 from ssljax.optimizers import Optimizer
+from ssljax.optimizers.base import ParameterTransformation
+from ssljax.optimizers.utils import (add_prefix_to_dict_keys,
+                                     flattened_traversal)
 from ssljax.train import Trainer
-from typing import Callable
-from functools import reduce
-import flax
-from flax import traverse_util
-from ssljax.optimizers.utils import add_prefix_to_dict_keys, flattened_traversal
+from tensorboardX import GlobalSummaryWriter
 
-def map_nested_fn(fn):
-  '''Recursively apply `fn` to the key-value pairs of a nested dict'''
-  def map_fn(nested_dict):
-    return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v))
-            for k, v in nested_dict.items()}
-  return map_fn
-label_fn = map_nested_fn(lambda k, _: k)
+CHECKPOINTSDIR = Path("outs/checkpoints/")
+CHECKPOINTSDIR.mkdir(parents=True, exist_ok=True)
+TBDIR = Path("outs/tensorboard/")
+TBDIR.mkdir(parents=True, exist_ok=True)
+
+writer = GlobalSummaryWriter(TBDIR)
 
 
 @register(Trainer, "SSLTrainer")
@@ -45,18 +48,22 @@ class SSLTrainer(Trainer):
         self.rng = rng
         self.p_step = jax.pmap(self.step, axis_name="batch")
 
-
     def train(self):
         key, self.rng = random.split(self.rng)
         state = self.initialize()
         state = jax_utils.replicate(state)
         state = self.epoch(state)
-
+        for epoch in range(self.task.config.env.epochs):
+            state = self.epoch(state)
+            checkpoints.save_checkpoint(
+                target=state,
+                step=epoch,
+                prefix="checkpoint_",
+                **self.task.config.env.save_checkpoint.params,
+            )
 
     def epoch(self, state):
-        step = 0
         for data, _ in iter(self.task.dataloader):
-
             batch = jax.device_put(data)
             rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
             self.rng = rngkeys[-1]
@@ -69,26 +76,22 @@ class SSLTrainer(Trainer):
             )
             batch = jnp.stack(batch, axis=-1)
             batch = jax_utils.replicate(batch)
-            # TODO: p_step
-            state = self.p_step(state, batch)
+            state, loss = self.p_step(state, batch)
 
             # post process
             for fun in self.task.post_process_funcs:
                 state = state.replace(params=fun(state.params))
 
-        # TODO: meter must implement distributed version
-        # batch_metrics = jax.tree_multimap(lambda *xs: np.array(xs), *batch_metrics)
-        # epoch_metrics ={k:np.mean(batch_metrics[k], axis=0) for k in batch_metrics}
-        # self.task.meter.get_epoch_metrics()
+            writer.add_scalar("loss", np.array(loss))
         return state
 
     def step(self, state, batch):
         """
         Compute gradients, loss, accuracy per batch
         """
-        logger.info("In step",)
-        # TODO. Enable dynamic scaling.  use flax/wmt as reference for this.
-        if "dynamic_scale" in self.task.config.env and False:
+        # get losses
+        if "dynamic_scale" in self.task.config.env:
+            # optim.DynamicScale returns a DynamicScaleResult object
             grad_fn = jax.jit(
                 optim.DynamicScale(
                     **self.task.config.env.dynamic_scale.params
@@ -98,12 +101,45 @@ class SSLTrainer(Trainer):
             dyn_scale, is_fin, loss, grad = grad_fn(state.params, batch)
         else:
             grad_fn = jax.value_and_grad(self.loss, has_aux=False)
-        loss_values, grads = grad_fn({'params': state.params}, batch)
-        # TODO. What the hell is this inconsistency here? Grad function doesn't
-        # work without params having root key as 'params' and then grads
-        # require us to strip off the 'params' key?
-        new_state = state.apply_gradients(grads=grads['params'])
-        return new_state
+
+        loss, grad = self.accumulate_gradients(grad_fn, batch, state.params)
+
+        state = state.apply_gradients(grads=grad["params"])
+        return state, loss
+
+    def accumulate_gradients(self, grad_fn, batch, params):
+        if self.task.config.env.accum_steps > 1:
+            assert (
+                batch.shape[0] % self.task.config.env.accum_steps == 0
+            ), f"Bad accum_steps {self.task.config.env.accum_steps} for batch size {batch.shape[0]}"
+            step_size = batch.shape[0] // self.task.config.env.accum_steps
+            if "dynamic_scale" in self.task.config.env:
+                dyn_scale, is_fin, loss, grad = grad_fn(params, batch)
+            else:
+                loss, grad = grad_fn(params, batch)
+
+            def acc_grad_and_loss(i, loss_and_grad):
+                btch = jax.lax.dynamic_slice(
+                    batch, (i * step_size, 0, 0), (step_size,) + batch.shape[1:]
+                )
+                if "dynamic_scale" in self.task.config.env:
+                    dyn_scale, is_fin, loss_i, grad_i = grad_fn(params, btch)
+                else:
+                    loss_i, grad_i = grad_fn(params, btch)
+                grad_i = jax.lax.pmean(grad_i, axis_name="batch")
+                return (
+                    loss + loss_i,
+                    jax.tree_multimap(lambda x, y: x + y, grad, grad_i),
+                )
+
+            loss, grad = jax.lax.fori_loop(
+                1, self.task.config.env.accum_steps, acc_grad_and_loss, (loss, grad)
+            )
+            return jax.tree_map(
+                lambda x: x / self.task.config.env.accum_steps, (loss, grad)
+            )
+        else:
+            return grad_fn(params, batch)
 
     def loss(self, params, batch):
         outs = self.model.apply(params, batch)
@@ -117,9 +153,7 @@ class SSLTrainer(Trainer):
     def evalstep(self):
         raise NotImplementedError
 
-
     def initialize(self):
-
         # setup devices
         platform = jax.local_devices()[0].platform
         # set model_dtype
@@ -135,8 +169,6 @@ class SSLTrainer(Trainer):
 
         self.model = self.task.model(config=self.task.config)
 
-
-
         init_shape = (
             [self.task.config.dataloader.params.batch_size]
             + list(eval(self.task.config.dataloader.params.input_shape))
@@ -146,32 +178,27 @@ class SSLTrainer(Trainer):
         init_data = jnp.ones(tuple(init_shape), model_dtype,)
         params = jax.jit(self.model.init)(self.rng, init_data)
 
-
         # TODO. Restore checkpoint
-        if self.task.config.env.checkpoint:
-            params, state = self._load_from_checkponit(
-                self.task.config.load_from_checkpoint
+        if self.task.config.env.restore_checkpoint.params:
+            state = checkpoints.restore_checkpoint(
+                target=self.model, **self.task.config.env.restore_checkpoint,
             )
-
-        # TODO. Add support for optimizer collection and multiple optimizer.
-        # masked requires zero gradients.  This is a workaround that needs to be fixed.
-        zerog = get_from_register(Optimizer, "zerog")
 
         opt_collect = []
         # TODO. Should we make this a config parameter? Or extract from params?
-        prefix_branch = lambda x : 'branches_' + str(x)
+        prefix_branch = lambda x: "branch_" + str(x)
         for opt_idx, opt in self.task.optimizers.items():
             opt_collect.append(
                 optax.masked(
                     opt,
-                    mask=flattened_traversal(lambda path, _:
-                                             path.split('/')[0] == prefix_branch(opt_idx))))
+                    mask=flattened_traversal(
+                        lambda path, _: path.split("/")[0] == prefix_branch(opt_idx)
+                    ),
+                )
+            )
 
         multi_tx = optax.chain(*opt_collect)
         state = TrainState.create(
-            apply_fn=self.model.apply,
-            params=params['params'].unfreeze(),
-            tx=multi_tx
+            apply_fn=self.model.apply, params=params["params"].unfreeze(), tx=multi_tx
         )
         return state
-
