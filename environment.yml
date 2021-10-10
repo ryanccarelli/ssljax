@@ -6,12 +6,12 @@ channels:
 
 dependencies:
     - python>=3.8
-    - pip==21.2.2
-    - pytest>=6.2.2
+    - pip
+    - pytest
     - numpy
     - pytorch
-    - coverage==5.5
-    - pre-commit==2.13.0
+    - coverage
+    - pre-commit
     - pip:
         - jax>=0.1.71
         - optax
@@ -22,3 +22,13 @@ dependencies:
         - sphinx-autoapi>=1.8.3
         - ipython
         - tqdm
+        - flax
+        - base58
+        - dill
+        - overrides
+        - hydra-core
+        - torchvision
+        - tensorboardX
+        - tensorboard
+        - tensorflow
+        - parameterized

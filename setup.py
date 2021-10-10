@@ -14,14 +14,24 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     project_urls={
         "Documentation": "https://ssljax.readthedocs.io/en/stable",
-        "Source Code"  : "https://github.com/Dana-Farber-AIOS/pathml",
+        "Source Code": "https://github.com/ryanccarelli/ssljax",
     },
     install_requires=[
         "numpy",
-        "pre-commit==2.13.0",
+        "pre-commit",
         "torch",
+        "chex",
         "flax",
         "tqdm",
+        "base58",
+        "dill",
+        "overrides",
+        "torchvision",
+        "hydra-core",
+        "tensorflow",
+        "tensorboardX",
+        "tensorboard",
+        "parameterized",
     ],
     extras_require={
         "jax": [
