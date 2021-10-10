@@ -82,7 +82,7 @@ class SSLTrainer(Trainer):
             for fun in self.task.post_process_funcs:
                 state = state.replace(params=fun(state.params))
 
-            writer.add_scalar("loss", np.array(loss))
+            writer.add_scalar("loss", np.array(loss).mean())
         return state
 
     def step(self, state, batch):
