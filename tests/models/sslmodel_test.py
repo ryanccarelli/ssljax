@@ -18,7 +18,7 @@ class SSLModelTest(parameterized.TestCase):
     def test_withid(self):
         key = jax.random.PRNGKey(0)
         k1, k2, k3 = jax.random.split(key, 3)
-        x = (jax.random.normal(k1, (2000,)), jax.random.normal(k1, (2000,)))
+        x = jnp.array(jax.random.normal(k1, (2000, 2)))
         params = self.mocksslmodel.init(k2, x)
         out = self.mocksslmodel.apply(params, x)
         assert len(out) == 2
@@ -26,7 +26,7 @@ class SSLModelTest(parameterized.TestCase):
 
 class MockSSLModel(SSLModel):
     def setup(self):
-        self.branches = [LinearBranch(), LinearBranch()]
+        self.branch = [LinearBranch(), LinearBranch()]
 
 
 class LinearBranch(Branch):

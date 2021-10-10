@@ -31,6 +31,7 @@ setuptools.setup(
         "tensorflow",
         "tensorboardX",
         "tensorboard",
+        "parameterized",
     ],
     extras_require={
         "jax": [

@@ -61,8 +61,6 @@ class FlattenAndCast:
 
 
 # packaged dataloaders here
-
-
 @register(DataLoader, "mnist")
 def MNISTLoader(batch_size, **kwargs):
     mnist_dataset = MNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())

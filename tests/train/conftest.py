@@ -1,4 +1,5 @@
 import flax.linen as nn
+import hydra
 import pytest
 from hydra import compose, initialize
 from ssljax.augment.augmentation.augmentation import (Augmentation,
@@ -10,6 +11,7 @@ from ssljax.models.branch.branch import Branch
 
 @pytest.fixture
 def cputestconfig():
+    hydra.core.global_hydra.GlobalHydra.instance().clear()
     initialize(config_path="../train/conf")
     cfg = compose(config_name="cpu_conf.yaml")
     return cfg

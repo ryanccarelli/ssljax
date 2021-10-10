@@ -31,3 +31,4 @@ dependencies:
         - tensorboardX
         - tensorboard
         - tensorflow
+        - parameterized
