@@ -102,7 +102,7 @@ class SSLTrainer(Trainer):
         else:
             grad_fn = jax.value_and_grad(self.loss, has_aux=False)
 
-        loss, grad = self.accumulate_gradients(grad_fn, batch, state.params)
+        loss, grad = self.accumulate_gradients(grad_fn, batch, {"params": state.params})
 
         state = state.apply_gradients(grads=grad["params"])
         return state, loss
