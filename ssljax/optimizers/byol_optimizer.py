@@ -106,8 +106,6 @@ def byol_ema(
         if params is None:
             raise ValueError(optax.base.NO_PARAMS_MSG)
         new_ema = state.ema
-        print("state ema is:")
-        print(state.ema)
         new_ema["branch_0"] = _update_moment(
             params["branch_1"], state.ema["branch_0"], decay, order=1
         )

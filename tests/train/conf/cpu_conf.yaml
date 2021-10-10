@@ -30,9 +30,8 @@ optimizers:
       params:
         learning_rate: 0.01
     # 1:
-    #   name: sgd
-    #   params:
-    #     learning_rate: 0.01
+    #   name: zerog
+    #   params: {}
 
 schedulers:
   branches:

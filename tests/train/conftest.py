@@ -20,7 +20,6 @@ class CPUOnlineBranch(Branch):
     @nn.compact
     def __call__(self, x):
         x = nn.Dense(1)(x)
-        x = nn.Dense(1)(x)
         return x
 
 

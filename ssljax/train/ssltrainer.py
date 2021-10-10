@@ -19,26 +19,7 @@ from typing import Callable
 from functools import reduce
 import flax
 from flax import traverse_util
-
-def add_prefix_to_dict_keys(d, prefix="branches_"):
-    return {prefix+str(k): v for k, v in d.items()}
-
-
-def flattened_traversal(fn):
-  def mask(data):
-      flat = {'/'.join(k): v for k, v in traverse_util.flatten_dict(data).items()}
-      x = traverse_util.unflatten_dict({tuple(k.split('/')): fn(k, v) for k, v in flat.items()})
-      return  x
-  return mask
-
-
-# def flattened_traversal(fn):
-#   def mask(data):
-#     flat = traverse_util.flatten_dict(data)
-#     return traverse_util.unflatten_dict({k: fn(k, v) for k, v in flat.items()})
-#   return mask
-
-
+from ssljax.optimizers.utils import add_prefix_to_dict_keys, flattened_traversal
 
 def map_nested_fn(fn):
   '''Recursively apply `fn` to the key-value pairs of a nested dict'''
@@ -67,16 +48,15 @@ class SSLTrainer(Trainer):
 
     def train(self):
         key, self.rng = random.split(self.rng)
-        state = jax_utils.replicate(self.initialize())
-        new_state = self.epoch(state)
-
-        # post process
-        for fun in self.task.post_process_funcs:
-            state.params = fun(state.params)
+        state = self.initialize()
+        state = jax_utils.replicate(state)
+        state = self.epoch(state)
 
 
     def epoch(self, state):
+        step = 0
         for data, _ in iter(self.task.dataloader):
+
             batch = jax.device_put(data)
             rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
             self.rng = rngkeys[-1]
@@ -91,6 +71,11 @@ class SSLTrainer(Trainer):
             batch = jax_utils.replicate(batch)
             # TODO: p_step
             state = self.p_step(state, batch)
+
+            # post process
+            for fun in self.task.post_process_funcs:
+                state = state.replace(params=fun(state.params))
+
         # TODO: meter must implement distributed version
         # batch_metrics = jax.tree_multimap(lambda *xs: np.array(xs), *batch_metrics)
         # epoch_metrics ={k:np.mean(batch_metrics[k], axis=0) for k in batch_metrics}
@@ -101,7 +86,9 @@ class SSLTrainer(Trainer):
         """
         Compute gradients, loss, accuracy per batch
         """
-        if "dynamic_scale" in self.task.config.env:
+        logger.info("In step",)
+        # TODO. Enable dynamic scaling.  use flax/wmt as reference for this.
+        if "dynamic_scale" in self.task.config.env and False:
             grad_fn = jax.jit(
                 optim.DynamicScale(
                     **self.task.config.env.dynamic_scale.params
@@ -111,11 +98,12 @@ class SSLTrainer(Trainer):
             dyn_scale, is_fin, loss, grad = grad_fn(state.params, batch)
         else:
             grad_fn = jax.value_and_grad(self.loss, has_aux=False)
-        grads = grad_fn(state.params, batch)
-
-        new_state = state.apply_gradients(grads=grads)
+        loss_values, grads = grad_fn({'params': state.params}, batch)
+        # TODO. What the hell is this inconsistency here? Grad function doesn't
+        # work without params having root key as 'params' and then grads
+        # require us to strip off the 'params' key?
+        new_state = state.apply_gradients(grads=grads['params'])
         return new_state
-
 
     def loss(self, params, batch):
         outs = self.model.apply(params, batch)
@@ -168,21 +156,22 @@ class SSLTrainer(Trainer):
         # TODO. Add support for optimizer collection and multiple optimizer.
         # masked requires zero gradients.  This is a workaround that needs to be fixed.
         zerog = get_from_register(Optimizer, "zerog")
-        print("prefix", add_prefix_to_dict_keys(self.task.optimizers))
-        print("opt,", self.task.optimizers[0])
-        multi_tx = optax.chain(
-            optax.masked(self.task.optimizers[0],
-                         mask=flattened_traversal(lambda path, _: path.split('/')[0] == 'branches_0')),
-            optax.masked(zerog(),
-                         mask=flattened_traversal(lambda path, _: path.split('/')[0] != 'branches_0')))
 
-        print("multi_tx", multi_tx)
+        opt_collect = []
+        # TODO. Should we make this a config parameter? Or extract from params?
+        prefix_branch = lambda x : 'branches_' + str(x)
+        for opt_idx, opt in self.task.optimizers.items():
+            opt_collect.append(
+                optax.masked(
+                    opt,
+                    mask=flattened_traversal(lambda path, _:
+                                             path.split('/')[0] == prefix_branch(opt_idx))))
 
-        print("params in multi opt,", multi_tx.init(params['params'].unfreeze()))
+        multi_tx = optax.chain(*opt_collect)
         state = TrainState.create(
             apply_fn=self.model.apply,
             params=params['params'].unfreeze(),
             tx=multi_tx
         )
-        return state.replace(params=params['params'])
+        return state
 

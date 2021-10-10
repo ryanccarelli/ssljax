@@ -193,7 +193,6 @@ class ColorTransform(Augmentation):
             apply_prob=1.0,
             shuffle=True,
     ):
-        print("prob", prob)
         super().__init__(prob)
         self.brightness = brightness
         self.contrast = contrast
