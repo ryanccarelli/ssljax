@@ -52,8 +52,8 @@ class SSLTrainer(Trainer):
         key, self.rng = random.split(self.rng)
         state = self.initialize()
         state = jax_utils.replicate(state)
-        state = self.epoch(state)
         for epoch in range(self.task.config.env.epochs):
+            print(f"epoch: {epoch}")
             state = self.epoch(state)
             checkpoints.save_checkpoint(
                 target=state,
@@ -101,6 +101,7 @@ class SSLTrainer(Trainer):
             grad_fn = jax.value_and_grad(self.loss, has_aux=False)
 
         loss, grad = self.accumulate_gradients(grad_fn, batch, {"params": state.params})
+        loss, grad = jax.lax.pmean(loss, axis_name="batch"), jax.lax.pmean(grad, axis_name="batch")
 
         state = state.apply_gradients(grads=grad["params"])
         return state, loss
