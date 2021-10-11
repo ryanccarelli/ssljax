@@ -30,7 +30,6 @@ schedulers = {
     "piecewise_constant": piecewise_constant_schedule,
     "piecewise_interpolate": piecewise_interpolate_schedule,
     "polynomial": polynomial_schedule,
-    "ema": ema,
 }
 
 for name, func in schedulers.items():

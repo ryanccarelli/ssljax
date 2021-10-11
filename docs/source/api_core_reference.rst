@@ -30,12 +30,18 @@ Bootstrap Your Own Latent
 Self-Distillation with No Labels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Postprocess
+-----------
+
+.. autoapiclass:: ssljax.train.postprocess.postprocess.PostProcess
+.. autoapiclass:: ssljax.train.postprocess.ema.ema_builder
+
 Optimizers
 ----------
 We wrap optimizers from Deepmind's Optax library.
 
     ================================ ==============================================================================================================================================================
-    Optimizer                        Paper
+    Optimizer                        Reference
     ================================ ==============================================================================================================================================================
     ``ssljax.optimizers.adabelief``  .. _adabelief: https://arxiv.org/abs/2010.07468
     ``ssljax.optimizers.adagrad``    .. _adagrad: https://jmlr.org/papers/v12/duchi11a.html
@@ -55,3 +61,66 @@ We wrap optimizers from Deepmind's Optax library.
 
 Augmentations
 -------------
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.Augmentation
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.AugmentationDistribution
+
+We provide implementations of common augmentations.
+
+Example Augmentations
+^^^^^^^^^^^^^^^^^^^^^
+
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.RandomFlip
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.RandomGaussianBlur
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.ColorTransform
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.Solarize
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.Clip
+
+Pipelines
+---------
+Augmentations are composed into Pipelines that transform data into branch inputs.
+
+.. autoapiclass:: ssljax.augment.pipeline.pipeline.Pipeline
+
+We provide implementations of popular pipelines.
+
+Example Pipelines
+^^^^^^^^^^^^^^^^^
+
+.. autoapiclass:: ssljax.augment.pipeline.byolpipeline.BYOLOnlinePipeline
+.. autoapiclass:: ssljax.augment.pipeline.byolpipeline.BYOLTargetPipeline
+
+
+
+Schedulers
+----------
+We wrap schedulers from Deepmind's Optax library.
+
+    =========================================== ==============================================================================================================================================================
+    Scheduler                                   Reference
+    =========================================== ==============================================================================================================================================================
+    ``ssljax.scheduler.constant``
+    ``ssljax.scheduler.cosine_decay``
+    ``ssljax.scheduler.cosine_onecycle``
+    ``ssljax.scheduler.exponential_decay``
+    ``ssljax.scheduler.linear_onecycle``
+    ``ssljax.scheduler.piecewise_constant``
+    ``ssljax.scheduler.piecewise_interpolate``
+    ``ssljax.scheduler.polynomial``
+    =========================================== ==============================================================================================================================================================
+
+Data
+----
+
+.. autoapiclass:: ssljax.data.dataloader.DataLoader
+
+We provide dataloaders for popular datasets.
+
+.. autoapifunction:: ssljax.data.dataloader.MNISTLoader
+
+Utils
+-----
+
+Register
+^^^^^^^^
+Tasks are constructed from config files by getting objects from a globa registry.
+.. autoapifunction:: ssljax.core.utils.register.register
