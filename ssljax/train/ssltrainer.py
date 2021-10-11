@@ -36,11 +36,11 @@ writer = GlobalSummaryWriter(TBDIR)
 @register(Trainer, "SSLTrainer")
 class SSLTrainer(Trainer):
     """
-    Class to manage SSL training and feature extraction.
+    Implements self-supervised training and inference.
 
     Args:
-        rng (jnp.DeviceArray):
-        config (json): configuration file
+        rng (jnp.DeviceArray): A Jax PRNG key.
+        task (ssljax.train.task.Task): A task object.
     """
 
     def __init__(self, rng, task):

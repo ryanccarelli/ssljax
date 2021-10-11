@@ -34,7 +34,7 @@ class Task:
         - post_process functions
 
     Args:
-        config (Config): The config to get parameters from.
+        config (ssljax.config): The config to get parameters from.
     """
 
     def __init__(self, config: Config):

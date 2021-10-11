@@ -19,10 +19,10 @@ sys.path.insert(0, os.path.abspath("../../"))
 # -- Project information -----------------------------------------------------
 
 project = "ssljax"
-copyright = "2021, The AI Discord"
-author = "The AI Discord et al."
+copyright = "2021, Ryan Carelli, Akash Ganesan"
+author = "Ryan Carelli, Akash Ganesan"
 
-version = "1.0.0"
+version = "0.1.0"
 # The full version, including alpha/beta/rc tags
 release = version
 
@@ -39,6 +39,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.imgmath",
     "IPython.sphinxext.ipython_console_highlighting",
+    "autoapi.extension"
 ]
 
 autodoc_default_options = {"members": True, "undoc-members": True}
@@ -49,8 +50,10 @@ templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["../tests/*", "build", "../*.ipynb_checkpoints"]
+exclude_patterns = ["../tests/*", "build", "/outs/*", "../*.ipynb_checkpoints"]
 
+# autoapi imports
+autoapi_dirs = ['../../ssljax']
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -77,3 +80,6 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+
+def setup(app):
+    app.add_css_file("css/ssljax.css")
