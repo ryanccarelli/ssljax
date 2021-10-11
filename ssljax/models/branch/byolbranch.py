@@ -4,8 +4,8 @@ from ssljax.models.branch import Branch
 from ssljax.models.resnet import Resnet50
 
 
-@register(Branch, "ByolOnlineBranch")
-class ByolOnlineBranch(Branch):
+@register(Branch, "BYOLOnlineBranch")
+class BYOLOnlineBranch(Branch):
     """
     The online branch in BYOL model.
     Body: Resnet50
@@ -26,8 +26,8 @@ class ByolOnlineBranch(Branch):
         return x
 
 
-@register(Branch, "ByolTargetBranch")
-class ByolTargetBranch(Branch):
+@register(Branch, "BYOLTargetBranch")
+class BYOLTargetBranch(Branch):
     """
     The target branch in BYOL model.
     Body: Resnet50
