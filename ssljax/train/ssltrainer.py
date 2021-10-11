@@ -101,7 +101,10 @@ class SSLTrainer(Trainer):
             grad_fn = jax.value_and_grad(self.loss, has_aux=False)
 
         loss, grad = self.accumulate_gradients(grad_fn, batch, {"params": state.params})
-        loss, grad = jax.lax.pmean(loss, axis_name="batch"), jax.lax.pmean(grad, axis_name="batch")
+        loss, grad = (
+            jax.lax.pmean(loss, axis_name="batch"),
+            jax.lax.pmean(grad, axis_name="batch"),
+        )
 
         state = state.apply_gradients(grads=grad["params"])
         return state, loss
@@ -184,7 +187,7 @@ class SSLTrainer(Trainer):
             )
 
         opt_collect = []
-        # TODO. Should we make this a config parameter? Or extract from params?
+        # TODO. Should we make this a config parameter? Or extract from params? (Ryan) extract from params
         prefix_branch = lambda x: "branch_" + str(x)
         for opt_idx, opt in self.task.optimizers.items():
             opt_collect.append(

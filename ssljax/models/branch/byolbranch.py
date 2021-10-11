@@ -1,4 +1,5 @@
-# branches for byol
+# Branches for BYOL
+
 from ssljax.models.branch import Branch
 from ssljax.models.resnet import Resnet50
 
@@ -7,8 +8,12 @@ from ssljax.models.resnet import Resnet50
 class ByolOnlineBranch(Branch):
     """
     The online branch in BYOL model.
-    Rep: Resnet50
+    Body: Resnet50
     Proj: MLP
+        hidden_size = 4096
+        output_size = 256
+    Pred:
+        hidden_size = 4096
     """
 
     def setup(self):
@@ -20,12 +25,14 @@ class ByolOnlineBranch(Branch):
         x = self.mlp(x)
         return x
 
+
 @register(Branch, "ByolTargetBranch")
 class ByolTargetBranch(Branch):
     """
     The target branch in BYOL model.
-    Rep: Resnet50
+    Body: Resnet50
     """
+
     def setup(self):
         self.resnet50 = Resnet50
 

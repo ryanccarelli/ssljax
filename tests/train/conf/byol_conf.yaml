@@ -1,0 +1,75 @@
+env:
+  seed: 1337
+  numpy_seed: 1337
+  jax_seed: 1337
+  epochs: 11
+  accum_steps: 8
+  save_checkpoint:
+    params:
+      ckpt_dir: "outs/checkpoints/"
+      keep: 1
+      overwrite: True
+      keep_every_n_steps: 10
+  restore_checkpoint:
+    params: {}
+  half_precision: False
+  dynamic_scale:
+    params: {}
+
+trainer:
+  name: SSLTrainer
+
+model:
+  name: SSLModel
+  branches:
+    0:
+      name: BYOLOnlineBranch
+      params: {}
+    1:
+      name: BYOLTargetBranch
+      params: {}
+
+
+loss: byol_regression_loss
+
+optimizers:
+  branches:
+    0:
+      name: lamb
+      params:
+        learning_rate: 0.01
+
+schedulers:
+  branches:
+    0:
+      name: cosine_decay
+      params:
+        init_value: 0.01
+        decay_steps: 1000
+
+post_process:
+  funcs:
+    0:
+      name: ema
+      params:
+        online_branch_name: branch_0
+        target_branch_name: branch_1
+        tau:  0.9
+
+meter:
+  name: SSLMeter
+
+pipelines:
+  branches:
+    0:
+      name: BYOLPipelineOnline
+      params: {}
+    1:
+      name: BYOLPipelineTarget
+      params: {}
+
+dataloader:
+  name: mnist
+  params:
+    batch_size: 32
+    input_shape: (784,)
