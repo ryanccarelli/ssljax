@@ -49,6 +49,9 @@ class SSLTrainer(Trainer):
         self.p_step = jax.pmap(self.step, axis_name="batch")
 
     def train(self):
+        """
+        Train model.
+        """
         key, self.rng = random.split(self.rng)
         state = self.initialize()
         state = jax_utils.replicate(state)
@@ -63,6 +66,12 @@ class SSLTrainer(Trainer):
             )
 
     def epoch(self, state):
+        """
+        Train over one iteration of data.
+
+        Args:
+            state (flax.training.train_state.TrainState): model state
+        """
         for data, _ in iter(self.task.dataloader):
             batch = jax.device_put(data)
             rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
@@ -87,7 +96,11 @@ class SSLTrainer(Trainer):
 
     def step(self, state, batch):
         """
-        Compute gradients, loss, accuracy per batch
+        Compute and apply gradient.
+
+        Args:
+            state (flax.training.train_state.TrainState): model state
+            batch (jnp.array): a single data batch
         """
         # get losses
         if "dynamic_scale" in self.task.config.env:
@@ -101,12 +114,22 @@ class SSLTrainer(Trainer):
             grad_fn = jax.value_and_grad(self.loss, has_aux=False)
 
         loss, grad = self.accumulate_gradients(grad_fn, batch, {"params": state.params})
-        loss, grad = jax.lax.pmean(loss, axis_name="batch"), jax.lax.pmean(grad, axis_name="batch")
+        loss, grad = jax.lax.pmean(loss, axis_name="batch"), jax.lax.pmean(
+            grad, axis_name="batch"
+        )
 
         state = state.apply_gradients(grads=grad["params"])
         return state, loss
 
     def accumulate_gradients(self, grad_fn, batch, params):
+        """
+        Split a batch into sub-batches and compute gradients in each sub-batch.
+
+        Args:
+            grad_fn (Callable[..., Tuple[Any, Any]]): result of opt.value_and_gradient
+            batch (jnp.array): a single data batch
+            params (flax.core.frozen_dict.FrozenDict[str, Any]): model parameters
+        """
         if self.task.config.env.accum_steps > 1:
             assert (
                 batch.shape[0] % self.task.config.env.accum_steps == 0
@@ -141,6 +164,9 @@ class SSLTrainer(Trainer):
             return grad_fn(params, batch)
 
     def loss(self, params, batch):
+        """
+        Apply loss function. Passed to opt.value_and_grad.
+        """
         outs = self.model.apply(params, batch)
         loss = self.task.loss(*outs)
         loss = jnp.mean(loss)
@@ -153,6 +179,9 @@ class SSLTrainer(Trainer):
         raise NotImplementedError
 
     def initialize(self):
+        """
+        Initialize platform, devices, numerical precision, model, train state.
+        """
         # setup devices
         platform = jax.local_devices()[0].platform
         # set model_dtype
@@ -174,13 +203,17 @@ class SSLTrainer(Trainer):
             + [len(self.task.config.model.branches)]
         )
 
-        init_data = jnp.ones(tuple(init_shape), model_dtype,)
+        init_data = jnp.ones(
+            tuple(init_shape),
+            model_dtype,
+        )
         params = jax.jit(self.model.init)(self.rng, init_data)
 
         # TODO. Restore checkpoint
         if self.task.config.env.restore_checkpoint.params:
             state = checkpoints.restore_checkpoint(
-                target=self.model, **self.task.config.env.restore_checkpoint,
+                target=self.model,
+                **self.task.config.env.restore_checkpoint,
             )
 
         opt_collect = []
