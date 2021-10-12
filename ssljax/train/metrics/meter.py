@@ -3,7 +3,7 @@ from collections import Counter
 from typing import Callable, Dict
 
 from ssljax.core.utils import register
-from ssljax.train.metrics.metric import Metric
+from ssljax.train.metrics import Metric
 
 logger = logging.getLogger(__name__)
 

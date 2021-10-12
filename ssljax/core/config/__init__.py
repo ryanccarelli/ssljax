@@ -1,1 +1,1 @@
-from ssljax.config.config import Config
+from ssljax.core.config.config import Config

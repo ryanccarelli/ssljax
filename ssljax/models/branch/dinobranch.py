@@ -1,5 +1,5 @@
-from ssljax.models.branch import Branch
-from ssljax.models.resnet import Resnet50
+from ssljax.models.branch.branch import Branch
+from ssljax.models.resnet import ResNet50
 
 
 class DinoOnlineBranch(Branch):
@@ -12,7 +12,7 @@ class DinoOnlineBranch(Branch):
     def setup(self):
         self.resnet50 = Resnet50
         self.mlp = MLP(layer_dims=[200, 10])
-        self.softmax = None 
+        self.softmax = None
 
     def __call__(self, x):
         pass

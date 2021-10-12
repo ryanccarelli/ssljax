@@ -6,14 +6,16 @@ from typing import Callable, Dict, List
 
 import jax
 from ssljax.augment.pipeline.pipeline import Pipeline
-from ssljax.config import Config
+from ssljax.core.config import Config
 from ssljax.core.utils.register import get_from_register, print_registry
 from ssljax.data import DataLoader
 from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
-from ssljax.train import Meter, Scheduler, SSLTrainer, Trainer
+from ssljax.train import SSLTrainer, Trainer
+from ssljax.train.metrics import Meter
 from ssljax.train.postprocess import PostProcess
+from ssljax.train.scheduler import Scheduler
 
 logger = logging.getLogger(__name__)
 

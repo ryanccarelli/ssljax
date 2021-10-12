@@ -5,7 +5,6 @@ from optax import (constant_schedule, cosine_decay_schedule,
                    linear_onecycle_schedule, piecewise_constant_schedule,
                    piecewise_interpolate_schedule, polynomial_schedule)
 from ssljax.core.utils.register import register
-from ssljax.train.scheduler.ema import ema
 
 logger = logging.getLogger(__name__)
 

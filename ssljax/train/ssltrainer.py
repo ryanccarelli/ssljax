@@ -2,6 +2,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 from functools import reduce
 from pathlib import Path
 from typing import Callable
@@ -22,7 +23,7 @@ from ssljax.optimizers import Optimizer
 from ssljax.optimizers.base import ParameterTransformation
 from ssljax.optimizers.utils import (add_prefix_to_dict_keys,
                                      flattened_traversal)
-from ssljax.train import Trainer
+from ssljax.train.trainer import Trainer
 from tensorboardX import GlobalSummaryWriter
 
 CHECKPOINTSDIR = Path("outs/checkpoints/")
