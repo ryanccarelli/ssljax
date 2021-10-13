@@ -38,7 +38,7 @@ class ResNet(Model):
     def setup(self):
         if self.block_cls == "ResNetBlock":
             self.block_cls = ResNetBlock
-        elif self.block_cls == "BottleneckResNetBlock"
+        elif self.block_cls == "BottleneckResNetBlock":
             self.block_cls = BottleneckResNetBlock
         else:
             raise KeyError("must pass {ResNetBlock, BottleneckResNetBlock}")
