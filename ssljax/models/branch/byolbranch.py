@@ -6,9 +6,8 @@ from ssljax.models.resnet import ResNet50
 @register(Branch, "BYOLOnlineBranch")
 class BYOLOnlineBranch(Branch):
     """
-    The online branch in BYOL model.
-    Rep: Resnet50
-    Proj: MLP
+    The online branch for a BYOl model.
+    See: https://arxiv.org/abs/2006.07733
     """
 
     def setup(self):
@@ -24,13 +23,13 @@ class BYOLOnlineBranch(Branch):
 @register(Branch, "BYOLTargetBranch")
 class BYOLTargetBranch(Branch):
     """
-    The target branch in BYOL model.
-    Rep: Resnet50
+    The target branch for a BYOl model.
+    See: https://arxiv.org/abs/2006.07733
     """
 
     def setup(self):
         self.resnet50 = Resnet50
 
-    def __call__(self):
+    def __call__(self, x):
         x = self.resnet50(x)
         return x

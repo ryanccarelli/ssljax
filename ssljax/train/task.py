@@ -157,6 +157,7 @@ class Task:
 
         return post_process_list
 
+    @staticmethod
     def prepare_environment(config) -> jax.numpy.DeviceArray:
         """
         Set the random seeds.
@@ -164,7 +165,8 @@ class Task:
         Args:
             config: Hydra config.
 
-        Returns (jax.numpy.DeviceArray): A Jax PRNG object.
+        Returns:
+            jax.numpy.DeviceArray: A Jax PRNG object.
         """
 
         # Get the seed values from the config.
