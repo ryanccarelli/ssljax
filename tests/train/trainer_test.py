@@ -10,7 +10,7 @@ class TestTrainer:
         trainer = task.trainer
         trainer.train()
 
-    def test_train_byol(self, byoltestconfig)
+    def test_train_byol(self, byoltestconfig):
         task = Task(byoltestconfig)
         trainer = task.trainer
         trainer.train()

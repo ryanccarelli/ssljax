@@ -20,7 +20,7 @@ def cputestconfig():
 @pytest.fixture
 def byoltestconfig():
     hydra.core.global_hydra.GlobalHydra.instance().clear()
-    initialize(config_path="../trai/conf")
+    initialize(config_path="../train/conf")
     cfg = compose(config_name="byol_conf.yaml")
     return cfg
 

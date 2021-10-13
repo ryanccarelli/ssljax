@@ -2,14 +2,14 @@ env:
   seed: 1337
   numpy_seed: 1337
   jax_seed: 1337
-  epochs: 11
-  accum_steps: 8
+  epochs: 100
+  accum_steps: 1
   save_checkpoint:
     params:
       ckpt_dir: "outs/checkpoints/"
       keep: 1
       overwrite: True
-      keep_every_n_steps: 10
+      keep_every_n_steps: 300
   restore_checkpoint:
     params: {}
   half_precision: False
@@ -26,27 +26,47 @@ model:
       name: OnlineBranch
       params:
         body:
-          name: ResNet50
-          params: {}
+          name: ResNet
+          params:
+            stage_sizes: [3, 4, 6, 3]
+            block_cls: "BottleneckResNetBlock"
         head:
           name: MLP
-          params: {}
+          params:
+            layer_dims: [4096, 256]
+            dropout_prob: 0.0
+            batch_norm:
+              params:
+                decay_rate: 0.9
+                eps: 1e-5
+            activation: "relu"
         pred:
           name: MLP
-          params: {}
-        classifier:
-          name: Dense
-          params: {}
+          params:
+            layer_dims: [4096, 256]
+            dropout_prob: 0.0
+            batch_norm:
+              params:
+                decay_rate: 0.9
+                eps: 1e-5
+            activation: "relu"
 
     1:
       name: TargetBranch
       params:
         body:
-          name: ResNet50
+          name: "ResNet"
           params: {}
         head:
-          name: MLP
-          params: {}
+          name: "MLP"
+          params:
+            layer_dims: [4096, 256]
+            dropout_prob: 0.0
+            batch_norm: True
+            batch_norm_params:
+              momentum: 0.9
+              eps: 1e-5
+            activation: "relu"
 
 
 loss: byol_regression_loss
@@ -54,17 +74,27 @@ loss: byol_regression_loss
 optimizers:
   branches:
     0:
-      name: lamb
+      name: lars
       params:
-        learning_rate: 0.01
+        # TODO: check that this should be momentum (comes from deepmind's \beta)
+        momentum: 0.9
+        trust_coefficient: 1e-3
+        weight_decay: 1.5e-6
+        weight_decay_mask: True
+        trust_ratio_mask: True
 
 schedulers:
   branches:
     0:
-      name: cosine_decay
+      name: BYOL
       params:
-        init_value: 0.01
-        decay_steps: 1000
+        # note that learning rate scales w/ number of epochs see deepmind implementation
+        base_learning_rate: 0.45
+        warmup_steps: 1000
+        batch_size: 4096
+        # epochs * train_images_per_epoch // batch_size
+        # TODO: for now this is a random number
+        total_steps: 100000
 
 post_process:
   funcs:
@@ -73,7 +103,7 @@ post_process:
       params:
         online_branch_name: branch_0
         target_branch_name: branch_1
-        tau:  0.9
+        tau: 0.9
 
 meter:
   name: SSLMeter
@@ -81,14 +111,14 @@ meter:
 pipelines:
   branches:
     0:
-      name: BYOLPipelineOnline
+      name: BYOLOnlinePipeline
       params: {}
     1:
-      name: BYOLPipelineTarget
+      name: BYOLTargetPipeline
       params: {}
 
 dataloader:
   name: mnist
   params:
-    batch_size: 32
+    batch_size: 4096
     input_shape: (784,)

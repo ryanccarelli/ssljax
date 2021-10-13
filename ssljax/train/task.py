@@ -1,7 +1,7 @@
 # similar to https://github.com/facebookresearch/vissl/blob/master/vissl/trainer/train_task.py
 import logging
-from typing import Dict, List
-from typing import Callable
+from collections import OrderedDict
+from typing import Callable, Dict, List
 
 from ssljax.augment.pipeline.pipeline import Pipeline
 from ssljax.config import Config
@@ -12,7 +12,6 @@ from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
 from ssljax.train import Meter, Scheduler, SSLTrainer, Trainer
-from collections import OrderedDict
 from ssljax.train.postprocess import PostProcess
 
 logger = logging.getLogger(__name__)
@@ -44,8 +43,8 @@ class Task:
         self.trainer = self._get_trainer()
         self.model = self._get_model()
         self.loss = self._get_loss()
-        self.optimizers = self._get_optimizers()
         self.schedulers = self._get_schedulers()
+        self.optimizers = self._get_optimizers()
         self.meter = self._get_meter()
         self.pipelines = self._get_pipelines()
         self.dataloader = self._get_dataloader()
@@ -85,7 +84,7 @@ class Task:
         optimizers = OrderedDict()
         for optimizer_key, optimizer_params in self.config.optimizers.branches.items():
             optimizer = get_from_register(Optimizer, optimizer_params.name)(
-                **optimizer_params.params
+                learning_rate=self.schedulers[optimizer_key], **optimizer_params.params
             )
             optimizers[optimizer_key] = optimizer
 
@@ -140,12 +139,14 @@ class Task:
             **self.config.dataloader.params
         )
 
-
     def _get_post_process_list(self) -> List[Callable]:
         print_registry()
         post_process_list = []
 
-        for post_process_idx, post_process_params in self.config.post_process.funcs.items():
+        for (
+            post_process_idx,
+            post_process_params,
+        ) in self.config.post_process.funcs.items():
             post_process = get_from_register(PostProcess, post_process_params.name)(
                 **post_process_params.params
             )

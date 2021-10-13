@@ -1,3 +1,6 @@
+import flax.linen as nn
+import jax.lax
+from ssljax.core.utils import get_from_register, register
 from ssljax.models.model import Model
 
 
@@ -29,15 +32,19 @@ class OnlineBranch(Branch):
         pred (str): predictor to retrieve from register, must index Model
     """
 
-    def setup(self, body, body_params, head, head_params, pred, pred_params):
-        self.body = get_from_register(Model, body, **body_params)
-        self.head = get_from_register(Model, head, **head_params)
-        self.predictor = get_from_register(Model, pred, **pred_params)
+    body: dict
+    head: dict
+    pred: dict
 
-    def __call__(self):
+    def setup(self):
+        self.body = get_from_register(Model, self.body.name)(**self.body.params)
+        self.head = get_from_register(Model, self.head.name)(**self.head.params)
+        self.pred = get_from_register(Model, self.pred.name)(**self.pred.params)
+
+    def __call__(self, x):
         x = self.body(x)
         x = self.head(x)
-        x = self.predictor(x)
+        x = self.pred(x)
         return x
 
 
@@ -51,11 +58,14 @@ class TargetBranch(Branch):
         head (str): head to retrieve from register, must index Model
     """
 
-    def setup(self, body, body_params, head, head_params, pred, pred_params):
-        self.body = get_from_register(Model, body, **body_params)
-        self.head = get_from_register(Model, head, **head_params)
+    body: dict
+    head: dict
 
-    def __call__(self):
+    def setup(self):
+        self.body = get_from_register(Model, self.body.name)(**self.body.params)
+        self.head = get_from_register(Model, self.head.name)(**self.head.params)
+
+    def __call__(self, x):
         x = self.body(x)
         x = self.head(x)
-        return x
+        return jax.lax.stop_gradient(x)
