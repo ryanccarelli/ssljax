@@ -1,17 +1,3 @@
-"""
-We want to support two configurations:
-    1. contrastive learning by negative pairs (eg SIMCLR)
-    2. non-contrastive (eg BYOL, SimSiam)
-
-The non-contrastive approaches replace negative pairs with:
-    1. a learnable predictor
-    2. a stop-gradient
-
-Support
-stop gradient on target but not on predictor
-both ema of bodies and bodies with shared parameters
-
-"""
 import collections
 from dataclasses import dataclass
 
@@ -64,10 +50,10 @@ class SSLModel(Model):
 
         return outs
 
-    def freeze_head(self):
+    def freeze_head(self, branch_name):
         raise NotImplementedError
 
-    def freeze_body(self):
+    def freeze_body(self, branch_name):
         raise NotImplementedError
 
     def is_frozen(self):

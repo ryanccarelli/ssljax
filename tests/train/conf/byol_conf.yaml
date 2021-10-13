@@ -23,11 +23,30 @@ model:
   name: SSLModel
   branches:
     0:
-      name: BYOLOnlineBranch
-      params: {}
+      name: OnlineBranch
+      params:
+        body:
+          name: ResNet50
+          params: {}
+        head:
+          name: MLP
+          params: {}
+        pred:
+          name: MLP
+          params: {}
+        classifier:
+          name: Dense
+          params: {}
+
     1:
-      name: BYOLTargetBranch
-      params: {}
+      name: TargetBranch
+      params:
+        body:
+          name: ResNet50
+          params: {}
+        head:
+          name: MLP
+          params: {}
 
 
 loss: byol_regression_loss
