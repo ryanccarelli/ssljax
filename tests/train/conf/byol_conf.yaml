@@ -47,7 +47,7 @@ model:
             layer_dims: [4096, 256]
             dropout_prob: 0.0
             batch_norm: False
-            batch_norm_params: 
+            batch_norm_params:
                 decay_rate: 0.9
                 epsilon: 1e-5
             activation_name: "relu"
@@ -123,8 +123,8 @@ pipelines:
       params: {}
 
 dataloader:
-  name: mnist
+  name: cifar10
   params:
     batch_size: 4096
     flatten: False
-    input_shape: (28,28,)
+    input_shape: (32,32,3)

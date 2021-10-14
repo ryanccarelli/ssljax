@@ -56,12 +56,17 @@ class RandomFlip(Augmentation):
         x (jnp.array): an NHWC tensor (with C=3).
         rng (jnp.array): a single PRNGKey.
     """
+    def __init__(
+        self,
+        prob=1.0,
+    ):
+        super().__init__(prob)
 
     def __call__(self, x, rng):
-        return jax.vmap(self._random_flip_single_image)(x, rng)
+        rngs = jax.random.split(rng, x.shape[0])
+        return jax.vmap(self._random_flip_single_image, in_axes=0)(x, rngs)
 
-    @staticmethod
-    def _random_flip_single_image(image, rng):
+    def _random_flip_single_image(self, image, rng):
         _, flip_rng = jax.random.split(rng)
         should_flip_lr = jax.random.uniform(flip_rng, shape=()) <= self.prob
         image = jax.lax.cond(

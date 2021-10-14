@@ -4,10 +4,9 @@ import jax.numpy as jnp
 import numpy as np
 from ssljax.core.utils.register import register
 from torch.utils import data
-from torchvision.datasets import MNIST
+from torchvision.datasets import CIFAR10, MNIST
 
 logger = logging.getLogger(__name__)
-
 
 
 class DataLoader(data.DataLoader):
@@ -57,13 +56,13 @@ def numpy_collate(batch):
 
 class FlattenAndCast:
     def __call__(self, pic):
-        #return np.expand_dims(np.ravel(np.array(pic, dtype=jnp.float32)), axis=-1)
+        # return np.expand_dims(np.ravel(np.array(pic, dtype=jnp.float32)), axis=-1)
         return np.ravel(np.array(pic, dtype=jnp.float32))
 
 
 class Cast:
     def __call__(self, pic):
-        #return np.expand_dims(np.ravel(np.array(pic, dtype=jnp.float32)), axis=-1)
+        # return np.expand_dims(np.ravel(np.array(pic, dtype=jnp.float32)), axis=-1)
         return np.array(pic, dtype=jnp.float32)
 
 
@@ -77,3 +76,14 @@ def MNISTLoader(batch_size, flatten=False, **kwargs):
     else:
         mnist_dataset = MNIST("/tmp/mnist/", download=True, transform=Cast())
     return DataLoader(mnist_dataset, batch_size=batch_size, num_workers=0, **kwargs)
+
+
+@register(DataLoader, "cifar10")
+def CIFARLoader(batch_size, flatten=False, **kwargs):
+    if flatten:
+        cifar_dataset = CIFAR10(
+            "/tmp/cifar10/", download=True, transform=FlattenAndCast()
+        )
+    else:
+        cifar_dataset = CIFAR10("/tmp/cifar10/", download=True, transform=Cast())
+    return DataLoader(cifar_dataset, batch_size=batch_size, num_workers=0, **kwargs)
