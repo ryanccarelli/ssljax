@@ -39,7 +39,7 @@ model:
             batch_norm: False
             batch_norm_params:
                 decay_rate: 0.9
-                eps: 1e-5
+                epsilon: 1e-5
             activation_name: "relu"
         pred:
           name: MLP
@@ -49,7 +49,7 @@ model:
             batch_norm: False
             batch_norm_params: 
                 decay_rate: 0.9
-                eps: 1e-5
+                epsilon: 1e-5
             activation_name: "relu"
 
     1:
@@ -68,8 +68,9 @@ model:
             dropout_prob: 0.0
             batch_norm: True
             batch_norm_params:
+              use_running_average: True
               momentum: 0.9
-              eps: 1e-5
+              epsilon: 1e-5
             activation_name: "relu"
 
 
@@ -125,4 +126,4 @@ dataloader:
   name: mnist
   params:
     batch_size: 4096
-    input_shape: (784,)
+    input_shape: (28,28,)
