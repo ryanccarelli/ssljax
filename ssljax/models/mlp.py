@@ -6,11 +6,11 @@ import jax
 import jax.numpy as jnp
 from flax.training import train_state
 from ssljax.models.model import Model
-from ssljax.optimizers.optimizers import adam
-
+from ssljax.core.utils import register
+from omegaconf import DictConfig
 
 @register(Model, "MLP")
-class MLP(nn.Module):
+class MLP(Model):
     """
     Flax implementation of multilayer perceptron.
 
@@ -21,11 +21,11 @@ class MLP(nn.Module):
         batch_norm(bool): whether to use batchnorm between layers
     """
 
+    batch_norm_params: dict
     layer_dims: List[int]
     dtype: jax._src.numpy.lax_numpy._ScalarMeta = jnp.float32
     dropout_prob: float = 0.0
     batch_norm: bool = False
-    batch_norm_params: dict = {}
     activation_name: Callable = "relu"
 
     def setup(self):
