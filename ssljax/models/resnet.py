@@ -73,7 +73,7 @@ class ResNet(Model):
                     act=self.act,
                 )(x)
         x = jnp.mean(x, axis=(1, 2))
-        if isinstance(self.num_classes, int):
+        if (self.num_classes != False) and isinstance(self.num_classes, int):
             x = nn.Dense(self.num_classes, dtype=self.dtype)(x)
         x = jnp.asarray(x, self.dtype)
         return x
