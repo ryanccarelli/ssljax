@@ -126,4 +126,5 @@ dataloader:
   name: mnist
   params:
     batch_size: 4096
+    flatten: False
     input_shape: (28,28,)
