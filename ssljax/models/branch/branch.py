@@ -32,14 +32,15 @@ class OnlineBranch(Branch):
         pred (str): predictor to retrieve from register, must index Model
     """
 
-    body: dict
-    head: dict
-    pred: dict
+    body_params: dict
+    head_params: dict
+    pred_params: dict
 
     def setup(self):
-        self.body = get_from_register(Model, self.body.name)(**self.body.params)
-        self.head = get_from_register(Model, self.head.name)(**self.head.params)
-        self.pred = get_from_register(Model, self.pred.name)(**self.pred.params)
+        print("body params jer", self.body_params)
+        self.body = get_from_register(Model, self.body_params.name)(**self.body_params.params)
+        self.head = get_from_register(Model, self.head_params.name)(**self.head_params.params)
+        self.pred = get_from_register(Model, self.pred_params.name)(**self.pred_params.params)
 
     def __call__(self, x):
         x = self.body(x)
