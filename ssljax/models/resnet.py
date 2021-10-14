@@ -21,24 +21,24 @@ import jax.numpy as jnp
 from flax import linen as nn
 from ssljax.core.utils.register import register
 from ssljax.models.model import Model
-
 from ssljax.models.utils import BottleneckResNetBlock, ResNetBlock
+
 
 @register(Model, "ResNet")
 class ResNet(Model):
     """ResNetV1."""
 
     stage_sizes: Sequence[int]
-    block_cls: str
-    num_classes: int
+    block_cls_name: str
+    num_classes: int or bool or None
     num_filters: int = 64
     dtype: Any = jnp.float32
     act: Callable = nn.relu
 
     def setup(self):
-        if self.block_cls == "ResNetBlock":
+        if self.block_cls_name == "ResNetBlock":
             self.block_cls = ResNetBlock
-        elif self.block_cls == "BottleneckResNetBlock":
+        elif self.block_cls_name == "BottleneckResNetBlock":
             self.block_cls = BottleneckResNetBlock
         else:
             raise KeyError("must pass {ResNetBlock, BottleneckResNetBlock}")
@@ -71,7 +71,8 @@ class ResNet(Model):
                     act=self.act,
                 )(x)
         x = jnp.mean(x, axis=(1, 2))
-        x = nn.Dense(self.num_classes, dtype=self.dtype)(x)
+        if isinstance(self.num_classes, int):
+            x = nn.Dense(self.num_classes, dtype=self.dtype)(x)
         x = jnp.asarray(x, self.dtype)
         return x
 

@@ -30,6 +30,7 @@ model:
           params:
             stage_sizes: [3, 4, 6, 3]
             block_cls: "BottleneckResNetBlock"
+            num_classes: False
         head:
           name: MLP
           params:
