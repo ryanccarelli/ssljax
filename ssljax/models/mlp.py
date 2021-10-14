@@ -26,10 +26,10 @@ class MLP(nn.Module):
     dropout_prob: float = 0.0
     batch_norm: bool = False
     batch_norm_params: dict = {}
-    activation: Callable = "relu"
+    activation_name: Callable = "relu"
 
     def setup(self):
-        if self.activation == "relu":
+        if self.activation_name == "relu":
             self.activation = nn.relu
         layers = []
         if self.batch_norm:

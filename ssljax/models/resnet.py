@@ -26,12 +26,14 @@ from ssljax.models.utils import BottleneckResNetBlock, ResNetBlock
 
 @register(Model, "ResNet")
 class ResNet(Model):
-    """ResNetV1."""
+    """
+    ResNetv1 declarable from config.
+    """
 
     stage_sizes: Sequence[int]
-    block_cls_name: str
     num_classes: int or bool or None
     num_filters: int = 64
+    block_cls_name: str = "BottleneckResNetBlock"
     dtype: Any = jnp.float32
     act: Callable = nn.relu
 

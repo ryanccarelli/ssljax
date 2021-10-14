@@ -29,7 +29,7 @@ model:
           name: ResNet
           params:
             stage_sizes: [3, 4, 6, 3]
-            block_cls: "BottleneckResNetBlock"
+            block_cls_name: "BottleneckResNetBlock"
             num_classes: False
         head:
           name: MLP
@@ -40,7 +40,7 @@ model:
               params:
                 decay_rate: 0.9
                 eps: 1e-5
-            activation: "relu"
+            activation_name: "relu"
         pred:
           name: MLP
           params:
@@ -50,16 +50,19 @@ model:
               params:
                 decay_rate: 0.9
                 eps: 1e-5
-            activation: "relu"
+            activation_name: "relu"
 
     1:
       name: TargetBranch
       params:
         body:
-          name: "ResNet"
-          params: {}
+          name: ResNet
+          params:
+            stage_sizes: [3, 4, 6, 3]
+            block_cls_name: "BottleneckResNetBlock"
+            num_classes: False
         head:
-          name: "MLP"
+          name: MLP
           params:
             layer_dims: [4096, 256]
             dropout_prob: 0.0
@@ -67,7 +70,7 @@ model:
             batch_norm_params:
               momentum: 0.9
               eps: 1e-5
-            activation: "relu"
+            activation_name: "relu"
 
 
 loss: byol_regression_loss
