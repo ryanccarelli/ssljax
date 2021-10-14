@@ -32,20 +32,19 @@ class OnlineBranch(Branch):
         pred (str): predictor to retrieve from register, must index Model
     """
 
-    body_params: dict
-    head_params: dict
-    pred_params: dict
+    body: dict
+    head: dict
+    pred: dict
 
     def setup(self):
-        print("body params jer", self.body_params)
-        self.body = get_from_register(Model, self.body_params.name)(**self.body_params.params)
-        self.head = get_from_register(Model, self.head_params.name)(**self.head_params.params)
-        self.pred = get_from_register(Model, self.pred_params.name)(**self.pred_params.params)
+        self.body_mod = get_from_register(Model, self.body.name)(**self.body.params)
+        self.head_mod = get_from_register(Model, self.head.name)(**self.head.params)
+        self.pred_mod = get_from_register(Model, self.pred.name)(**self.pred.params)
 
     def __call__(self, x):
-        x = self.body(x)
-        x = self.head(x)
-        x = self.pred(x)
+        x = self.body_mod(x)
+        x = self.head_mod(x)
+        x = self.pred_mod(x)
         return x
 
 
@@ -63,10 +62,10 @@ class TargetBranch(Branch):
     head: dict
 
     def setup(self):
-        self.body = get_from_register(Model, self.body.name)(**self.body.params)
-        self.head = get_from_register(Model, self.head.name)(**self.head.params)
+        self.body_mod = get_from_register(Model, self.body.name)(**self.body.params)
+        self.head_mod = get_from_register(Model, self.head.name)(**self.head.params)
 
     def __call__(self, x):
-        x = self.body(x)
-        x = self.head(x)
+        x = self.body_mod(x)
+        x = self.head_mod(x)
         return jax.lax.stop_gradient(x)

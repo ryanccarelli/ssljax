@@ -36,8 +36,8 @@ model:
           params:
             layer_dims: [4096, 256]
             dropout_prob: 0.0
-            batch_norm:
-              params:
+            batch_norm: False
+            batch_norm_params:
                 decay_rate: 0.9
                 eps: 1e-5
             activation_name: "relu"
@@ -46,8 +46,8 @@ model:
           params:
             layer_dims: [4096, 256]
             dropout_prob: 0.0
-            batch_norm:
-              params:
+            batch_norm: False
+            batch_norm_params: 
                 decay_rate: 0.9
                 eps: 1e-5
             activation_name: "relu"
