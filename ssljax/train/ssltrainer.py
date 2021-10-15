@@ -47,6 +47,7 @@ class SSLTrainer(Trainer):
         self.task = task
         self.rng = rng
         self.p_step = jax.pmap(self.step, axis_name="batch")
+        self.bn = None
 
     def train(self):
         key, self.rng = random.split(self.rng)
@@ -105,8 +106,11 @@ class SSLTrainer(Trainer):
             jax.lax.pmean(loss, axis_name="batch"),
             jax.lax.pmean(grad, axis_name="batch"),
         )
-
-        state = state.apply_gradients(grads=grad["params"])
+        state = state.apply_gradients(
+            grads=grad["params"],
+            batch_stats=state["batch_stats"],
+            mutable=["batch_stats"],
+        )
         return state, loss
 
     def accumulate_gradients(self, grad_fn, batch, params):
@@ -144,7 +148,10 @@ class SSLTrainer(Trainer):
             return grad_fn(params, batch)
 
     def loss(self, params, batch):
-        outs = self.model.apply(params, batch)
+        # TODO: {'params': params, 'batch_stats': state.batch_stats}, mutable=['batch_stats']
+        # from https://github.com/google/flax/blob/main/examples/imagenet/train.py
+        # how to get the batch stats in here?
+        outs = self.model.apply({"params": params,}, batch)
         loss = self.task.loss(*outs)
         loss = jnp.mean(loss)
         return loss
@@ -180,14 +187,16 @@ class SSLTrainer(Trainer):
         init_data = jnp.ones(tuple(init_shape), model_dtype,)
         params = jax.jit(self.model.init)(self.rng, init_data)
 
-        # TODO. Restore checkpoint
+        # TODO: check whether there are batchnorm params to manage
+        # check whether BatchNorm_ in any leafdict
+        #
+
         if self.task.config.env.restore_checkpoint.params:
             state = checkpoints.restore_checkpoint(
                 target=self.model, **self.task.config.env.restore_checkpoint,
             )
 
         opt_collect = []
-        # TODO. Should we make this a config parameter? Or extract from params? (Ryan) extract from params
         prefix_branch = lambda x: "branch_" + str(x)
         for opt_idx, opt in self.task.optimizers.items():
             opt_collect.append(
@@ -201,6 +210,18 @@ class SSLTrainer(Trainer):
 
         multi_tx = optax.chain(*opt_collect)
         state = TrainState.create(
-            apply_fn=self.model.apply, params=params["params"].unfreeze(), tx=multi_tx
+            apply_fn=self.model.apply,
+            params=params["params"].unfreeze(),
+            tx=multi_tx,
+            batch_stats=params["batch_stats"],
         )
         return state
+
+
+def sync_batch_stats(state):
+    """
+    Sync batch statistics across replicas.
+    Adapted from Flax: https://github.com/google/flax/blob/main/examples/imagenet/train.py
+    """
+    cross_replica_mean = jax.pmap(lambda x: flax.lax.pmean(x, "x"), "x")
+    return state.replicate(batch_stats=cross_replica_mean(state.batch_stats))
