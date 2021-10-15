@@ -36,8 +36,7 @@ optimizers:
   branches:
     0:
       name: sgd
-      params:
-        learning_rate: 0.01
+      params: {}
 
 schedulers:
   branches:
@@ -59,7 +58,7 @@ post_process:
       params:
         online_branch_name: branch_0
         target_branch_name: branch_1
-        tau:  0.2
+        tau: 0.2
 
 meter:
   name: SSLMeter
@@ -78,3 +77,4 @@ dataloader:
   params:
     batch_size: 32
     input_shape: (784,)
+    flatten: True

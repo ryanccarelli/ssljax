@@ -83,6 +83,7 @@ class Task:
 
         optimizers = OrderedDict()
         for optimizer_key, optimizer_params in self.config.optimizers.branches.items():
+            print(self.schedulers[optimizer_key])
             optimizer = get_from_register(Optimizer, optimizer_params.name)(
                 learning_rate=self.schedulers[optimizer_key], **optimizer_params.params
             )

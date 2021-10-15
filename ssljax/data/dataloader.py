@@ -70,7 +70,7 @@ class Cast:
 
 # packaged dataloaders here
 @register(DataLoader, "mnist")
-def MNISTLoader(batch_size, flatten=False, num_workers=0, **kwargs):
+def MNISTLoader(batch_size, flatten=True, num_workers=0, **kwargs):
     if flatten:
         mnist_dataset = MNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
     else:

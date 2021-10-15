@@ -1,59 +1,52 @@
-from collections import OrderedDict
 import collections
+from collections import OrderedDict
 
 import jax
 import jax.numpy as jnp
+from ssljax.augment.augmentation.augmentation import (AugmentationDistribution,
+                                                      Clip, ColorTransform,
+                                                      GaussianBlur, RandomFlip,
+                                                      Solarize)
 from ssljax.augment.pipeline.pipeline import Pipeline
-from ssljax.augment.augmentation.augmentation import AugmentationDistribution, Clip, ColorTransform, RandomFlip, RandomGaussianBlur, Solarize
 from ssljax.core.utils import register
 
-
 byoltargetaugmentations = [
-        RandomFlip(prob=1.0),
-        ColorTransform(
-            prob=1.0,
-            brightness=0.4,
-            contrast=0.4,
-            saturation=0.2,
-            hue=0.1,
-            color_jitter_prob=0.8,
-            to_grayscale_prob=0.2,
-            shuffle=True,
-        ),
-        RandomGaussianBlur(
-            prob=1.0,
-            kernel_size=3,
-            padding=0,
-            sigma_min=0.1,
-            sigma_max=2.0,
-        ),
-        Clip(0,1),
-    ]
+    RandomFlip(prob=1.0),
+    ColorTransform(
+        prob=1.0,
+        brightness=0.4,
+        contrast=0.4,
+        saturation=0.2,
+        hue=0.1,
+        color_jitter_prob=0.8,
+        to_grayscale_prob=0.2,
+        shuffle=True,
+    ),
+    GaussianBlur(prob=1.0),
+    Clip(prob=1.0, x_min=0, x_max=1),
+]
 byolonlineaugmentations = [
-        RandomFlip(prob=1.0),
-        ColorTransform(
-            prob=1.0,
-            brightness=0.4,
-            contrast=0.4,
-            saturation=0.2,
-            hue=0.1,
-            color_jitter_prob=0.8,
-            to_grayscale_prob=0.2,
-            shuffle=True,
-        ),
-        RandomGaussianBlur(
-            prob=0.1,
-            kernel_size=3,
-            padding=0,
-            sigma_min=0.1,
-            sigma_max=2.0,
-        ),
-        Solarize(prob=0.2, threshold=0.5),
-        Clip(0,1),
-    ]
-byolonlineaugmentations = [AugmentationDistribution([x]) for x in byolonlineaugmentations]
-byoltargetaugmentations = [AugmentationDistribution([x]) for x in byoltargetaugmentations]
-
+    RandomFlip(prob=1.0),
+    ColorTransform(
+        prob=1.0,
+        brightness=0.4,
+        contrast=0.4,
+        saturation=0.2,
+        hue=0.1,
+        color_jitter_prob=0.8,
+        to_grayscale_prob=0.2,
+        shuffle=True,
+    ),
+    GaussianBlur(prob=0.1),
+    Solarize(prob=0.2, threshold=0.5),
+    Clip(prob=1.0, x_min=0, x_max=1),
+]
+byolonlineaugmentations = [
+    AugmentationDistribution([x]) for x in byolonlineaugmentations
+]
+byoltargetaugmentations = [
+    AugmentationDistribution([x]) for x in byoltargetaugmentations
+]
 
 
 @register(Pipeline, "BYOLOnlinePipeline")
