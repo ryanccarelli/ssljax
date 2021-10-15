@@ -70,16 +70,18 @@ class Cast:
 
 # packaged dataloaders here
 @register(DataLoader, "mnist")
-def MNISTLoader(batch_size, flatten=False, **kwargs):
+def MNISTLoader(batch_size, flatten=False, num_workers=0, **kwargs):
     if flatten:
         mnist_dataset = MNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
     else:
         mnist_dataset = MNIST("/tmp/mnist/", download=True, transform=Cast())
-    return DataLoader(mnist_dataset, batch_size=batch_size, num_workers=0, **kwargs)
+    return DataLoader(
+        mnist_dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
+    )
 
 
 @register(DataLoader, "cifar10")
-def CIFARLoader(batch_size, flatten=False, **kwargs):
+def CIFAR10Loader(batch_size, flatten=False, num_workers=0, **kwargs):
     if flatten:
         cifar_dataset = CIFAR10(
             "/tmp/cifar10/", download=True, transform=FlattenAndCast()
@@ -87,3 +89,16 @@ def CIFARLoader(batch_size, flatten=False, **kwargs):
     else:
         cifar_dataset = CIFAR10("/tmp/cifar10/", download=True, transform=Cast())
     return DataLoader(cifar_dataset, batch_size=batch_size, num_workers=0, **kwargs)
+
+
+@register(DataLoader, "cifar100")
+def CIFAR100Loader(batch_size, flatten=False, num_workers=0, **kwargs):
+    if flatten:
+        cifar_dataset = CIFAR100(
+            "/tmp/cifar100/", download=True, transform=FlattenAndCast()
+        )
+    else:
+        cifar_dataset = CIFAR100("/tmp/cifar100/", download=True, transform=Cast())
+    return DataLoader(
+        cifar_dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
+    )
