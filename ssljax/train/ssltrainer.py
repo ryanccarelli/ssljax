@@ -17,7 +17,8 @@ from flax.training import checkpoints
 from flax.training.train_state import TrainState
 from jax import random
 from optax._src.base import GradientTransformation
-from ssljax.core.utils import get_from_register, register
+from ssljax.core.utils import (add_prefix_to_dict_keys, flattened_traversal,
+                               get_from_register, register)
 from ssljax.optimizers import Optimizer
 from ssljax.optimizers.base import ParameterTransformation
 from ssljax.optimizers.utils import (add_prefix_to_dict_keys,
@@ -189,7 +190,6 @@ class SSLTrainer(Trainer):
 
         # TODO: check whether there are batchnorm params to manage
         # check whether BatchNorm_ in any leafdict
-        #
 
         if self.task.config.env.restore_checkpoint.params:
             state = checkpoints.restore_checkpoint(
