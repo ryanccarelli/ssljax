@@ -5,9 +5,9 @@ Welcome to ssljax
 
 .. toctree::
    :maxdepth: 2
-   :caption: Example Models
+   :caption: Self-supervised Learning
 
-   contrastive_learning
+   ssl
 
 .. toctree::
    :maxdepth: 2
