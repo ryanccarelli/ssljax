@@ -39,8 +39,10 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.imgmath",
     "IPython.sphinxext.ipython_console_highlighting",
-    "autoapi.extension"
+    "autoapi.extension" "sphinxcontrib.bibtex",
 ]
+
+bibtex_bibfiles = ["refs.bib"]
 
 autodoc_default_options = {"members": True, "undoc-members": True}
 
@@ -53,7 +55,7 @@ templates_path = ["_templates"]
 exclude_patterns = ["../tests/*", "build", "/outs/*", "../*.ipynb_checkpoints"]
 
 # autoapi imports
-autoapi_dirs = ['../../ssljax']
+autoapi_dirs = ["../../ssljax"]
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -80,6 +82,7 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+
 
 def setup(app):
     app.add_css_file("css/ssljax.css")

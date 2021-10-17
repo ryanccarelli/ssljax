@@ -1,6 +1,13 @@
+Contrastive Learning and Negative Pairs
+=======================================
+
+SimCLR :footcite:t:`2020:chen`
+
 Self-Supervised Learning
 ========================
 
-Deep learning systems scale
+Recent breakthroughs in machine learning have been driven by scaling neural models.
 
-How do we scale deep learning systems in domains where curated and labeled data is limited?
+But how do we scale deep learning systems in domains where curated and labeled data is limited?
+
+.. footbibliography::
