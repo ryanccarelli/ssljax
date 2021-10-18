@@ -8,9 +8,13 @@ Every ``ssljax`` experiment instantiates its components in a Task object.
 .. autoapiclass:: ssljax.train.task.Task
 
 
-SSLTrainer
+Trainer
 ----------
+
+
 The core ssljax class implementing self-supervised training.
+
+.. autoapiclass:: ssljax.train.trainer.Trainer
 
 .. autoapiclass:: ssljax.train.ssltrainer.SSLTrainer
 
@@ -19,16 +23,10 @@ Branches
 --------
 .. autoapiclass:: ssljax.models.branch.branch.Branch
 
-We implement branches for popular self-supervised learning models.
+We implement the common online and target branch convention,
 
-Bootstrap Your Own Latent
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. autoapiclass:: ssljax.models.branch.byolbranch.BYOLOnlineBranch
-.. autoapiclass:: ssljax.models.branch.byolbranch.BYOLTargetBranch
-
-Self-Distillation with No Labels
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autoapiclass:: ssljax.models.branch.branch.OnlineBranch
+.. autoapiclass:: ssljax.models.branch.branch.TargetBranch
 
 Postprocess
 -----------
@@ -66,9 +64,6 @@ Augmentations
 
 We provide implementations of common augmentations.
 
-Example Augmentations
-^^^^^^^^^^^^^^^^^^^^^
-
 .. autoapiclass:: ssljax.augment.augmentation.augmentation.RandomFlip
 .. autoapiclass:: ssljax.augment.augmentation.augmentation.RandomGaussianBlur
 .. autoapiclass:: ssljax.augment.augmentation.augmentation.ColorTransform
@@ -83,13 +78,8 @@ Augmentations are composed into Pipelines that transform data into branch inputs
 
 We provide implementations of popular pipelines.
 
-Example Pipelines
-^^^^^^^^^^^^^^^^^
-
 .. autoapiclass:: ssljax.augment.pipeline.byolpipeline.BYOLOnlinePipeline
 .. autoapiclass:: ssljax.augment.pipeline.byolpipeline.BYOLTargetPipeline
-
-
 
 Schedulers
 ----------
