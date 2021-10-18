@@ -4,7 +4,7 @@ from collections import OrderedDict
 from typing import Callable, Dict, List
 
 from ssljax.augment.pipeline.pipeline import Pipeline
-from ssljax.config import Config
+from ssljax.core.config import Config
 from ssljax.core.utils import prepare_environment
 from ssljax.core.utils.register import get_from_register, print_registry
 from ssljax.data import DataLoader
@@ -13,6 +13,7 @@ from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
 from ssljax.train import Meter, Scheduler, SSLTrainer, Trainer
 from ssljax.train.postprocess import PostProcess
+from ssljax.train.scheduler import Scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -21,19 +22,19 @@ class Task:
     """
     Abstract class for a task.
 
-    A task constructs and holds:
+    A task is specified by the config file and constructs and holds the:
+        - trainer
         - model
         - loss
         - optimizer
-        - schedulers
+        - scheduler
         - meter
         - pipeline
         - dataloader
-        - trainer
-        - post_process functions
+        - post-processing
 
     Args:
-        config (Config): The config to get parameters from.
+        config (ssljax.config): a hydra configuration file
     """
 
     def __init__(self, config: Config):

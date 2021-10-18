@@ -17,7 +17,10 @@ from ssljax.core.utils import register
 
 class Augmentation:
     """
-    An augmentation is a function applied to images.
+    An augmentation applies a function to data.
+
+    Args:
+        prob (float): Probability that augmentation will be executed.
     """
 
     def __init__(self, prob=1.0):
@@ -28,12 +31,23 @@ class Augmentation:
         raise NotImplementedError
 
     def __call__(self, x, rng):
+        """
+        Apply function to data.
+
+        Args:
+            x: input data
+            rng (jnp.array): Jax PRNG.
+        """
         raise NotImplementedError
 
 
 class AugmentationDistribution:
     """
-    A distribution of augmentations to be sampled
+    A distribution of augmentations with sampling.
+
+    Args:
+        augmentations (List[`ssljax.augment.augmentation.Augmentation`]):
+            A list of augmentations.
     """
 
     def __init__(self, augmentations):
@@ -44,6 +58,9 @@ class AugmentationDistribution:
         self.augmentations = augmentations
 
     def sample(self, rng):
+        """
+        Sample from distribution.
+        """
         key, subkey = jax.random.split(rng)
         sampledIndex = jax.random.choice(
             subkey,
@@ -181,20 +198,23 @@ class GaussianBlur(Augmentation):
 
 @register(Augmentation, "colortransform")
 class ColorTransform(Augmentation):
-    """Applies color jittering and/or grayscaling to a batch of images.
+    """
+    Applies color jittering and/or grayscaling to a batch of images.
+
     Args:
-      images: an NHWC tensor, with C=3.
-      rng: a single PRNGKey.
-      brightness: the range of jitter on brightness.
-      contrast: the range of jitter on contrast.
-      saturation: the range of jitter on saturation.
-      hue: the range of jitter on hue.
-      color_jitter_prob: the probability of applying color jittering.
-      to_grayscale_prob: the probability of converting the image to grayscale.
-      apply_prob: the probability of applying the transform to a batch element.
-      shuffle: whether to apply the transforms in a random order.
+        images (jnp.array): an NHWC tensor, with C=3.
+        rng (jnp.array): Jax PRNGKey
+        brightness (float): the range of jitter on brightness.
+        contrast (float): the range of jitter on contrast.
+        saturation (float): the range of jitter on saturation.
+        hue (float): the range of jitter on hue.
+        color_jitter_prob (float): the probability of applying color jittering.
+        to_grayscale_prob (float): the probability of converting the image to grayscale.
+        apply_prob (float): the probability of applying the transform to a batch element.
+        shuffle (bool): whether to apply the transforms in a random order.
+
     Returns:
-      A NHWC tensor of the transformed images.
+        A NHWC tensor of the transformed images.
     """
 
     def __init__(
@@ -323,10 +343,10 @@ class ColorTransform(Augmentation):
 class Solarize(Augmentation):
     """Applies solarization.
     Args:
-        x: an NHWC tensor (with C=3).
-        rng: a single PRNGKey.
-        threshold: the solarization threshold.
-        apply_prob: the probability of applying the transform to a batch element.
+        x (jnp.array): an NHWC tensor (with C=3).
+        rng (jnp.array): Jax PRNG
+        threshold (float): the solarization threshold.
+        apply_prob (float): the probability of applying the transform to a batch element.
     Returns:
         A NHWC tensor of the transformed images.
     """
@@ -359,8 +379,8 @@ class Clip(Augmentation):
     Wrap jnp.clip.
 
     Args:
-        x_min(float): Minimum value.
-        x_max(float): Maximum value.
+        x_min (float): Minimum value.
+        x_max (float): Maximum value.
     """
 
     def __init__(self, prob=1.0, x_min=0.0, x_max=1.0):

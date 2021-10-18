@@ -2,7 +2,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from functools import reduce, partial
+from functools import partial, reduce
 from pathlib import Path
 from typing import Callable
 
@@ -14,17 +14,12 @@ import numpy as np
 import optax
 from flax import jax_utils, traverse_util
 from flax.training import checkpoints
-# from flax.training.train_state import TrainState
-from ssljax.train.trainstate import TrainState
 from jax import random
-from optax._src.base import GradientTransformation
 from ssljax.core.utils import (add_prefix_to_dict_keys, flattened_traversal,
                                get_from_register, register)
 from ssljax.optimizers import Optimizer
-from ssljax.optimizers.base import ParameterTransformation
-# from ssljax.optimizers.utils import (add_prefix_to_dict_keys,
-#                                      flattened_traversal)
-from ssljax.train import Trainer
+from ssljax.train.trainer import Trainer
+from ssljax.train.trainstate import TrainState
 from tensorboardX import GlobalSummaryWriter
 
 CHECKPOINTSDIR = Path("outs/checkpoints/")
@@ -38,11 +33,11 @@ writer = GlobalSummaryWriter(TBDIR)
 @register(Trainer, "SSLTrainer")
 class SSLTrainer(Trainer):
     """
-    Class to manage SSL training and feature extraction.
+    Implements self-supervised training and inference.
 
     Args:
-        rng (jnp.DeviceArray):
-        config (json): configuration file
+        rng (jnp.DeviceArray): A Jax PRNG key.
+        task (ssljax.train.task.Task): A task object.
     """
 
     def __init__(self, rng, task):
@@ -52,6 +47,9 @@ class SSLTrainer(Trainer):
         self.bn = None
 
     def train(self):
+        """
+        Train model.
+        """
         key, self.rng = random.split(self.rng)
         state = self.initialize()
         state = jax_utils.replicate(state)
@@ -66,9 +64,13 @@ class SSLTrainer(Trainer):
             )
 
     def epoch(self, state):
-        step_in_epoch = 0
+        """
+        Train over one iteration of data.
+
+        Args:
+            state (flax.training.train_state.TrainState): model state
+        """
         for data, _ in iter(self.task.dataloader):
-            print("epoch_step", step_in_epoch)
             batch = jax.device_put(data)
             rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
             self.rng = rngkeys[-1]
@@ -90,13 +92,17 @@ class SSLTrainer(Trainer):
 
     def step(self, state, batch):
         """
-        Compute gradients, loss, accuracy per batch
+        Compute and apply gradient.
+
+        Args:
+            state (flax.training.train_state.TrainState): model state
+            batch (jnp.array): a single data batch
         """
         # get losses
         has_aux = False
         if state.batch_stats:
             has_aux = True
-            mutable_keys = ['batch_stats']
+            mutable_keys = ["batch_stats"]
             loss_fn = partial(self.loss, mutable_keys=mutable_keys)
         else:
             loss_fn = self.loss
@@ -112,10 +118,22 @@ class SSLTrainer(Trainer):
             grad_fn = jax.value_and_grad(loss_fn, has_aux=has_aux)
 
         if has_aux:
-            loss, aux, grad = self.accumulate_gradients(grad_fn, batch, {"params": state.params, "batch_stats": state.batch_stats}, has_aux=has_aux, mutable_keys=mutable_keys)
-            aux = jax.lax.pmean(aux, axis_name="batch"),
+            loss, aux, grad = self.accumulate_gradients(
+                grad_fn,
+                batch,
+                {"params": state.params, "batch_stats": state.batch_stats},
+                has_aux=has_aux,
+                mutable_keys=mutable_keys,
+            )
+            aux = (jax.lax.pmean(aux, axis_name="batch"),)
         else:
-            loss, grad = self.accumulate_gradients(grad_fn, batch, {"params": state.params, "batch_stats": state.batch_stats}, has_aux=has_aux, mutable_keys=mutable_keys)
+            loss, grad = self.accumulate_gradients(
+                grad_fn,
+                batch,
+                {"params": state.params, "batch_stats": state.batch_stats},
+                has_aux=has_aux,
+                mutable_keys=mutable_keys,
+            )
             aux = None
         loss, grad = (
             jax.lax.pmean(loss, axis_name="batch"),
@@ -127,7 +145,17 @@ class SSLTrainer(Trainer):
         )
         return state, loss
 
-    def accumulate_gradients(self, grad_fn, batch, params, has_aux=False, mutable_keys=None):
+    def accumulate_gradients(
+        self, grad_fn, batch, params, has_aux=False, mutable_keys=None
+    ):
+        """
+        Split a batch into sub-batches and compute gradients in each sub-batch.
+
+        Args:
+            grad_fn (Callable[..., Tuple[Any, Any]]): result of opt.value_and_gradient
+            batch (jnp.array): a single data batch
+            params (flax.core.frozen_dict.FrozenDict[str, Any]): model parameters
+        """
         if self.task.config.env.accum_steps > 1:
             assert (
                 batch.shape[0] % self.task.config.env.accum_steps == 0
@@ -188,6 +216,9 @@ class SSLTrainer(Trainer):
                 return loss, grad
 
     def loss(self, params, batch, mutable_keys=None):
+        """
+        Apply loss function. Passed to opt.value_and_grad.
+        """
         # TODO: {'params': params, 'batch_stats': state.batch_stats}, mutable=['batch_stats']
         # from https://github.com/google/flax/blob/main/examples/imagenet/train.py
         # how to get the batch stats in here?
@@ -208,6 +239,9 @@ class SSLTrainer(Trainer):
         raise NotImplementedError
 
     def initialize(self):
+        """
+        Initialize platform, devices, numerical precision, model, train state.
+        """
         # setup devices
         platform = jax.local_devices()[0].platform
         # set model_dtype
@@ -229,7 +263,10 @@ class SSLTrainer(Trainer):
             + [len(self.task.config.model.branches)]
         )
 
-        init_data = jnp.ones(tuple(init_shape), model_dtype,)
+        init_data = jnp.ones(
+            tuple(init_shape),
+            model_dtype,
+        )
         params = jax.jit(self.model.init)(self.rng, init_data)
 
         # TODO: check whether there are batchnorm params to manage
@@ -237,7 +274,8 @@ class SSLTrainer(Trainer):
 
         if self.task.config.env.restore_checkpoint.params:
             state = checkpoints.restore_checkpoint(
-                target=self.model, **self.task.config.env.restore_checkpoint,
+                target=self.model,
+                **self.task.config.env.restore_checkpoint,
             )
 
         opt_collect = []
@@ -265,7 +303,7 @@ class SSLTrainer(Trainer):
             state = TrainState.create(
                 apply_fn=self.model.apply,
                 params=params["params"].unfreeze(),
-                tx=multi_tx
+                tx=multi_tx,
             )
 
         return state

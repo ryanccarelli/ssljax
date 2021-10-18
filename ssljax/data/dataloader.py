@@ -11,8 +11,16 @@ logger = logging.getLogger(__name__)
 
 class DataLoader(data.DataLoader):
     """
-    SSLJax enforces Pytorch dataloaders inheriting from NumpyLoader.
-    NumpyLoader implements collate for numpy arrays.
+    SSLJax enforces Pytorch dataloaders inheriting from DataLoader.
+    Dataloader collates numpy arrays.
+
+    Args:
+        dataset (torch.data.Dataset): torch dataset to load
+        batch_size (int): batch size
+        shuffle (bool): whether data will be shuffled
+        num_workers (int): number of workers for distributed data
+        pin_memory (bool): whether to pin memory
+        drop_last (bool): whether to drop the last sample
     """
 
     def __init__(
@@ -45,6 +53,9 @@ class DataLoader(data.DataLoader):
 
 
 def numpy_collate(batch):
+    """
+    Collate function for pytorch datasets with NumPy arrays.
+    """
     if isinstance(batch[0], np.ndarray):
         return np.stack(batch)
     elif isinstance(batch[0], (tuple, list)):
@@ -71,6 +82,10 @@ class Cast:
 # packaged dataloaders here
 @register(DataLoader, "mnist")
 def MNISTLoader(batch_size, flatten=True, num_workers=0, **kwargs):
+    """
+    Dataloader for MNIST dataset.
+    See http://www.pymvpa.org/datadb/mnist.html
+    """
     if flatten:
         mnist_dataset = MNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
     else:
@@ -82,6 +97,9 @@ def MNISTLoader(batch_size, flatten=True, num_workers=0, **kwargs):
 
 @register(DataLoader, "cifar10")
 def CIFAR10Loader(batch_size, flatten=False, num_workers=0, **kwargs):
+    """
+    Dataloader for CIFAR10 dataset.
+    """
     if flatten:
         cifar_dataset = CIFAR10(
             "/tmp/cifar10/", download=True, transform=FlattenAndCast()
@@ -93,6 +111,9 @@ def CIFAR10Loader(batch_size, flatten=False, num_workers=0, **kwargs):
 
 @register(DataLoader, "cifar100")
 def CIFAR100Loader(batch_size, flatten=False, num_workers=0, **kwargs):
+    """
+    Dataloader for CIFAR100 dataset.
+    """
     if flatten:
         cifar_dataset = CIFAR100(
             "/tmp/cifar100/", download=True, transform=FlattenAndCast()
