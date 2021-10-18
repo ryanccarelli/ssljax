@@ -1,19 +1,17 @@
 # similar to https://github.com/facebookresearch/vissl/blob/master/vissl/trainer/train_task.py
 import logging
-import random
 from collections import OrderedDict
 from typing import Callable, Dict, List
 
-import jax
 from ssljax.augment.pipeline.pipeline import Pipeline
 from ssljax.core.config import Config
+from ssljax.core.utils import prepare_environment
 from ssljax.core.utils.register import get_from_register, print_registry
 from ssljax.data import DataLoader
 from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
-from ssljax.train import SSLTrainer, Trainer
-from ssljax.train.metrics import Meter
+from ssljax.train import Meter, Scheduler, SSLTrainer, Trainer
 from ssljax.train.postprocess import PostProcess
 from ssljax.train.scheduler import Scheduler
 
@@ -42,12 +40,12 @@ class Task:
     def __init__(self, config: Config):
         super().__init__()
         self.config = config
-        self.rng = self.prepare_environment(self.config)
+        self.rng = prepare_environment(self.config)
         self.trainer = self._get_trainer()
         self.model = self._get_model()
         self.loss = self._get_loss()
-        self.optimizers = self._get_optimizers()
         self.schedulers = self._get_schedulers()
+        self.optimizers = self._get_optimizers()
         self.meter = self._get_meter()
         self.pipelines = self._get_pipelines()
         self.dataloader = self._get_dataloader()
@@ -86,8 +84,9 @@ class Task:
 
         optimizers = OrderedDict()
         for optimizer_key, optimizer_params in self.config.optimizers.branches.items():
+            print(self.schedulers[optimizer_key])
             optimizer = get_from_register(Optimizer, optimizer_params.name)(
-                **optimizer_params.params
+                learning_rate=self.schedulers[optimizer_key], **optimizer_params.params
             )
             optimizers[optimizer_key] = optimizer
 
@@ -156,32 +155,3 @@ class Task:
             post_process_list.append(post_process)
 
         return post_process_list
-
-    @staticmethod
-    def prepare_environment(config) -> jax.numpy.DeviceArray:
-        """
-        Set the random seeds.
-
-        Args:
-            config: Hydra config.
-
-        Returns:
-            jax.numpy.DeviceArray: A Jax PRNG object.
-        """
-
-        # Get the seed values from the config.
-        seed = config.env.seed if ("env" in config and config.env.seed) else 0
-        numpy_seed = (
-            config.env.numpy_seed if ("env" in config and config.env.numpy_seed) else 0
-        )
-        jax_seed = (
-            config.env.jax_seed if ("env" in config and config.env.jax_seed) else 0
-        )
-
-        if seed is not None:
-            random.seed(seed)
-        if numpy_seed is not None:
-            numpy.random.seed(numpy_seed)
-
-        # Set the jax seed and return it. If the jax seed is None, default to 0.
-        return jax_random.PRNGKey(jax_seed if jax_seed is not None else 0)
