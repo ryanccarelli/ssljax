@@ -39,7 +39,10 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.imgmath",
     "IPython.sphinxext.ipython_console_highlighting",
-    "autoapi.extension" "sphinxcontrib.bibtex",
+    "autoapi.extension",
+    "sphinxcontrib.bibtex",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.autosectionlabel",
 ]
 
 bibtex_bibfiles = ["refs.bib"]
