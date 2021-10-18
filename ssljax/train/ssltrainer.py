@@ -2,7 +2,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from functools import reduce
+from functools import reduce, partial
 from pathlib import Path
 from typing import Callable
 
@@ -14,15 +14,16 @@ import numpy as np
 import optax
 from flax import jax_utils, traverse_util
 from flax.training import checkpoints
-from flax.training.train_state import TrainState
+# from flax.training.train_state import TrainState
+from ssljax.train.trainstate import TrainState
 from jax import random
 from optax._src.base import GradientTransformation
 from ssljax.core.utils import (add_prefix_to_dict_keys, flattened_traversal,
                                get_from_register, register)
 from ssljax.optimizers import Optimizer
 from ssljax.optimizers.base import ParameterTransformation
-from ssljax.optimizers.utils import (add_prefix_to_dict_keys,
-                                     flattened_traversal)
+# from ssljax.optimizers.utils import (add_prefix_to_dict_keys,
+#                                      flattened_traversal)
 from ssljax.train import Trainer
 from tensorboardX import GlobalSummaryWriter
 
@@ -65,7 +66,9 @@ class SSLTrainer(Trainer):
             )
 
     def epoch(self, state):
+        step_in_epoch = 0
         for data, _ in iter(self.task.dataloader):
+            print("epoch_step", step_in_epoch)
             batch = jax.device_put(data)
             rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
             self.rng = rngkeys[-1]
@@ -79,11 +82,9 @@ class SSLTrainer(Trainer):
             batch = jnp.stack(batch, axis=-1)
             batch = jax_utils.replicate(batch)
             state, loss = self.p_step(state, batch)
-
             # post process
             for fun in self.task.post_process_funcs:
                 state = state.replace(params=fun(state.params))
-
             writer.add_scalar("loss", np.array(loss).mean())
         return state
 
@@ -92,38 +93,54 @@ class SSLTrainer(Trainer):
         Compute gradients, loss, accuracy per batch
         """
         # get losses
+        has_aux = False
+        if state.batch_stats:
+            has_aux = True
+            mutable_keys = ['batch_stats']
+            loss_fn = partial(self.loss, mutable_keys=mutable_keys)
+        else:
+            loss_fn = self.loss
+
         if "dynamic_scale" in self.task.config.env:
             # optim.DynamicScale returns a DynamicScaleResult object
             grad_fn = jax.jit(
                 optim.DynamicScale(
                     **self.task.config.env.dynamic_scale.params
-                ).value_and_grad(self.loss, has_aux=False)
+                ).value_and_grad(loss_fn, has_aux=has_aux)
             )
         else:
-            grad_fn = jax.value_and_grad(self.loss, has_aux=False)
+            grad_fn = jax.value_and_grad(loss_fn, has_aux=has_aux)
 
-        loss, grad = self.accumulate_gradients(grad_fn, batch, {"params": state.params})
+        if has_aux:
+            loss, aux, grad = self.accumulate_gradients(grad_fn, batch, {"params": state.params, "batch_stats": state.batch_stats}, has_aux=has_aux, mutable_keys=mutable_keys)
+            aux = jax.lax.pmean(aux, axis_name="batch"),
+        else:
+            loss, grad = self.accumulate_gradients(grad_fn, batch, {"params": state.params, "batch_stats": state.batch_stats}, has_aux=has_aux, mutable_keys=mutable_keys)
+            aux = None
         loss, grad = (
             jax.lax.pmean(loss, axis_name="batch"),
             jax.lax.pmean(grad, axis_name="batch"),
         )
         state = state.apply_gradients(
             grads=grad["params"],
-            batch_stats=state["batch_stats"],
-            mutable=["batch_stats"],
+            batch_stats=aux[0].unfreeze(),
         )
         return state, loss
 
-    def accumulate_gradients(self, grad_fn, batch, params):
+    def accumulate_gradients(self, grad_fn, batch, params, has_aux=False, mutable_keys=None):
         if self.task.config.env.accum_steps > 1:
             assert (
                 batch.shape[0] % self.task.config.env.accum_steps == 0
             ), f"Bad accum_steps {self.task.config.env.accum_steps} for batch size {batch.shape[0]}"
             step_size = batch.shape[0] // self.task.config.env.accum_steps
             if "dynamic_scale" in self.task.config.env:
-                dyn_scale, is_fin, loss, grad = grad_fn(params, batch)
+                dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(params, batch)
             else:
-                loss, grad = grad_fn(params, batch)
+                loss_and_aux, grad = grad_fn(params, batch)
+            if has_aux:
+                (loss, aux) = loss_and_aux
+            else:
+                loss = loss_and_aux
 
             def acc_grad_and_loss(i, loss_and_grad):
                 btch = jax.lax.dynamic_slice(
@@ -134,28 +151,55 @@ class SSLTrainer(Trainer):
                 else:
                     loss_i, grad_i = grad_fn(params, btch)
                 grad_i = jax.lax.pmean(grad_i, axis_name="batch")
-                return (
-                    loss + loss_i,
-                    jax.tree_multimap(lambda x, y: x + y, grad, grad_i),
-                )
+                if has_aux:
+                    loss_i, aux_i = loss_i
+                    return (
+                        loss + loss_i,
+                        aux + aux_i,
+                        jax.tree_multimap(lambda x, y: x + y, grad, grad_i),
+                    )
+                else:
+                    return (
+                        loss + loss_i,
+                        jax.tree_multimap(lambda x, y: x + y, grad, grad_i),
+                    )
 
             loss, grad = jax.lax.fori_loop(
                 1, self.task.config.env.accum_steps, acc_grad_and_loss, (loss, grad)
             )
-            return jax.tree_map(
-                lambda x: x / self.task.config.env.accum_steps, (loss, grad)
-            )
+            if has_aux:
+                return jax.tree_map(
+                    lambda x: x / self.task.config.env.accum_steps, (loss, aux, grad)
+                )
+            else:
+                return jax.tree_map(
+                    lambda x: x / self.task.config.env.accum_steps, (loss, grad)
+                )
         else:
-            return grad_fn(params, batch)
+            if "dynamic_scale" in self.task.config.env:
+                dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(params, batch)
+            else:
+                loss_and_aux, grad = grad_fn(params, batch)
+            if has_aux:
+                (loss, aux) = loss_and_aux
+                return loss, aux, grad
+            else:
+                loss = loss_and_aux
+                return loss, grad
 
-    def loss(self, params, batch):
+    def loss(self, params, batch, mutable_keys=None):
         # TODO: {'params': params, 'batch_stats': state.batch_stats}, mutable=['batch_stats']
         # from https://github.com/google/flax/blob/main/examples/imagenet/train.py
         # how to get the batch stats in here?
-        outs = self.model.apply({"params": params,}, batch)
+        new_state = None
+
+        if mutable_keys:
+            outs, new_state = self.model.apply(params, batch, mutable=mutable_keys)
+        else:
+            outs = self.model.apply(params, batch)
         loss = self.task.loss(*outs)
         loss = jnp.mean(loss)
-        return loss
+        return loss, new_state
 
     def eval(self):
         raise NotImplementedError
@@ -209,12 +253,21 @@ class SSLTrainer(Trainer):
             )
 
         multi_tx = optax.chain(*opt_collect)
-        state = TrainState.create(
-            apply_fn=self.model.apply,
-            params=params["params"].unfreeze(),
-            tx=multi_tx,
-            batch_stats=params["batch_stats"],
-        )
+
+        if "batch_stats" in params.keys():
+            state = TrainState.create(
+                apply_fn=self.model.apply,
+                params=params["params"].unfreeze(),
+                tx=multi_tx,
+                batch_stats=params["batch_stats"].unfreeze(),
+            )
+        else:
+            state = TrainState.create(
+                apply_fn=self.model.apply,
+                params=params["params"].unfreeze(),
+                tx=multi_tx
+            )
+
         return state
 
 

@@ -26,8 +26,8 @@ def byol_regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
     """
     Cosine similarity regression loss.
     """
-    assert isinstance(x, jnp.ndarray), "loss functions act on jnp.arrays"
-    assert isinstance(y, jnp.ndarray), "loss functions act on jnp.arrays"
+    assert isinstance(x, jnp.ndarray), f"loss functions act on jnp.arrays. Given {type(x)}"
+    assert isinstance(y, jnp.ndarray), f"loss functions act on jnp.arrays Given {type(x)}"
     normed_x, normed_y = l2_normalize(x, axis=-1), l2_normalize(y, axis=-1)
     return jnp.sum((normed_x - normed_y) ** 2, axis=-1)
 
