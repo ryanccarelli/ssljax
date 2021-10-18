@@ -15,11 +15,9 @@ import optax
 from flax import jax_utils, traverse_util
 from flax.training import checkpoints
 from jax import random
-from optax._src.base import GradientTransformation
 from ssljax.core.utils import (add_prefix_to_dict_keys, flattened_traversal,
                                get_from_register, register)
 from ssljax.optimizers import Optimizer
-from ssljax.optimizers.base import ParameterTransformation
 from ssljax.train.trainer import Trainer
 from ssljax.train.trainstate import TrainState
 from tensorboardX import GlobalSummaryWriter
