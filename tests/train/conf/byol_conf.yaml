@@ -13,8 +13,6 @@ env:
   restore_checkpoint:
     params: {}
   half_precision: False
-  dynamic_scale:
-    params: {}
 
 trainer:
   name: SSLTrainer
@@ -127,6 +125,6 @@ pipelines:
 dataloader:
   name: cifar10
   params:
-    batch_size: 256
+    batch_size: 32
     flatten: False
     input_shape: (32,32,3)

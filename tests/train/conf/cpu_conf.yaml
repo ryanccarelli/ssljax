@@ -23,11 +23,54 @@ model:
   name: SSLModel
   branches:
     0:
-      name: CPUOnlineBranch
-      params: {}
+      name: OnlineBranch
+      params:
+        body:
+          name: MLP
+          params:
+            layer_dims: [1]
+            dropout_prob: 0.0
+            batch_norm: True
+            batch_norm_params:
+              use_running_average: True
+              momentum: 0.9
+              epsilon: 1e-5
+            activation_name: "relu"
+        head:
+          name: MLP
+          params:
+            layer_dims: [1]
+            dropout_prob: 0.0
+            batch_norm: False
+            batch_norm_params: {}
+            activation_name: "relu"
+        pred:
+          name: MLP
+          params:
+            layer_dims: [1]
+            dropout_prob: 0.0
+            batch_norm: False
+            batch_norm_params: {}
+            activation_name: "relu"
     1:
-      name: CPUTargetBranch
-      params: {}
+      name: TargetBranch
+      params:
+        body:
+          name: MLP
+          params:
+            layer_dims: [1]
+            dropout_prob: 0.0
+            batch_norm: False
+            batch_norm_params: {}
+            activation_name: "relu"
+        head:
+          name: MLP
+          params:
+            layer_dims: [1]
+            dropout_prob: 0.0
+            batch_norm: False
+            batch_norm_params: {}
+            activation_name: "relu"
 
 
 loss: byol_regression_loss
@@ -59,7 +102,7 @@ post_process:
         online_branch_name: branch_0
         target_branch_name: branch_1
         tau: 0.2
-        remove_from_online: []
+        remove_from_online: [pred_mod]
 
 meter:
   name: SSLMeter

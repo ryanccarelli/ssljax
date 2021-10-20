@@ -101,7 +101,6 @@ class SSLTrainer(Trainer):
         # get losses
         has_aux = False
         if state.batch_stats:
-            has_aux = True
             mutable_keys = ["batch_stats"]
             loss_fn = partial(self.loss, mutable_keys=mutable_keys)
         else:
@@ -130,23 +129,27 @@ class SSLTrainer(Trainer):
             loss, grad = self.accumulate_gradients(
                 grad_fn,
                 batch,
-                {"params": state.params, "batch_stats": state.batch_stats},
+                {"params": state.params},
                 has_aux=has_aux,
-                mutable_keys=mutable_keys,
             )
             aux = None
         loss, grad = (
             jax.lax.pmean(loss, axis_name="batch"),
             jax.lax.pmean(grad, axis_name="batch"),
         )
-        state = state.apply_gradients(
-            grads=grad["params"],
-            batch_stats=aux[0].unfreeze(),
-        )
+        if has_aux:
+            state = state.apply_gradients(
+                grads=grad["params"],
+                batch_stats=aux[0].unfreeze(),
+            )
+        else:
+            state = state.apply_gradients(
+                grads=grad["params"],
+            )
         return state, loss
 
     def accumulate_gradients(
-        self, grad_fn, batch, params, has_aux=False, mutable_keys=None
+        self, grad_fn, batch, params, mutable_keys=[], has_aux=False
     ):
         """
         Split a batch into sub-batches and compute gradients in each sub-batch.
@@ -161,10 +164,13 @@ class SSLTrainer(Trainer):
                 batch.shape[0] % self.task.config.env.accum_steps == 0
             ), f"Bad accum_steps {self.task.config.env.accum_steps} for batch size {batch.shape[0]}"
             step_size = batch.shape[0] // self.task.config.env.accum_steps
+            # TODO: why do we need to pop params here?
             if "dynamic_scale" in self.task.config.env:
-                dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(params, batch)
+                dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(
+                    {"params": params["params"]}, batch
+                )
             else:
-                loss_and_aux, grad = grad_fn(params, batch)
+                loss_and_aux, grad = grad_fn({"params": params["params"]}, batch)
             if has_aux:
                 (loss, aux) = loss_and_aux
             else:
@@ -175,7 +181,9 @@ class SSLTrainer(Trainer):
                     batch, (i * step_size, 0, 0), (step_size,) + batch.shape[1:]
                 )
                 if "dynamic_scale" in self.task.config.env:
-                    dyn_scale, is_fin, loss_i, grad_i = grad_fn(params, btch)
+                    dyn_scale, is_fin, loss_i, grad_i = grad_fn(
+                        {"params": params["params"]}, btch
+                    )
                 else:
                     loss_i, grad_i = grad_fn(params, btch)
                 grad_i = jax.lax.pmean(grad_i, axis_name="batch")
@@ -205,7 +213,9 @@ class SSLTrainer(Trainer):
                 )
         else:
             if "dynamic_scale" in self.task.config.env:
-                dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(params, batch)
+                dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(
+                    {"params": params}, batch
+                )
             else:
                 loss_and_aux, grad = grad_fn(params, batch)
             if has_aux:
@@ -223,14 +233,16 @@ class SSLTrainer(Trainer):
         # from https://github.com/google/flax/blob/main/examples/imagenet/train.py
         # how to get the batch stats in here?
         new_state = None
-
         if mutable_keys:
             outs, new_state = self.model.apply(params, batch, mutable=mutable_keys)
+            loss = self.task.loss(*outs)
+            loss = jnp.mean(loss)
+            return loss, new_state
         else:
             outs = self.model.apply(params, batch)
-        loss = self.task.loss(*outs)
-        loss = jnp.mean(loss)
-        return loss, new_state
+            loss = self.task.loss(*outs)
+            loss = jnp.mean(loss)
+            return loss
 
     def eval(self):
         raise NotImplementedError
@@ -304,6 +316,7 @@ class SSLTrainer(Trainer):
                 apply_fn=self.model.apply,
                 params=params["params"].unfreeze(),
                 tx=multi_tx,
+                batch_stats=None,
             )
 
         return state

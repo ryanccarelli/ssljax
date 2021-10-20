@@ -6,7 +6,6 @@ from ssljax.augment.augmentation.augmentation import (Augmentation,
                                                       AugmentationDistribution)
 from ssljax.augment.pipeline.pipeline import Pipeline
 from ssljax.core.utils import register
-from ssljax.models.branch.branch import Branch
 
 
 @pytest.fixture
@@ -23,22 +22,6 @@ def byoltestconfig():
     initialize(config_path="../train/conf")
     cfg = compose(config_name="byol_conf.yaml")
     return cfg
-
-
-@register(Branch, "CPUOnlineBranch")
-class CPUOnlineBranch(Branch):
-    @nn.compact
-    def __call__(self, x):
-        x = nn.Dense(1)(x)
-        return x
-
-
-@register(Branch, "CPUTargetBranch")
-class CPUTargetBranch(Branch):
-    @nn.compact
-    def __call__(self, x):
-        x = nn.Dense(1)(x)
-        return x
 
 
 class Identity(Augmentation):
