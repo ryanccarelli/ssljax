@@ -24,56 +24,42 @@ model:
       name: OnlineBranch
       params:
         body:
-          name: ResNet
+          name: VIT
           params:
-            stage_sizes: [3, 4, 6, 3]
-            block_cls_name: "BottleneckResNetBlock"
-            num_classes: False
+            config: "ViT-S_16"
         head:
-          name: MLP
+          name: DINO_MLP
           params:
-            layer_dims: [4096, 256]
-            dropout_prob: 0.0
-            batch_norm: True
-            batch_norm_params:
-              use_running_average: True
-              momentum: 0.9
-              epsilon: 1e-5
-            activation_name: "relu"
-        pred:
-          name: MLP
-          params:
-            layer_dims: [4096, 256]
+            layer_dims: [2048, 10]
             dropout_prob: 0.0
             batch_norm: False
-            batch_norm_params:
-                decay_rate: 0.9
-                epsilon: 1e-5
+            batch_norm_params: {}
             activation_name: "relu"
+        proj:
+          name: CenterSoftmax
+          params: {}
 
     1:
       name: TargetBranch
       params:
         body:
-          name: ResNet
+          name: VIT
           params:
-            stage_sizes: [3, 4, 6, 3]
-            block_cls_name: "BottleneckResNetBlock"
-            num_classes: False
+            config: "ViT-S_16"
         head:
-          name: MLP
+          name: DINO_MLP
           params:
-            layer_dims: [4096, 256]
+            layer_dims: [2048, 10]
             dropout_prob: 0.0
-            batch_norm: True
-            batch_norm_params:
-              use_running_average: True
-              momentum: 0.9
-              epsilon: 1e-5
+            batch_norm: False
+            batch_norm_params: {}
             activation_name: "relu"
+        proj:
+          name: Softmax
+          params: {}
 
 
-loss: byol_regression_loss
+loss: cross_entropy_loss
 
 optimizers:
   branches:
@@ -108,7 +94,7 @@ post_process:
         online_branch_name: branch_0
         target_branch_name: branch_1
         tau: 0.9
-        remove_from_online: [pred_mod]
+        remove_from_online: [proj_mod]
 
 meter:
   name: SSLMeter
