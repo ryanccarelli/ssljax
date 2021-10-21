@@ -98,6 +98,7 @@ class SSLTrainer(Trainer):
             state (flax.training.train_state.TrainState): model state
             batch (jnp.array): a single data batch
         """
+        print("stepping")
         # get losses
         has_aux = False
         if state.batch_stats:
@@ -116,7 +117,6 @@ class SSLTrainer(Trainer):
             )
         else:
             grad_fn = jax.value_and_grad(loss_fn, has_aux=has_aux)
-        """
 
         if has_aux:
             loss, aux, grad = self.accumulate_gradients(
@@ -148,9 +148,6 @@ class SSLTrainer(Trainer):
             state = state.apply_gradients(
                 grads=grad["params"],
             )
-        return state, loss
-        """
-        loss = 0
         return state, loss
 
     def accumulate_gradients(
