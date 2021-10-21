@@ -5,9 +5,10 @@ import flax.linen as nn
 import jax
 import jax.numpy as jnp
 from flax.training import train_state
-from ssljax.models.model import Model
-from ssljax.core.utils import register
 from omegaconf import DictConfig
+from ssljax.core.utils import register
+from ssljax.models.model import Model
+
 
 @register(Model, "MLP")
 class MLP(Model):

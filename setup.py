@@ -6,9 +6,9 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name="ssljax",
     version="1.0.0",
-    author="The AI Discord, et al",
-    author_email="ryan_carelli@dfci.harvard.edu",
-    description="Self-Supervised Learning in Jax",
+    author="Ryan Carelli, Akash Ganesan",
+    author_email="ryancarelli@gmail.com",
+    description="self-supervised learning in jax",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),
@@ -32,13 +32,9 @@ setuptools.setup(
         "tensorboardX",
         "tensorboard",
         "parameterized",
+        "vision_transformer @ git+https://github.com/google-research/vision_transformer.git",
     ],
-    extras_require={
-        "jax": [
-            "jax>=0.1.71",
-            "jaxlib>=0.1.49",
-        ]
-    },
+    extras_require={"jax": ["jax>=0.1.71", "jaxlib>=0.1.49",]},
     requires_python=">=3.8",
     classifiers=[
         "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",

@@ -18,10 +18,22 @@ class TestTrainer:
         trainer.train()
     """
 
+    def test_train_vit(self, cputestconfig):
+        cputestconfig["model"]["branches"][0]["params"]["body"]["name"] = "VIT"
+        cputestconfig["model"]["branches"][0]["params"]["body"]["params"] = {
+            "config": "ViT-B_32",
+            "num_classes": 2,
+        }
+        task = Task(cputestconfig)
+        trainer = task.trainer
+        trainer.train()
+
+    """
     def test_train_byol(self, byoltestconfig):
         task = Task(byoltestconfig)
         trainer = task.trainer
         trainer.train()
+    """
 
 
 def byoltestconfig():
