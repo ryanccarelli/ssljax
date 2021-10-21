@@ -17,6 +17,14 @@ def cputestconfig():
 
 
 @pytest.fixture
+def cputestdynamicscalingconfig():
+    hydra.core.global_hydra.GlobalHydra.instance().clear()
+    initialize(config_path="../train/conf")
+    cfg = compose(config_name="cpu_conf_dynamic_scaling.yaml")
+    return cfg
+
+
+@pytest.fixture
 def byoltestconfig():
     hydra.core.global_hydra.GlobalHydra.instance().clear()
     initialize(config_path="../train/conf")

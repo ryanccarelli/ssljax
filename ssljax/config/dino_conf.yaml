@@ -95,7 +95,7 @@ schedulers:
         # note that learning rate scales w/ number of epochs see deepmind implementation
         base_learning_rate: 0.45
         warmup_steps: 1000
-        batch_size: 4096
+        batch_size: 8
         # epochs * train_images_per_epoch // batch_size
         # TODO: for now this is a random number
         total_steps: 100000

@@ -101,6 +101,7 @@ class SSLTrainer(Trainer):
         # get losses
         has_aux = False
         if state.batch_stats:
+            has_aux = True
             mutable_keys = ["batch_stats"]
             loss_fn = partial(self.loss, mutable_keys=mutable_keys)
         else:
@@ -115,6 +116,7 @@ class SSLTrainer(Trainer):
             )
         else:
             grad_fn = jax.value_and_grad(loss_fn, has_aux=has_aux)
+        """
 
         if has_aux:
             loss, aux, grad = self.accumulate_gradients(
@@ -146,6 +148,9 @@ class SSLTrainer(Trainer):
             state = state.apply_gradients(
                 grads=grad["params"],
             )
+        return state, loss
+        """
+        loss = 0
         return state, loss
 
     def accumulate_gradients(
@@ -229,9 +234,9 @@ class SSLTrainer(Trainer):
         """
         Apply loss function. Passed to opt.value_and_grad.
         """
-        # TODO: {'params': params, 'batch_stats': state.batch_stats}, mutable=['batch_stats']
-        # from https://github.com/google/flax/blob/main/examples/imagenet/train.py
-        # how to get the batch stats in here?
+        # loss must return a single float (since we grad loss)
+        # but here we have also new_state
+        # but we need new_state to manage mutable batch_params
         new_state = None
         if mutable_keys:
             outs, new_state = self.model.apply(params, batch, mutable=mutable_keys)
