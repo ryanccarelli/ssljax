@@ -95,7 +95,7 @@ schedulers:
         # note that learning rate scales w/ number of epochs see deepmind implementation
         base_learning_rate: 0.45
         warmup_steps: 1000
-        batch_size: 8
+        batch_size: 32
         # epochs * train_images_per_epoch // batch_size
         # TODO: for now this is a random number
         total_steps: 100000
@@ -125,6 +125,6 @@ pipelines:
 dataloader:
   name: cifar10
   params:
-    batch_size: 8
+    batch_size: 128
     flatten: False
     input_shape: (32,32,3)
