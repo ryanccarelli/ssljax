@@ -98,7 +98,7 @@ image augmentations than methods based on positive and negative pairs.
 
 .. image:: _static/images/byol.png
 
-.. literalinclude:: /config/cpu_conf.yaml
+.. literalinclude:: /config/byol_conf.yaml
 
 .. _dino:
 Distillation with No Labels (DINO)
