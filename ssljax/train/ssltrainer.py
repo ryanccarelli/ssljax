@@ -1,4 +1,5 @@
 import logging
+import cProfile, pstats
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,16 @@ TBDIR.mkdir(parents=True, exist_ok=True)
 
 writer = GlobalSummaryWriter(TBDIR)
 
+from jax import lax
+# TODO. Move to utils
+cross_replica_mean = jax.pmap(lambda x: lax.pmean(x, 'x'), 'x')
+
+def sync_batch_stats(state):
+  """Sync the batch statistics across replicas."""
+  # Each device has its own version of the running average batch statistics and
+  # we sync them before evaluation.
+  return state.replace(batch_stats=cross_replica_mean(state.batch_stats))
+
 
 @register(Trainer, "SSLTrainer")
 class SSLTrainer(Trainer):
@@ -53,7 +64,7 @@ class SSLTrainer(Trainer):
 
         from jax.lib import xla_bridge
 
-        print("xla bridge", xla_bridge.get_backend().platform)
+        print("xla bridge device", xla_bridge.get_backend().platform)
 
         key, self.rng = random.split(self.rng)
         state, p_step = self.initialize()
@@ -77,6 +88,7 @@ class SSLTrainer(Trainer):
         Args:
             state (flax.training.train_state.TrainState): model state
         """
+        profiler = cProfile.Profile()
         for data, _ in iter(self.task.dataloader):
             batch = jax.device_put(data)
             rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
@@ -89,15 +101,23 @@ class SSLTrainer(Trainer):
                 )
             )
             batch = jnp.stack(batch, axis=-1)
+            print("batch size", batch.shape)
             batch = jax_utils.replicate(batch)
             print("start step")
+            profiler.enable()
+            # jax.profiler.start_trace("/tmp/tensorboard")
             state, loss = p_step(state, batch)
+            profiler.disable()
+            # jax.profiler.stop_trace()
             print("end step")
-            # post process
-            for idx, fun in enumerate(self.task.post_process_funcs):
-                print(f"starting function {idx}")
-                state = state.replace(params=fun(state.params))
-                print(f"Done function {idx}")
+            stats = pstats.Stats(profiler).sort_stats('cumtime')
+            stats.print_stats()
+            # # post process
+            # for idx, fun in enumerate(self.task.post_process_funcs):
+            #     print(f"starting function {idx}")
+            #     state = state.replace(params=fun(state.params))
+            #     print(f"Done function {idx}")
+            state = sync_batch_stats(state)
             writer.add_scalar("loss", np.array(loss).mean())
             break
         return state
@@ -113,6 +133,7 @@ class SSLTrainer(Trainer):
         loss_fn,
         dynamic_scale_params,
         accumulate_steps,
+        post_process_func
     ):
         """
         Compute and apply gradient.
@@ -172,6 +193,8 @@ class SSLTrainer(Trainer):
             state = state.apply_gradients(
                 grads=grad["params"],
             )
+            print("shpe of grad", grad['params'].shape)
+        state = state.replace(params=post_process_func(state.params))
         return state, loss
 
     def accumulate_gradients(
@@ -263,9 +286,12 @@ class SSLTrainer(Trainer):
         # but we need new_state to manage mutable batch_params
         new_state = None
         if mutable_keys:
+            print("start model")
             outs, new_state = model_fn.apply(params, batch, mutable=mutable_keys)
+            print("end model")
             loss = self.task.loss(*outs)
             loss = jnp.mean(loss)
+
             return loss, new_state
         else:
             outs = self.model.apply(params, batch)
@@ -299,7 +325,7 @@ class SSLTrainer(Trainer):
         self.model = self.task.model(config=self.task.config)
 
         init_shape = (
-            [self.task.config.dataloader.params.batch_size]
+            [1] # Batch size == 1
             + list(eval(self.task.config.dataloader.params.input_shape))
             + [len(self.task.config.model.branches)]
         )
@@ -368,6 +394,8 @@ class SSLTrainer(Trainer):
         else:
             dynamic_scale_params = {}
 
+        post_process_func = self.task.post_process_funcs[0]
+
         p_step = jax.pmap(
             partial(
                 self.step,
@@ -378,6 +406,7 @@ class SSLTrainer(Trainer):
                 loss_fn=loss_fn,
                 dynamic_scale_params=dynamic_scale_params,
                 accumulate_steps=self.task.config.env.accum_steps,
+                post_process_func=post_process_func
             ),
             axis_name="batch",
             donate_argnums=(0, 1),
@@ -385,11 +414,3 @@ class SSLTrainer(Trainer):
 
         return state, p_step
 
-
-def sync_batch_stats(state):
-    """
-    Sync batch statistics across replicas.
-    Adapted from Flax: https://github.com/google/flax/blob/main/examples/imagenet/train.py
-    """
-    cross_replica_mean = jax.pmap(lambda x: flax.lax.pmean(x, "x"), "x")
-    return state.replicate(batch_stats=cross_replica_mean(state.batch_stats))

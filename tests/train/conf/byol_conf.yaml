@@ -129,6 +129,6 @@ pipelines:
 dataloader:
   name: cifar10
   params:
-    batch_size: 256
+    batch_size: 128
     flatten: False
     input_shape: (32,32,3)

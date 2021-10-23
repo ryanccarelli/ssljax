@@ -42,11 +42,12 @@ class SSLModel(Model):
                 raw data mapped through a different augmentation.Pipeline
         """
         outs = []
-        x = jnp.split(x, x.shape[-1], axis=-1)
-        x = [jnp.squeeze(y, axis=-1) for y in x]
+        # x = jnp.split(x, x.shape[-1], axis=-1)
+        # x = [jnp.squeeze(y, axis=-1) for y in x]
 
-        for x, b in zip(x, self.branch):
-            outs.append(b(x))
+
+        for idx, b in enumerate(self.branch):
+            outs.append(b(x[..., idx]))
 
         return outs
 
