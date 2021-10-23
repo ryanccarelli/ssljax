@@ -22,7 +22,7 @@ model:
   name: SSLModel
   branches:
     0:
-      name: OnlineBranch
+      name: Branch
       params:
         body:
           name: MLP
@@ -52,7 +52,7 @@ model:
             batch_norm_params: {}
             activation_name: "relu"
     1:
-      name: TargetBranch
+      name: Branch
       params:
         body:
           name: MLP
