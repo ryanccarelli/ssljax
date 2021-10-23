@@ -13,7 +13,7 @@ env:
   restore_checkpoint:
     params: {}
   half_precision: False
-  dynamic_scale: False
+  dynamic_scale: True
 
 trainer:
   name: SSLTrainer
@@ -22,7 +22,7 @@ model:
   name: SSLModel
   branches:
     0:
-      name: Branch
+      name: OnlineBranch
       params:
         body:
           name: MLP
@@ -52,7 +52,7 @@ model:
             batch_norm_params: {}
             activation_name: "relu"
     1:
-      name: Branch
+      name: TargetBranch
       params:
         body:
           name: MLP
@@ -109,15 +109,11 @@ meter:
 pipelines:
   branches:
     0:
-      augmentations:
-        Identity:
-          params:
-            prob: 1.0
+      name: CPUPipeline
+      params: {}
     1:
-      augmentations:
-        Identity:
-          params:
-            prob: 1.0
+      name: CPUPipeline
+      params: {}
 
 dataloader:
   name: mnist

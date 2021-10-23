@@ -3,17 +3,24 @@ import functools
 import jax
 import jax.numpy as jnp
 from ssljax.augment.augmentation.colortransform import (_random_brightness,
-                                           _random_contrast, _random_hue,
-                                           _random_saturation, _to_grayscale,
-                                           adjust_brightness, adjust_contrast,
-                                           adjust_hue, adjust_saturation,
-                                           hsv_to_rgb, rgb_to_hsv)
+                                                        _random_contrast,
+                                                        _random_hue,
+                                                        _random_saturation,
+                                                        _to_grayscale,
+                                                        adjust_brightness,
+                                                        adjust_contrast,
+                                                        adjust_hue,
+                                                        adjust_saturation,
+                                                        hsv_to_rgb, rgb_to_hsv)
 from ssljax.core.utils import register
 
 
 class Augmentation:
     """
-    An augmentation is a function applied to images.
+    An augmentation applies a function to data.
+
+    Args:
+        prob (float): Probability that augmentation will be executed.
     """
 
     def __init__(self, prob=1.0):
@@ -24,12 +31,23 @@ class Augmentation:
         raise NotImplementedError
 
     def __call__(self, x, rng):
+        """
+        Apply function to data.
+
+        Args:
+            x: input data
+            rng (jnp.array): Jax PRNG.
+        """
         raise NotImplementedError
 
 
 class AugmentationDistribution:
     """
-    A distribution of augmentations to be sampled
+    A distribution of augmentations with sampling.
+
+    Args:
+        augmentations (List[`ssljax.augment.augmentation.Augmentation`]):
+            A list of augmentations.
     """
 
     def __init__(self, augmentations):
@@ -40,13 +58,20 @@ class AugmentationDistribution:
         self.augmentations = augmentations
 
     def sample(self, rng):
+        """
+        Sample from distribution.
+        """
         key, subkey = jax.random.split(rng)
-        sampledIndex = jax.random.choice(subkey, a=len(self.augmentations), p=jnp.array([aug.prob for aug in self.augmentations]))
+        sampledIndex = jax.random.choice(
+            subkey,
+            a=len(self.augmentations),
+            p=jnp.array([aug.prob for aug in self.augmentations]),
+        )
         return self.augmentations[sampledIndex]
 
 
 # byol augmentations
-@register(Augmentation, "randomflip")
+@register(Augmentation, "RandomFlip")
 class RandomFlip(Augmentation):
     """
     Randomly flip image.
@@ -57,11 +82,17 @@ class RandomFlip(Augmentation):
         rng (jnp.array): a single PRNGKey.
     """
 
-    def __call__(self, x, rng):
-        return jax.vmap(self._random_flip_single_image)(x, rng)
+    def __init__(
+        self,
+        prob=1.0,
+    ):
+        super().__init__(prob)
 
-    @staticmethod
-    def _random_flip_single_image(image, rng):
+    def __call__(self, x, rng):
+        rngs = jax.random.split(rng, x.shape[0])
+        return jax.vmap(self._random_flip_single_image, in_axes=0)(x, rngs)
+
+    def _random_flip_single_image(self, image, rng):
         _, flip_rng = jax.random.split(rng)
         should_flip_lr = jax.random.uniform(flip_rng, shape=()) <= self.prob
         image = jax.lax.cond(
@@ -74,10 +105,10 @@ class RandomFlip(Augmentation):
         return image
 
 
-@register(Augmentation, "randomgaussianblur")
-class RandomGaussianBlur(Augmentation):
+@register(Augmentation, "GaussianBlur")
+class GaussianBlur(Augmentation):
     """
-    Randomly apply gaussian blur.
+    Applies a gaussian blur to a batch of images
     Modified from https://github.com/deepmind/deepmind-research/blob/master/byol/utils/augmentations.py
 
     Args:
@@ -85,20 +116,36 @@ class RandomGaussianBlur(Augmentation):
     """
 
     def __init__(
-            self,
-            prob,
-            kernel_size,
-            padding,
-            sigma_min,
-            sigma_max,
+        self,
+        prob,
+        blur_divider=10.0,
+        sigma_min=0.1,
+        sigma_max=2.0,
+        padding="SAME",
     ):
         super().__init__(prob)
-        self.kernel_size = kernel_size
-        self.padding = padding
+        self.prob = prob
+        self.blur_divider = blur_divider
         self.sigma_min = sigma_min
         self.sigma_max = sigma_max
+        self.padding = padding
 
     def __call__(self, x, rng):
+        rngs = jax.random.split(rng, x.shape[0])
+        self.kernel_size = x.shape[1] / self.blur_divider
+        blur_fn = functools.partial(
+            self._random_gaussian_blur,
+            kernel_size=self.kernel_size,
+            padding=self.padding,
+            sigma_min=self.sigma_min,
+            sigma_max=self.sigma_max,
+            apply_prob=self.prob,
+        )
+        return jax.vmap(blur_fn)(x, rngs)
+
+    def _random_gaussian_blur(
+        self, x, rng, kernel_size, padding, sigma_min, sigma_max, apply_prob
+    ):
         """Applies a random gaussian blur."""
         apply_rng, transform_rng = jax.random.split(rng)
 
@@ -107,13 +154,11 @@ class RandomGaussianBlur(Augmentation):
             sigma = jax.random.uniform(
                 sigma_rng,
                 shape=(),
-                minval=self.sigma_min,
-                maxval=self.sigma_max,
+                minval=sigma_min,
+                maxval=sigma_max,
                 dtype=jnp.float32,
             )
-            return self._gaussian_blur_single_image(
-                x, self.kernel_size, self.padding, sigma
-            )
+            return self._gaussian_blur_single_image(x, kernel_size, padding, sigma)
 
         return self._maybe_apply(_apply, x, apply_rng, self.prob)
 
@@ -163,35 +208,38 @@ class RandomGaussianBlur(Augmentation):
         return blurred
 
 
-@register(Augmentation, "colortransform")
+@register(Augmentation, "ColorTransform")
 class ColorTransform(Augmentation):
-    """Applies color jittering and/or grayscaling to a batch of images.
+    """
+    Applies color jittering and/or grayscaling to a batch of images.
+
     Args:
-      images: an NHWC tensor, with C=3.
-      rng: a single PRNGKey.
-      brightness: the range of jitter on brightness.
-      contrast: the range of jitter on contrast.
-      saturation: the range of jitter on saturation.
-      hue: the range of jitter on hue.
-      color_jitter_prob: the probability of applying color jittering.
-      to_grayscale_prob: the probability of converting the image to grayscale.
-      apply_prob: the probability of applying the transform to a batch element.
-      shuffle: whether to apply the transforms in a random order.
+        images (jnp.array): an NHWC tensor, with C=3.
+        rng (jnp.array): Jax PRNGKey
+        brightness (float): the range of jitter on brightness.
+        contrast (float): the range of jitter on contrast.
+        saturation (float): the range of jitter on saturation.
+        hue (float): the range of jitter on hue.
+        color_jitter_prob (float): the probability of applying color jittering.
+        to_grayscale_prob (float): the probability of converting the image to grayscale.
+        apply_prob (float): the probability of applying the transform to a batch element.
+        shuffle (bool): whether to apply the transforms in a random order.
+
     Returns:
-      A NHWC tensor of the transformed images.
+        A NHWC tensor of the transformed images.
     """
 
     def __init__(
-            self,
-            prob=1.0,
-            brightness=0.8,
-            contrast=0.8,
-            saturation=0.8,
-            hue=0.2,
-            color_jitter_prob=0.8,
-            to_grayscale_prob=0.2,
-            apply_prob=1.0,
-            shuffle=True,
+        self,
+        prob=1.0,
+        brightness=0.8,
+        contrast=0.8,
+        saturation=0.8,
+        hue=0.2,
+        color_jitter_prob=0.8,
+        to_grayscale_prob=0.2,
+        apply_prob=1.0,
+        shuffle=True,
     ):
         super().__init__(prob)
         self.brightness = brightness
@@ -204,9 +252,9 @@ class ColorTransform(Augmentation):
         self.shuffle = shuffle
 
     def __call__(
-            self,
-            x,
-            rng,
+        self,
+        x,
+        rng,
     ):
         rngs = jax.random.split(rng, x.shape[0])
         jitter_fn = functools.partial(
@@ -223,17 +271,17 @@ class ColorTransform(Augmentation):
         return jax.vmap(jitter_fn)(x, rngs)
 
     def _color_transform_single_image(
-            self,
-            image,
-            rng,
-            brightness,
-            contrast,
-            saturation,
-            hue,
-            to_grayscale_prob,
-            color_jitter_prob,
-            apply_prob,
-            shuffle,
+        self,
+        image,
+        rng,
+        brightness,
+        contrast,
+        saturation,
+        hue,
+        to_grayscale_prob,
+        color_jitter_prob,
+        apply_prob,
+        shuffle,
     ):
         """Applies color jittering to a single image."""
         apply_rng, transform_rng = jax.random.split(rng)
@@ -305,14 +353,14 @@ class ColorTransform(Augmentation):
         return jnp.clip(out_apply, 0.0, 1.0)
 
 
-@register(Augmentation, "solarize")
+@register(Augmentation, "Solarize")
 class Solarize(Augmentation):
     """Applies solarization.
     Args:
-        x: an NHWC tensor (with C=3).
-        rng: a single PRNGKey.
-        threshold: the solarization threshold.
-        apply_prob: the probability of applying the transform to a batch element.
+        x (jnp.array): an NHWC tensor (with C=3).
+        rng (jnp.array): Jax PRNG
+        threshold (float): the solarization threshold.
+        apply_prob (float): the probability of applying the transform to a batch element.
     Returns:
         A NHWC tensor of the transformed images.
     """
@@ -339,23 +387,34 @@ class Solarize(Augmentation):
         return jax.lax.cond(should_apply, inputs, apply_fn, inputs, lambda x: x)
 
 
-@register(Augmentation, "clip")
+@register(Augmentation, "Clip")
 class Clip(Augmentation):
     """
     Wrap jnp.clip.
 
     Args:
-        x_min(float): Minimum value.
-        x_max(float): Maximum value.
+        x_min (float): Minimum value.
+        x_max (float): Maximum value.
     """
-    def __init__(self, x_min=0., x_max=1.):
+
+    def __init__(self, prob=1.0, x_min=0.0, x_max=1.0):
+        super().__init__(prob)
         self.x_min = x_min
         self.x_max = x_max
 
-    def __call__(self, x):
-        x = jnp.clip(x, x_min, x_max)
+    def __call__(self, x, rng):
+        x = jnp.clip(x, self.x_min, self.x_max)
         return x
 
 
-if __name__ == "__main__":
-    augs = AugmentationDistribution([])
+@register(Augmentation, "Identity")
+class Identity(Augmentation):
+    """
+    Map image by identity.
+    """
+
+    def __init__(self, prob=1.0):
+        super().__init__(prob)
+
+    def __call__(self, x, rng):
+        return x

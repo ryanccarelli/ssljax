@@ -1,10 +1,10 @@
 # similar to https://github.com/facebookresearch/vissl/blob/master/vissl/trainer/train_task.py
 import logging
-from typing import Dict, List
-from typing import Callable
+from collections import OrderedDict
+from typing import Callable, Dict, List
 
 from ssljax.augment.pipeline.pipeline import Pipeline
-from ssljax.config import Config
+from ssljax.core.config import Config
 from ssljax.core.utils import prepare_environment
 from ssljax.core.utils.register import get_from_register, print_registry
 from ssljax.data import DataLoader
@@ -12,8 +12,8 @@ from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
 from ssljax.train import Meter, Scheduler, SSLTrainer, Trainer
-from collections import OrderedDict
 from ssljax.train.postprocess import PostProcess
+from ssljax.train.scheduler import Scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -22,19 +22,19 @@ class Task:
     """
     Abstract class for a task.
 
-    A task constructs and holds:
+    A task is specified by the config file and constructs and holds the:
+        - trainer
         - model
         - loss
         - optimizer
-        - schedulers
+        - scheduler
         - meter
         - pipeline
         - dataloader
-        - trainer
-        - post_process functions
+        - post-processing
 
     Args:
-        config (Config): The config to get parameters from.
+        config (ssljax.config): a hydra configuration file
     """
 
     def __init__(self, config: Config):
@@ -44,8 +44,8 @@ class Task:
         self.trainer = self._get_trainer()
         self.model = self._get_model()
         self.loss = self._get_loss()
-        self.optimizers = self._get_optimizers()
         self.schedulers = self._get_schedulers()
+        self.optimizers = self._get_optimizers()
         self.meter = self._get_meter()
         self.pipelines = self._get_pipelines()
         self.dataloader = self._get_dataloader()
@@ -84,8 +84,9 @@ class Task:
 
         optimizers = OrderedDict()
         for optimizer_key, optimizer_params in self.config.optimizers.branches.items():
+            print(self.schedulers[optimizer_key])
             optimizer = get_from_register(Optimizer, optimizer_params.name)(
-                **optimizer_params.params
+                learning_rate=self.schedulers[optimizer_key], **optimizer_params.params
             )
             optimizers[optimizer_key] = optimizer
 
@@ -123,10 +124,7 @@ class Task:
         """
         pipelines = []
         for pipeline_idx, pipeline_params in self.config.pipelines.branches.items():
-            pipeline = get_from_register(Pipeline, pipeline_params.name)(
-                **pipeline_params.params
-            )
-            pipelines.append(pipeline)
+            pipelines.append(Pipeline(pipeline_params.augmentations))
 
         return pipelines
 
@@ -140,12 +138,14 @@ class Task:
             **self.config.dataloader.params
         )
 
-
     def _get_post_process_list(self) -> List[Callable]:
         print_registry()
         post_process_list = []
 
-        for post_process_idx, post_process_params in self.config.post_process.funcs.items():
+        for (
+            post_process_idx,
+            post_process_params,
+        ) in self.config.post_process.funcs.items():
             post_process = get_from_register(PostProcess, post_process_params.name)(
                 **post_process_params.params
             )

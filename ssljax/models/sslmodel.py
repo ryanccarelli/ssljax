@@ -1,17 +1,3 @@
-"""
-We want to support two configurations:
-    1. contrastive learning by negative pairs (eg SIMCLR)
-    2. non-contrastive (eg BYOL, SimSiam)
-
-The non-contrastive approaches replace negative pairs with:
-    1. a learnable predictor
-    2. a stop-gradient
-
-Support
-stop gradient on target but not on predictor
-both ema of bodies and bodies with shared parameters
-
-"""
 import collections
 from dataclasses import dataclass
 
@@ -43,7 +29,7 @@ class SSLModel(Model):
     def setup(self):
         branch = []
         for branch_idx, branch_params in self.config.model.branches.items():
-            b = get_from_register(Branch, branch_params.name)(**branch_params.params)
+            b = Branch(branch_params.stages)
             branch.append(b)
         self.branch = branch
 
@@ -56,18 +42,18 @@ class SSLModel(Model):
                 raw data mapped through a different augmentation.Pipeline
         """
         outs = []
-        x = jnp.split(x, x.shape[-1], axis=-1)
-        x = [jnp.squeeze(y, axis=-1) for y in x]
+        # x = jnp.split(x, x.shape[-1], axis=-1)
+        # x = [jnp.squeeze(y, axis=-1) for y in x]
 
-        for x, b in zip(x, self.branch):
-            outs.append(b(x))
+        for idx, b in enumerate(self.branch):
+            outs.append(b(x[..., idx]))
 
         return outs
 
-    def freeze_head(self):
+    def freeze_head(self, branch_name):
         raise NotImplementedError
 
-    def freeze_body(self):
+    def freeze_body(self, branch_name):
         raise NotImplementedError
 
     def is_frozen(self):

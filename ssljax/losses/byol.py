@@ -20,21 +20,21 @@ import jax.numpy as jnp
 from ssljax.core import register
 from ssljax.losses.loss import Loss
 
+
 @register(Loss, "byol_regression_loss")
 def byol_regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
     """
     Cosine similarity regression loss.
     """
-    assert isinstance(x, jnp.ndarray), "loss functions act on jnp.arrays"
-    assert isinstance(y, jnp.ndarray), "loss functions act on jnp.arrays"
+    assert isinstance(x, jnp.ndarray), f"loss functions act on jnp.arrays. Given {type(x)}"
+    assert isinstance(y, jnp.ndarray), f"loss functions act on jnp.arrays Given {type(x)}"
     normed_x, normed_y = l2_normalize(x, axis=-1), l2_normalize(y, axis=-1)
     return jnp.sum((normed_x - normed_y) ** 2, axis=-1)
 
+
 @register(Loss, "byol_softmax_cross_entropy_loss")
 def byol_softmax_cross_entropy(
-    logits: jnp.ndarray,
-    labels: jnp.ndarray,
-    reduction: Optional[Text] = "mean",
+    logits: jnp.ndarray, labels: jnp.ndarray, reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
     """Computes softmax cross entropy given logits and one-hot class labels.
 
@@ -62,11 +62,9 @@ def byol_softmax_cross_entropy(
     else:
         raise ValueError(f"Incorrect reduction mode {reduction}")
 
-@register(Loss, "l2_normalize")
+
 def l2_normalize(
-    x: jnp.ndarray,
-    axis: Optional[int] = None,
-    epsilon: float = 1e-12,
+    x: jnp.ndarray, axis: Optional[int] = None, epsilon: float = 1e-12,
 ) -> jnp.ndarray:
     """
     l2 normalize a tensor on an axis with numerical stability.

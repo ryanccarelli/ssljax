@@ -16,10 +16,9 @@ def prepare_environment(config) -> jax.numpy.DeviceArray:
     Set the random seeds.
 
     Args:
-        config: The config object.
+    config: The config object.
 
     Returns (jax.numpy.DeviceArray): The jax RNG generator.
-
     """
 
     # Get the seed values from the config.

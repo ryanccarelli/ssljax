@@ -3,13 +3,12 @@ from collections import Counter
 from typing import Callable, Dict
 
 from ssljax.core.utils import register
-from ssljax.train.metrics.metric import Metric
 
 logger = logging.getLogger(__name__)
 
 
 class Meter:
-    def __init__(self, metrics: Dict[str, Metric]):
+    def __init__(self, metrics):
         self._metrics = metrics
         self._batches_seen = 0
 
