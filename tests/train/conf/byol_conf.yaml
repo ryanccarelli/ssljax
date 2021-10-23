@@ -110,7 +110,7 @@ post_process:
         online_branch_name: branch_0
         target_branch_name: branch_1
         tau: 0.9
-        remove_from_online: [pred_mod]
+        remove_from_online: [pred]
 
 meter:
   name: SSLMeter
