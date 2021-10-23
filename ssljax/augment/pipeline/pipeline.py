@@ -1,10 +1,8 @@
-# base class for augmentations here
-
-# augmentations will be used by the trainer
 import jax
 import jax.numpy as jnp
-
-from ssljax.augment.augmentation.augmentation import Augmentation, AugmentationDistribution
+from ssljax.augment.augmentation.augmentation import (Augmentation,
+                                                      AugmentationDistribution)
+from ssljax.core.utils import get_from_register
 
 
 class Pipeline(Augmentation):
@@ -12,15 +10,20 @@ class Pipeline(Augmentation):
     A Pipeline is a composition of AugmentationDistribution.
 
     Args:
-        augmentations (list): sequence of AugmentationDistribution to be sampled in sequence
+        config (hydra.OmegaConf): config at pipelines.branches.i where i is branch index
     """
 
-    def __init__(self, augmentation_distributions):
-        assert all([isinstance(t, AugmentationDistribution) for t in augmentation_distributions]), (
+    def __init__(self, config):
+        aug_dist_list = [
+            AugmentationDistribution([get_from_register(Augmentation, x)(**y.params)])
+            for x, y in config.items()
+        ]
+
+        assert all([isinstance(t, AugmentationDistribution) for t in aug_dist_list]), (
             f"all elements in input list must be of"
             f" type ssljax.augment.AugmentationDistribution"
         )
-        self.pipeline = augmentation_distributions
+        self.pipeline = aug_dist_list
 
     def __len__(self):
         return len(self.pipeline)
@@ -33,18 +36,8 @@ class Pipeline(Augmentation):
         return out
 
     def __call__(self, x, rng):
-        # assert isinstance(x, jnp.array), f"argument of type {type(x)} must be __."
         for aug_distribution in self.pipeline:
             rng, _ = jax.random.split(rng)
             aug = aug_distribution.sample(rng)
             x = aug(x, rng)
         return x
-
-    def save(self, path):
-        """
-        save pipeline to disk
-
-        Args:
-            path (str): save path on disk
-        """
-        raise NotImplementedError

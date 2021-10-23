@@ -71,7 +71,7 @@ class AugmentationDistribution:
 
 
 # byol augmentations
-@register(Augmentation, "randomflip")
+@register(Augmentation, "RandomFlip")
 class RandomFlip(Augmentation):
     """
     Randomly flip image.
@@ -83,7 +83,8 @@ class RandomFlip(Augmentation):
     """
 
     def __init__(
-        self, prob=1.0,
+        self,
+        prob=1.0,
     ):
         super().__init__(prob)
 
@@ -94,11 +95,17 @@ class RandomFlip(Augmentation):
     def _random_flip_single_image(self, image, rng):
         _, flip_rng = jax.random.split(rng)
         should_flip_lr = jax.random.uniform(flip_rng, shape=()) <= self.prob
-        image = jax.lax.cond(should_flip_lr, image, jnp.fliplr, image, lambda x: x,)
+        image = jax.lax.cond(
+            should_flip_lr,
+            image,
+            jnp.fliplr,
+            image,
+            lambda x: x,
+        )
         return image
 
 
-@register(Augmentation, "randomgaussianblur")
+@register(Augmentation, "GaussianBlur")
 class GaussianBlur(Augmentation):
     """
     Applies a gaussian blur to a batch of images
@@ -109,7 +116,12 @@ class GaussianBlur(Augmentation):
     """
 
     def __init__(
-        self, prob, blur_divider=10.0, sigma_min=0.1, sigma_max=2.0, padding="SAME",
+        self,
+        prob,
+        blur_divider=10.0,
+        sigma_min=0.1,
+        sigma_max=2.0,
+        padding="SAME",
     ):
         super().__init__(prob)
         self.prob = prob
@@ -196,7 +208,7 @@ class GaussianBlur(Augmentation):
         return blurred
 
 
-@register(Augmentation, "colortransform")
+@register(Augmentation, "ColorTransform")
 class ColorTransform(Augmentation):
     """
     Applies color jittering and/or grayscaling to a batch of images.
@@ -240,7 +252,9 @@ class ColorTransform(Augmentation):
         self.shuffle = shuffle
 
     def __call__(
-        self, x, rng,
+        self,
+        x,
+        rng,
     ):
         rngs = jax.random.split(rng, x.shape[0])
         jitter_fn = functools.partial(
@@ -339,7 +353,7 @@ class ColorTransform(Augmentation):
         return jnp.clip(out_apply, 0.0, 1.0)
 
 
-@register(Augmentation, "solarize")
+@register(Augmentation, "Solarize")
 class Solarize(Augmentation):
     """Applies solarization.
     Args:
@@ -373,7 +387,7 @@ class Solarize(Augmentation):
         return jax.lax.cond(should_apply, inputs, apply_fn, inputs, lambda x: x)
 
 
-@register(Augmentation, "clip")
+@register(Augmentation, "Clip")
 class Clip(Augmentation):
     """
     Wrap jnp.clip.
@@ -393,5 +407,14 @@ class Clip(Augmentation):
         return x
 
 
-if __name__ == "__main__":
-    augs = AugmentationDistribution([])
+@register(Augmentation, "Identity")
+class Identity(Augmentation):
+    """
+    Map image by identity.
+    """
+
+    def __init__(self, prob=1.0):
+        super().__init__(prob)
+
+    def __call__(self, x, rng):
+        return x

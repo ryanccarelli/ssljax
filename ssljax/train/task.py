@@ -124,10 +124,7 @@ class Task:
         """
         pipelines = []
         for pipeline_idx, pipeline_params in self.config.pipelines.branches.items():
-            pipeline = get_from_register(Pipeline, pipeline_params.name)(
-                **pipeline_params.params
-            )
-            pipelines.append(pipeline)
+            pipelines.append(Pipeline(pipeline_params.augmentations))
 
         return pipelines
 

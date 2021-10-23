@@ -30,18 +30,3 @@ def byoltestconfig():
     initialize(config_path="../train/conf")
     cfg = compose(config_name="byol_conf.yaml")
     return cfg
-
-
-class Identity(Augmentation):
-    """
-    Map image by identity.
-    """
-
-    def __call__(self, x, rng):
-        return x
-
-
-@register(Pipeline, "CPUPipeline")
-class CPUPipeline(Pipeline):
-    def __init__(self):
-        super().__init__([AugmentationDistribution([Identity()])])

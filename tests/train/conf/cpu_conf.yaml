@@ -109,11 +109,15 @@ meter:
 pipelines:
   branches:
     0:
-      name: CPUPipeline
-      params: {}
+      augmentations:
+        Identity:
+          params:
+            prob: 1.0
     1:
-      name: CPUPipeline
-      params: {}
+      augmentations:
+        Identity:
+          params:
+            prob: 1.0
 
 dataloader:
   name: mnist
