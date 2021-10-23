@@ -21,6 +21,7 @@ from ssljax.optimizers import Optimizer
 from ssljax.train.trainer import Trainer
 from ssljax.train.trainstate import TrainState
 from tensorboardX import GlobalSummaryWriter
+from tqdm import tqdm
 
 CHECKPOINTSDIR = Path("outs/checkpoints/")
 CHECKPOINTSDIR.mkdir(parents=True, exist_ok=True)
@@ -51,6 +52,7 @@ class SSLTrainer(Trainer):
         """
 
         from jax.lib import xla_bridge
+
         print("xla bridge", xla_bridge.get_backend().platform)
 
         key, self.rng = random.split(self.rng)
@@ -58,7 +60,7 @@ class SSLTrainer(Trainer):
 
         state = jax_utils.replicate(state)
 
-        for epoch in range(self.task.config.env.epochs):
+        for epoch in tqdm(range(self.task.config.env.epochs)):
             print(f"epoch: {epoch}")
             state = self.epoch(state, p_step)
             checkpoints.save_checkpoint(
@@ -67,7 +69,6 @@ class SSLTrainer(Trainer):
                 prefix="checkpoint_",
                 **self.task.config.env.save_checkpoint.params,
             )
-
 
     def epoch(self, state, p_step):
         """
@@ -101,16 +102,18 @@ class SSLTrainer(Trainer):
             break
         return state
 
-    def step(self,
-             state,
-             batch,
-             has_batch_stats,
-             dynamic_scale,
-             has_aux,
-             mutable_keys,
-             loss_fn,
-             dynamic_scale_params,
-             accumulate_steps):
+    def step(
+        self,
+        state,
+        batch,
+        has_batch_stats,
+        dynamic_scale,
+        has_aux,
+        mutable_keys,
+        loss_fn,
+        dynamic_scale_params,
+        accumulate_steps,
+    ):
         """
         Compute and apply gradient.
 
@@ -119,18 +122,20 @@ class SSLTrainer(Trainer):
             batch (jnp.array): a single data batch
         """
         # get losses
-        accumulate_gradients = partial(self.accumulate_gradients,
-                                       accumulate_steps=accumulate_steps,
-                                       has_aux=has_aux,
-                                       mutable_keys=mutable_keys,
-                                       dynamic_scale=dynamic_scale)
+        accumulate_gradients = partial(
+            self.accumulate_gradients,
+            accumulate_steps=accumulate_steps,
+            has_aux=has_aux,
+            mutable_keys=mutable_keys,
+            dynamic_scale=dynamic_scale,
+        )
 
         if dynamic_scale:
             # optim.DynamicScale returns a DynamicScaleResult object
             grad_fn = jax.jit(
-                optim.DynamicScale(
-                    dynamic_scale_params
-                ).value_and_grad(loss_fn, has_aux=has_aux)
+                optim.DynamicScale(dynamic_scale_params).value_and_grad(
+                    loss_fn, has_aux=has_aux
+                )
             )
         else:
             grad_fn = jax.value_and_grad(loss_fn, has_aux=has_aux)
@@ -170,8 +175,14 @@ class SSLTrainer(Trainer):
         return state, loss
 
     def accumulate_gradients(
-            self, grad_fn, batch, params, mutable_keys=[], has_aux=False, dynamic_scale=False, accumulate_steps=1
-
+        self,
+        grad_fn,
+        batch,
+        params,
+        mutable_keys=[],
+        has_aux=False,
+        dynamic_scale=False,
+        accumulate_steps=1,
     ):
         """
         Split a batch into sub-batches and compute gradients in each sub-batch.
@@ -226,13 +237,9 @@ class SSLTrainer(Trainer):
                 1, accumulate_steps, acc_grad_and_loss, (loss, grad)
             )
             if has_aux:
-                return jax.tree_map(
-                    lambda x: x / accumulate_steps, (loss, aux, grad)
-                )
+                return jax.tree_map(lambda x: x / accumulate_steps, (loss, aux, grad))
             else:
-                return jax.tree_map(
-                    lambda x: x / accumulate_steps, (loss, grad)
-                )
+                return jax.tree_map(lambda x: x / accumulate_steps, (loss, grad))
         else:
             if dynamic_scale:
                 dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(
@@ -296,7 +303,6 @@ class SSLTrainer(Trainer):
             + list(eval(self.task.config.dataloader.params.input_shape))
             + [len(self.task.config.model.branches)]
         )
-
 
         init_data = jnp.ones(
             tuple(init_shape),
@@ -362,17 +368,20 @@ class SSLTrainer(Trainer):
         else:
             dynamic_scale_params = {}
 
-        p_step = jax.pmap(partial(self.step,
-                                  has_batch_stats=has_batch_stats,
-                                  dynamic_scale=dynamic_scale,
-                                  has_aux=has_aux,
-                                  mutable_keys=mutable_keys,
-                                  loss_fn=loss_fn,
-                                  dynamic_scale_params=dynamic_scale_params,
-                                  accumulate_steps=self.task.config.env.accum_steps),
-                          axis_name="batch",
-                          donate_argnums=(0,1))
-
+        p_step = jax.pmap(
+            partial(
+                self.step,
+                has_batch_stats=has_batch_stats,
+                dynamic_scale=dynamic_scale,
+                has_aux=has_aux,
+                mutable_keys=mutable_keys,
+                loss_fn=loss_fn,
+                dynamic_scale_params=dynamic_scale_params,
+                accumulate_steps=self.task.config.env.accum_steps,
+            ),
+            axis_name="batch",
+            donate_argnums=(0, 1),
+        )
 
         return state, p_step
 

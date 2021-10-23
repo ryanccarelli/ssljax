@@ -13,8 +13,7 @@ env:
   restore_checkpoint:
     params: {}
   half_precision: False
-  dynamic_scale:
-    params: {}
+  dynamic_scale: True
 
 trainer:
   name: SSLTrainer
