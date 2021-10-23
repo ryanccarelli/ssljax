@@ -24,15 +24,15 @@ model:
   branches:
     0:
       name: Branch
-      params:
+      stages:
         body:
-          name: ResNet
+          module: ResNet
           params:
             stage_sizes: [3, 4, 6, 3]
             block_cls_name: "BottleneckResNetBlock"
             num_classes: False
         head:
-          name: MLP
+          module: MLP
           params:
             layer_dims: [4096, 256]
             dropout_prob: 0.0
@@ -43,7 +43,7 @@ model:
               epsilon: 1e-5
             activation_name: "relu"
         pred:
-          name: MLP
+          module: MLP
           params:
             layer_dims: [4096, 256]
             dropout_prob: 0.0
@@ -55,15 +55,15 @@ model:
 
     1:
       name: Branch
-      params:
+      stages:
         body:
-          name: ResNet
+          module: ResNet
           params:
             stage_sizes: [3, 4, 6, 3]
             block_cls_name: "BottleneckResNetBlock"
             num_classes: False
         head:
-          name: MLP
+          module: MLP
           params:
             layer_dims: [4096, 256]
             dropout_prob: 0.0

@@ -29,7 +29,7 @@ class SSLModel(Model):
     def setup(self):
         branch = []
         for branch_idx, branch_params in self.config.model.branches.items():
-            b = Branch(branch_params)
+            b = Branch(branch_params.stages)
             branch.append(b)
         self.branch = branch
 

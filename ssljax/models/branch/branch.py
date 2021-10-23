@@ -20,7 +20,7 @@ class Branch(Model):
         stages = []
         for stage_name, stage_params in self.config.items():
             stages.append(
-                get_from_register(Model, stage_name)(
+                get_from_register(Model, stage_params.module)(
                     name=stage_name, **stage_params.params
                 )
             )
