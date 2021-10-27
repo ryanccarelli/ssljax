@@ -25,6 +25,7 @@ model:
     0:
       name: Branch
       stages:
+        stop_gradient: False
         body:
           module: ResNet
           params:
@@ -56,6 +57,7 @@ model:
     1:
       name: Branch
       stages:
+        stop_gradient: True
         body:
           module: ResNet
           params:
