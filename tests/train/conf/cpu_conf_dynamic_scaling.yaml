@@ -14,6 +14,7 @@ env:
     params: {}
   half_precision: False
   dynamic_scale: True
+  dynamic_scale_params: {}
 
 trainer:
   name: SSLTrainer
@@ -23,9 +24,10 @@ model:
   branches:
     0:
       name: OnlineBranch
-      params:
+      stages:
+        stop_gradient: False
         body:
-          name: MLP
+          module: MLP
           params:
             layer_dims: [1]
             dropout_prob: 0.0
@@ -36,7 +38,7 @@ model:
               epsilon: 1e-5
             activation_name: "relu"
         head:
-          name: MLP
+          module: MLP
           params:
             layer_dims: [1]
             dropout_prob: 0.0
@@ -44,7 +46,7 @@ model:
             batch_norm_params: {}
             activation_name: "relu"
         pred:
-          name: MLP
+          module: MLP
           params:
             layer_dims: [1]
             dropout_prob: 0.0
@@ -53,9 +55,10 @@ model:
             activation_name: "relu"
     1:
       name: TargetBranch
-      params:
+      stages:
+        stop_gradient: True
         body:
-          name: MLP
+          module: MLP
           params:
             layer_dims: [1]
             dropout_prob: 0.0
@@ -63,7 +66,7 @@ model:
             batch_norm_params: {}
             activation_name: "relu"
         head:
-          name: MLP
+          module: MLP
           params:
             layer_dims: [1]
             dropout_prob: 0.0
@@ -101,7 +104,7 @@ post_process:
         online_branch_name: branch_0
         target_branch_name: branch_1
         tau: 0.2
-        remove_from_online: [pred_mod]
+        remove_from_online: [pred]
 
 meter:
   name: SSLMeter
@@ -109,11 +112,15 @@ meter:
 pipelines:
   branches:
     0:
-      name: CPUPipeline
-      params: {}
+      augmentations:
+        Identity:
+          params:
+            prob: 1.0
     1:
-      name: CPUPipeline
-      params: {}
+      augmentations:
+        Identity:
+          params:
+            prob: 1.0
 
 dataloader:
   name: mnist

@@ -1,5 +1,6 @@
+import cProfile
 import logging
-import cProfile, pstats
+import pstats
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +33,19 @@ TBDIR.mkdir(parents=True, exist_ok=True)
 writer = GlobalSummaryWriter(TBDIR)
 
 from jax import lax
+
 # TODO. Move to utils
-cross_replica_mean = jax.pmap(lambda x: lax.pmean(x, 'x'), 'x')
+cross_replica_mean = jax.pmap(
+    lambda x: lax.pmean(x, "x"),
+    "x",
+)
+
 
 def sync_batch_stats(state):
-  """Sync the batch statistics across replicas."""
-  # Each device has its own version of the running average batch statistics and
-  # we sync them before evaluation.
-  return state.replace(batch_stats=cross_replica_mean(state.batch_stats))
+    """Sync the batch statistics across replicas."""
+    # Each device has its own version of the running average batch statistics and
+    # we sync them before evaluation.
+    return state.replace(batch_stats=cross_replica_mean(state.batch_stats))
 
 
 @register(Trainer, "SSLTrainer")
@@ -63,6 +69,7 @@ class SSLTrainer(Trainer):
         """
 
         from jax.lib import xla_bridge
+
         print("xla bridge device", xla_bridge.get_backend().platform)
 
         key, self.rng = random.split(self.rng)
@@ -72,9 +79,10 @@ class SSLTrainer(Trainer):
 
         for epoch in tqdm(range(self.task.config.env.epochs)):
             state = self.epoch(state, p_step)
+            save_state = jax.device_get(jax.tree_map(lambda x: x[0], state))
             checkpoints.save_checkpoint(
-                target=state,
-                step=epoch,
+                target=save_state,
+                step=int(state.step),
                 prefix="checkpoint_",
                 **self.task.config.env.save_checkpoint.params,
             )
@@ -86,7 +94,6 @@ class SSLTrainer(Trainer):
         Args:
             state (flax.training.train_state.TrainState): model state
         """
-        profiler = cProfile.Profile()
         for data, _ in iter(self.task.dataloader):
             batch = jax.device_put(data)
             rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
@@ -101,10 +108,10 @@ class SSLTrainer(Trainer):
             batch = jnp.stack(batch, axis=-1)
             batch = jax_utils.replicate(batch)
             state, loss = p_step(state, batch)
-            # post process
             for idx, fun in enumerate(self.task.post_process_funcs):
                 state = state.replace(params=fun(state.params))
-            state = sync_batch_stats(state)
+            if state.batch_stats:
+                state = sync_batch_stats(state)
             writer.add_scalar("loss", np.array(loss).mean())
         return state
 
@@ -113,10 +120,10 @@ class SSLTrainer(Trainer):
         state,
         batch,
         has_batch_stats,
-        dynamic_scale,
         has_aux,
         mutable_keys,
         loss_fn,
+        dynamic_scale,
         dynamic_scale_params,
         accumulate_steps,
     ):
@@ -139,7 +146,7 @@ class SSLTrainer(Trainer):
         if dynamic_scale:
             # optim.DynamicScale returns a DynamicScaleResult object
             grad_fn = jax.jit(
-                optim.DynamicScale(dynamic_scale_params).value_and_grad(
+                optim.DynamicScale(**dynamic_scale_params).value_and_grad(
                     loss_fn, has_aux=has_aux
                 )
             )
@@ -203,7 +210,6 @@ class SSLTrainer(Trainer):
                 batch.shape[0] % accumulate_steps == 0
             ), f"Bad accum_steps {self.task.config.env.accum_steps} for batch size {batch.shape[0]}"
             step_size = batch.shape[0] // accumulate_steps
-            # TODO: why do we need to pop params here?
             if dynamic_scale:
                 dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(
                     {"params": params["params"]}, batch
@@ -306,7 +312,7 @@ class SSLTrainer(Trainer):
         self.model = self.task.model(config=self.task.config)
 
         init_shape = (
-            [1] # Batch size == 1
+            [1]  # Batch size == 1
             + list(eval(self.task.config.dataloader.params.input_shape))
             + [len(self.task.config.model.branches)]
         )
@@ -358,7 +364,6 @@ class SSLTrainer(Trainer):
         # Create init steps
         has_batch_stats = state.batch_stats is not None
         has_aux = has_batch_stats
-        dynamic_scale = self.task.config.env.dynamic_scale
         mutable_keys = None
         if has_batch_stats:
             mutable_keys = ["batch_stats"]
@@ -369,20 +374,15 @@ class SSLTrainer(Trainer):
             loss_fn = self.loss
         loss_fn = partial(loss_fn, model_fn=self.model)
 
-        if dynamic_scale:
-            dynamic_scale_params = self.task.config.env.dynamic_scale.params
-        else:
-            dynamic_scale_params = {}
-
         p_step = jax.pmap(
             partial(
                 self.step,
                 has_batch_stats=has_batch_stats,
-                dynamic_scale=dynamic_scale,
+                dynamic_scale=self.task.config.env.dynamic_scale,
                 has_aux=has_aux,
                 mutable_keys=mutable_keys,
                 loss_fn=loss_fn,
-                dynamic_scale_params=dynamic_scale_params,
+                dynamic_scale_params=self.task.config.env.dynamic_scale_params,
                 accumulate_steps=self.task.config.env.accum_steps,
             ),
             axis_name="batch",

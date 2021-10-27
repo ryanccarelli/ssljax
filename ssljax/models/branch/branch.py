@@ -17,19 +17,23 @@ class Branch(Model):
     config: dict
 
     def setup(self, **args):
+        self.stop_gradient = self.config["stop_gradient"]
         stages = []
         for stage_name, stage_params in self.config.items():
-            stages.append(
-                get_from_register(Model, stage_params.module)(
-                    name=stage_name, **stage_params.params
+            if stage_name != "stop_gradient":
+                stages.append(
+                    get_from_register(Model, stage_params.module)(
+                        name=stage_name, **stage_params.params
+                    )
                 )
-            )
 
         self.stages = stages
 
     def __call__(self, x):
         for stage in self.stages:
             x = stage(x)
+        if self.stop_gradient:
+            x = jax.lax.stop_gradient(x)
         return x
 
 
