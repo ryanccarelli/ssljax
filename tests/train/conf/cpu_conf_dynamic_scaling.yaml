@@ -110,6 +110,11 @@ meter:
   name: SSLMeter
 
 pipelines:
+  pre:
+    augmentations:
+        Identity:
+          params:
+            prob: 1.0
   branches:
     0:
       augmentations:

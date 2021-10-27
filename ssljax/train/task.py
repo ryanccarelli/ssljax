@@ -47,21 +47,21 @@ class Task:
         self.schedulers = self._get_schedulers()
         self.optimizers = self._get_optimizers()
         self.meter = self._get_meter()
-        self.pipelines = self._get_pipelines()
+        self.pre_pipelines = self._get_pre_pipelines()
+        self.post_pipelines = self._get_post_pipelines()
         self.dataloader = self._get_dataloader()
         self.post_process_funcs = self._get_post_process_list()
 
     def _get_trainer(self) -> Trainer:
         """
-        Initialize the trainer for this task.
+        Initialize the trainer.
         """
         trainer = get_from_register(Trainer, self.config.trainer.name)
         return trainer(rng=self.rng, task=self)
 
     def _get_model(self) -> Model:
         """
-        Initialize the model for this task. This must be implemented by child
-        tasks.
+        Initialize the model.
 
         Returns (Model): The model to use for this task.
         """
@@ -69,7 +69,7 @@ class Task:
 
     def _get_loss(self) -> Loss:
         """
-        Initialize the loss calculator. This must be implemented by child tasks.
+        Initialize the loss function.
 
         Returns (Loss): The loss to use for the task.
         """
@@ -77,7 +77,7 @@ class Task:
 
     def _get_optimizers(self) -> List[Optimizer]:
         """
-        Initialize optimizer.
+        Initialize the optimizer.
 
         Returns (Optimizer): The optimizers to use for the task.
         """
@@ -94,7 +94,7 @@ class Task:
 
     def _get_schedulers(self) -> Dict[str, Scheduler]:
         """
-        Initialize the scheduler. This must be implemented by child tasks.
+        Initialize the scheduler.
 
         Returns (Scheduler): The scheduler to use for the task.
         """
@@ -109,18 +109,28 @@ class Task:
 
     def _get_meter(self) -> Meter:
         """
-        Initialize the metrics. This must be implemented by child tasks.
+        Initialize the metrics.
 
         Returns (Meter): The metrics to use for the task.
         """
         return get_from_register(Meter, self.config.meter.name)
 
-    def _get_pipelines(self) -> List[Pipeline]:
+    def _get_pre_pipelines(self) -> Pipeline or None:
         """
-        Initialize the augment for this task. This must be implemented by child
-        tasks.
+        Initialize the pre-augmentations.
 
-        Returns (Pipeline): The augment to use for this task.
+        Returns (Pipeline): The pre-augmentation pipeline to use for this task.
+        """
+        if "pre" in self.config.pipelines:
+            return Pipeline(self.config.pipelines.pre.augmentations)
+        else:
+            return None
+
+    def _get_post_pipelines(self) -> List[Pipeline]:
+        """
+        Initialize the post-augmentations.
+
+        Returns (Pipeline): The post-augmentation pipeline to use for this task.
         """
         pipelines = []
         for pipeline_idx, pipeline_params in self.config.pipelines.branches.items():

@@ -118,6 +118,11 @@ meter:
   name: SSLMeter
 
 pipelines:
+  pre:
+    augmentations:
+      RandomFlip:
+        params:
+          prop: 1.0
   branches:
     0:
       augmentations:

@@ -96,13 +96,15 @@ class SSLTrainer(Trainer):
         """
         for data, _ in iter(self.task.dataloader):
             batch = jax.device_put(data)
-            rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
-            self.rng = rngkeys[-1]
+            self.rng, prepiperng = jax.random.split(self.rng)
+            batch = self.task.pre_pipelines(batch, prepiperng)
+            postpiperngs = jax.random.split(self.rng, len(self.task.post_pipelines) + 1)
+            self.rng = postpiperngs[-1]
             batch = list(
                 map(
                     lambda rng, pipeline: pipeline(batch, rng),
-                    rngkeys[:-1],
-                    self.task.pipelines,
+                    postpiperngs[:-1],
+                    self.task.post_pipelines,
                 )
             )
             batch = jnp.stack(batch, axis=-1)
