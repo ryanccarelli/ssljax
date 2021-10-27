@@ -40,4 +40,5 @@ class Pipeline(Augmentation):
             rng, _ = jax.random.split(rng)
             aug = aug_distribution.sample(rng)
             x = aug(x, rng)
+        x = jax.lax.stop_gradient(x)
         return x
