@@ -144,9 +144,16 @@ class Task:
 
         Returns (Dataloader): The dataloader to use for the task.
         """
-        return get_from_register(DataLoader, self.config.dataloader.name)(
-            **self.config.dataloader.params
-        )
+        if self.config.dataloader.platform == "torch":
+            return get_from_register(TorchDataLoader, self.config.dataloader.name)(
+                **self.config.dataloader.params
+            )
+        elif self.config.dataloader.platform == "tfds":
+            return get_from_register(ScenicDataLoader, self.config.dataloader.name)(
+                **self.config.dataloader.params
+            )
+        else:
+            raise KeyError("dataloader.platform must be in {torch, tfds}")
 
     def _get_post_process_list(self) -> List[Callable]:
         print_registry()

@@ -128,7 +128,8 @@ pipelines:
             prob: 1.0
 
 dataloader:
-  name: mnist
+  platform: torch
+  name: MNIST
   params:
     batch_size: 32
     input_shape: (784,)

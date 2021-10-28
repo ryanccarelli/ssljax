@@ -4,14 +4,15 @@ import jax.numpy as jnp
 import numpy as np
 from ssljax.core.utils.register import register
 from torch.utils import data
-from torchvision.datasets import CIFAR10, MNIST
+from torchvision.datasets import CIFAR10, CIFAR100, MNIST
+from scenic.dataset_lib.datasets import get_dataset
 
 logger = logging.getLogger(__name__)
 
 
-class DataLoader(data.DataLoader):
+class TorchDataLoader(data.DataLoader):
     """
-    SSLJax enforces Pytorch dataloaders inheriting from DataLoader.
+    Class wrapping Pytorch dataloaders.
     Dataloader collates numpy arrays.
 
     Args:
@@ -77,11 +78,17 @@ class Cast:
         return np.array(pic, dtype=jnp.float32)
 
 
-# TODO. Add transformation composition class/operator
+class ScenicDataLoader:
+    """
+    Class wrapping distributed tfds dataloaders as implemented in
+    https://github.com/google-research/scenic
+    """
+    pass
+
 
 # packaged dataloaders here
-@register(DataLoader, "mnist")
-def MNISTLoader(batch_size, flatten=True, num_workers=0, **kwargs):
+@register(TorchDataLoader, "MNIST")
+def TorchMNISTLoader(batch_size, flatten=True, num_workers=0, **kwargs):
     """
     Dataloader for MNIST dataset.
     See http://www.pymvpa.org/datadb/mnist.html
@@ -94,8 +101,14 @@ def MNISTLoader(batch_size, flatten=True, num_workers=0, **kwargs):
         mnist_dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
     )
 
+@register(ScenicDataLoader, "MNIST")
+def ScenicMNISTLoader(batch_size=32, eval_batch_size=None, num_shards=10, **kwargs):
+    if eval_batch_size is None:
+        eval_batch_size = batch_size
+    return get_dataset("mnist")(batch_size=batch_size, eval_batch_size=eval_batch_size, num_shards=num_shards, **kwargs).train_iter
 
-@register(DataLoader, "cifar10")
+
+@register(TorchDataLoader, "CIFAR10")
 def CIFAR10Loader(batch_size, flatten=False, num_workers=0, **kwargs):
     """
     Dataloader for CIFAR10 dataset.
@@ -108,8 +121,13 @@ def CIFAR10Loader(batch_size, flatten=False, num_workers=0, **kwargs):
         cifar_dataset = CIFAR10("/tmp/cifar10/", download=True, transform=Cast())
     return DataLoader(cifar_dataset, batch_size=batch_size, num_workers=0, **kwargs)
 
+@register(ScenicDataLoader, "CIFAR10")
+def ScenicCIFAR10Loader(batch_size=32, eval_batch_size=None, num_shards=10, **kwargs):
+    if eval_batch_size is None:
+        eval_batch_size = batch_size
+    return get_dataset("cifar10")(batch_size=batch_size, eval_batch_size=eval_batch_size, num_shards=num_shards, **kwargs).train_iter
 
-@register(DataLoader, "cifar100")
+@register(TorchDataLoader, "CIFAR100")
 def CIFAR100Loader(batch_size, flatten=False, num_workers=0, **kwargs):
     """
     Dataloader for CIFAR100 dataset.

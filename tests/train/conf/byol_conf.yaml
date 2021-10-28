@@ -176,7 +176,8 @@ pipelines:
             x_max: 1
 
 dataloader:
-  name: cifar10
+  platform: torch
+  name: CIFAR10
   params:
     batch_size: 128
     flatten: False
