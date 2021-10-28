@@ -32,7 +32,7 @@ setuptools.setup(
         "tensorboardX",
         "tensorboard",
         "parameterized",
-        "vision_transformer @ git+https://github.com/google-research/vision_transformer.git",
+        "scenic @ git+https://github.com/google-research/scenic.git",
     ],
     extras_require={"jax": ["jax>=0.1.71", "jaxlib>=0.1.49",]},
     requires_python=">=3.8",
