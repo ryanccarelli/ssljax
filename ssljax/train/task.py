@@ -7,7 +7,7 @@ from ssljax.augment.pipeline.pipeline import Pipeline
 from ssljax.core.config import Config
 from ssljax.core.utils import prepare_environment
 from ssljax.core.utils.register import get_from_register, print_registry
-from ssljax.data import DataLoader
+from ssljax.data import DataLoader, ScenicData, TorchData
 from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
@@ -145,11 +145,12 @@ class Task:
         Returns (Dataloader): The dataloader to use for the task.
         """
         if self.config.dataloader.platform == "torch":
-            return get_from_register(TorchDataLoader, self.config.dataloader.name)(
+            return get_from_register(TorchData, self.config.dataloader.name)(
                 **self.config.dataloader.params
             )
+
         elif self.config.dataloader.platform == "tfds":
-            return get_from_register(ScenicDataLoader, self.config.dataloader.name)(
+            return get_from_register(ScenicData, self.config.dataloader.name)(
                 **self.config.dataloader.params
             )
         else:

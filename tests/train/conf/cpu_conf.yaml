@@ -15,6 +15,7 @@ env:
   half_precision: False
   dynamic_scale: False
   dynamic_scale_params: {}
+  input_shape: (784,)
 
 trainer:
   name: SSLTrainer
@@ -74,7 +75,6 @@ model:
             batch_norm_params: {}
             activation_name: "relu"
 
-
 loss: byol_regression_loss
 
 optimizers:
@@ -132,5 +132,4 @@ dataloader:
   name: MNIST
   params:
     batch_size: 32
-    input_shape: (784,)
-    flatten: True
+    num_shards: 8

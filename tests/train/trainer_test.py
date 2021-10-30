@@ -35,7 +35,6 @@ class TestTrainer:
     """
 
 
-
 def byoltestconfig():
     hydra.core.global_hydra.GlobalHydra.instance().clear()
     initialize(config_path="../train/conf")

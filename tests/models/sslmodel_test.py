@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import pytest
 from absl.testing import parameterized
 from flax.training import train_state
-from omegaconf import OmegaConf
+from omegaconf import DictConfig, OmegaConf
 from ssljax.models.branch.branch import Branch
 from ssljax.models.sslmodel import SSLModel
 
@@ -25,8 +25,13 @@ class SSLModelTest(parameterized.TestCase):
 
 
 class MockSSLModel(SSLModel):
+    config: DictConfig
+
     def setup(self):
-        self.branch = [LinearBranch(), LinearBranch()]
+        self.branch = [
+            LinearBranch(config=OmegaConf.create()),
+            LinearBranch(config=OmegaConf.create()),
+        ]
 
 
 class LinearBranch(Branch):
