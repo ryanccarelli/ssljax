@@ -94,15 +94,19 @@ class SSLTrainer(Trainer):
         Args:
             state (flax.training.train_state.TrainState): model state
         """
+        # for data, _ in iter(self.task.dataloader):
         for data, _ in iter(self.task.dataloader):
+            # TODO: need to wrap torch and tfds dataloaders so they return a consistent format
             batch = jax.device_put(data)
-            rngkeys = jax.random.split(self.rng, len(self.task.pipelines) + 1)
-            self.rng = rngkeys[-1]
+            self.rng, prepiperng = jax.random.split(self.rng)
+            batch = self.task.pre_pipelines(batch, prepiperng)
+            postpiperngs = jax.random.split(self.rng, len(self.task.post_pipelines) + 1)
+            self.rng = postpiperngs[-1]
             batch = list(
                 map(
                     lambda rng, pipeline: pipeline(batch, rng),
-                    rngkeys[:-1],
-                    self.task.pipelines,
+                    postpiperngs[:-1],
+                    self.task.post_pipelines,
                 )
             )
             batch = jnp.stack(batch, axis=-1)
@@ -313,7 +317,7 @@ class SSLTrainer(Trainer):
 
         init_shape = (
             [1]  # Batch size == 1
-            + list(eval(self.task.config.dataloader.params.input_shape))
+            + list(eval(self.task.config.env.input_shape))
             + [len(self.task.config.model.branches)]
         )
 

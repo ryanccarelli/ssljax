@@ -15,6 +15,7 @@ env:
   half_precision: False
   dynamic_scale: True
   dynamic_scale_params: {}
+  input_shape: (784,)
 
 trainer:
   name: SSLTrainer
@@ -110,6 +111,11 @@ meter:
   name: SSLMeter
 
 pipelines:
+  pre:
+    augmentations:
+        Identity:
+          params:
+            prob: 1.0
   branches:
     0:
       augmentations:
@@ -123,7 +129,8 @@ pipelines:
             prob: 1.0
 
 dataloader:
-  name: mnist
+  platform: torch
+  name: MNIST
   params:
     batch_size: 32
     input_shape: (784,)

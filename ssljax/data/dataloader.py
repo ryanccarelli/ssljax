@@ -2,16 +2,34 @@ import logging
 
 import jax.numpy as jnp
 import numpy as np
+from scenic.dataset_lib.datasets import get_dataset
 from ssljax.core.utils.register import register
 from torch.utils import data
-from torchvision.datasets import CIFAR10, MNIST
+from torchvision.datasets import CIFAR10, CIFAR100, MNIST
 
 logger = logging.getLogger(__name__)
 
 
-class DataLoader(data.DataLoader):
+class DataLoader:
     """
-    SSLJax enforces Pytorch dataloaders inheriting from DataLoader.
+    Consistent
+    DataLoader wraps TorchData or ScenicData.
+    """
+
+    def __init__(self, data):
+        if isinstance(data, TorchData):
+            pass 
+
+        elif isinstance(data, ScenicData):
+            pass 
+
+        else:
+            raise ValueError("must pass TorchData or ScenicData")
+
+
+class TorchData(data.DataLoader):
+    """
+    Class wrapping Pytorch dataloaders.
     Dataloader collates numpy arrays.
 
     Args:
@@ -77,11 +95,18 @@ class Cast:
         return np.array(pic, dtype=jnp.float32)
 
 
-# TODO. Add transformation composition class/operator
+class ScenicData:
+    """
+    Class wrapping distributed tfds dataloaders as implemented in
+    https://github.com/google-research/scenic
+    """
+
+    pass
+
 
 # packaged dataloaders here
-@register(DataLoader, "mnist")
-def MNISTLoader(batch_size, flatten=True, num_workers=0, **kwargs):
+@register(TorchData, "MNIST")
+def TorchMNIST(batch_size, flatten=True, num_workers=0, **kwargs):
     """
     Dataloader for MNIST dataset.
     See http://www.pymvpa.org/datadb/mnist.html
@@ -90,13 +115,25 @@ def MNISTLoader(batch_size, flatten=True, num_workers=0, **kwargs):
         mnist_dataset = MNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
     else:
         mnist_dataset = MNIST("/tmp/mnist/", download=True, transform=Cast())
-    return DataLoader(
+    return TorchData(
         mnist_dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
     )
 
 
-@register(DataLoader, "cifar10")
-def CIFAR10Loader(batch_size, flatten=False, num_workers=0, **kwargs):
+@register(ScenicData, "MNIST")
+def ScenicMNIST(batch_size=32, eval_batch_size=None, num_shards=10, **kwargs):
+    if eval_batch_size is None:
+        eval_batch_size = batch_size
+    return get_dataset("mnist")(
+        batch_size=batch_size,
+        eval_batch_size=eval_batch_size,
+        num_shards=num_shards,
+        **kwargs,
+    ).train_iter
+
+
+@register(TorchData, "CIFAR10")
+def TorchCIFAR10(batch_size, flatten=False, num_workers=0, **kwargs):
     """
     Dataloader for CIFAR10 dataset.
     """
@@ -106,11 +143,23 @@ def CIFAR10Loader(batch_size, flatten=False, num_workers=0, **kwargs):
         )
     else:
         cifar_dataset = CIFAR10("/tmp/cifar10/", download=True, transform=Cast())
-    return DataLoader(cifar_dataset, batch_size=batch_size, num_workers=0, **kwargs)
+    return TorchData(cifar_dataset, batch_size=batch_size, num_workers=0, **kwargs)
 
 
-@register(DataLoader, "cifar100")
-def CIFAR100Loader(batch_size, flatten=False, num_workers=0, **kwargs):
+@register(ScenicData, "CIFAR10")
+def ScenicCIFAR10(batch_size=32, eval_batch_size=None, num_shards=10, **kwargs):
+    if eval_batch_size is None:
+        eval_batch_size = batch_size
+    return get_dataset("cifar10")(
+        batch_size=batch_size,
+        eval_batch_size=eval_batch_size,
+        num_shards=num_shards,
+        **kwargs,
+    ).train_iter
+
+
+@register(TorchData, "CIFAR100")
+def TorchCIFAR100(batch_size, flatten=False, num_workers=0, **kwargs):
     """
     Dataloader for CIFAR100 dataset.
     """
@@ -120,6 +169,6 @@ def CIFAR100Loader(batch_size, flatten=False, num_workers=0, **kwargs):
         )
     else:
         cifar_dataset = CIFAR100("/tmp/cifar100/", download=True, transform=Cast())
-    return DataLoader(
+    return TorchDataLoader(
         cifar_dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
     )

@@ -15,6 +15,7 @@ env:
   half_precision: False
   dynamic_scale: False
   dynamic_scale_params: {}
+  input_shape: (32,32,3)
 
 trainer:
   name: SSLTrainer
@@ -27,9 +28,20 @@ model:
       stages:
         stop_gradient: False
         body:
-          module: VIT
+          module: ViT
           params:
-            config: "ViT-S_16"
+            num_classes:
+            mlp_dim:
+            num_layers:
+            num_heads:
+            patches:
+            hidden_size:
+            representation_size:
+            dropout_rate:
+            attention_dropout_rate:
+            stochastic_depth:
+            classifier:
+            dtype:
         head:
           module: DINO_MLP
           params:
@@ -47,9 +59,20 @@ model:
       stages:
         stop_gradient: True
         body:
-          module: VIT
+          module: ViT
           params:
-            config: "ViT-S_16"
+            num_classes:
+            mlp_dim:
+            num_layers:
+            num_heads:
+            patches:
+            hidden_size:
+            representation_size:
+            dropout_rate:
+            attention_dropout_rate:
+            stochastic_depth:
+            classifier:
+            dtype:
         head:
           module: DINO_MLP
           params:
@@ -103,6 +126,11 @@ meter:
   name: SSLMeter
 
 pipelines:
+  pre:
+    augmentations:
+      RandomFlip:
+        params:
+          prop: 1.0
   branches:
     0:
       augmentations:
@@ -156,7 +184,8 @@ pipelines:
             x_max: 1
 
 dataloader:
-  name: cifar10
+  platform: torch
+  name: CIFAR10
   params:
     batch_size: 8
     flatten: False
