@@ -11,6 +11,7 @@ from typing import Callable
 import flax
 import flax.optim as optim
 import jax
+from omegaconf import DictConfig
 import jax.numpy as jnp
 import numpy as np
 import optax
@@ -327,9 +328,6 @@ class SSLTrainer(Trainer):
         )
         params = jax.jit(self.model.init)(self.rng, init_data)
 
-        # TODO: check whether there are batchnorm params to manage
-        # check whether BatchNorm_ in any leafdict
-
         if self.task.config.env.restore_checkpoint.params:
             state = checkpoints.restore_checkpoint(
                 target=self.model,
@@ -364,6 +362,8 @@ class SSLTrainer(Trainer):
                 tx=multi_tx,
                 batch_stats=None,
             )
+        # TODO: build stage from pretrained
+        # state = load_pretrained(self.task.config, state)
 
         # Create init steps
         has_batch_stats = state.batch_stats is not None
@@ -394,3 +394,25 @@ class SSLTrainer(Trainer):
         )
 
         return state, p_step
+
+def load_pretrained(config, state):
+    """
+    Traverse config.model.batches.stages.
+    If pretrained, overwrite params from checkpoint.
+
+    Args:
+        config (DictConfig): config at task.config.model.branches
+    """
+    # ModelParamFilter
+    from flax.core import freeze, unfreeze
+    params = unfreeze(state.params)
+    for branch_key, branch in config.items():
+        for stage_key, stage in branch["stages"].items():
+            if stage_key != "stop_gradient":
+                if "pretrained" in stage:
+                    params[f"branch_{branch_key}"]["stages"][stage_key] = checkpoint.load_pretrained(
+                        pretrained_path=stage["pretrained"],
+                        init_params=params[f"branch_{branch_key}"]["stages"][stage_key]
+                    )
+    params = freeze(params)
+    return params
