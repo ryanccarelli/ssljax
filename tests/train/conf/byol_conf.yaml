@@ -123,7 +123,7 @@ pipelines:
     augmentations:
       RandomFlip:
         params:
-          prop: 1.0
+          prob: 1.0
   branches:
     0:
       augmentations:
