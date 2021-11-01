@@ -50,4 +50,5 @@ jobs:
       shell: bash -l {0}
       run: |
         cd docs
+        conda env update -n ssljax -f readthedocs-requirements.txt
         make html
