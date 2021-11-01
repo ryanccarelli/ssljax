@@ -415,15 +415,30 @@ def load_pretrained(config, state):
 
     for branch_key, branch in config.items():
         if "pretrained" in branch:
-            params["branch_{branch_key}"] = restore_checkpoint(
+            replace = restore_checkpoint(
                 branch["pretrained"],
                 target=None,
-            )["params"]
+            )
+            if "model_state" in replace:
+                replace = replace["model_state"]
+            elif "params" in replace:
+                replace = replace["params"]
+            else:
+                raise Exception("checkpoint file structure not recognized")
+            params["branch_{branch_key}"] = replace
         for stage_key, stage in branch["stages"].items():
             if stage_key != "stop_gradient":
                 if "pretrained" in stage:
-                    params[f"branch_{branch_key}"][stage_key][
-                        stage_key
-                    ] = restore_checkpoint(stage["pretrained"], target=None,)["params"]
+                    replace = restore_checkpoint(
+                        stage["pretrained"],
+                        target=None,
+                    )
+                    if "model_state" in replace:
+                        replace = replace["model_state"]
+                    elif "params" in replace:
+                        replace = replace["params"]
+                    else:
+                        raise Exception("checkpoint file structure not recognized")
+                    params[f"branch_{branch_key}"][stage_key] = replace
     state.replace(params=freeze(params))
     return state

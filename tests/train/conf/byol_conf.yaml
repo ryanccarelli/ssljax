@@ -29,6 +29,7 @@ model:
         stop_gradient: False
         body:
           module: ResNet
+          pretrained: "/home/anokhiml/Documents/ssljax/tests/train/conf/ResNet50_ImageNet1k"
           params:
             stage_sizes: [3, 4, 6, 3]
             block_cls_name: "BottleneckResNetBlock"
@@ -61,6 +62,7 @@ model:
         stop_gradient: True
         body:
           module: ResNet
+          pretrained: "/home/anokhiml/Documents/ssljax/tests/train/conf/ResNet50_ImageNet1k"
           params:
             stage_sizes: [3, 4, 6, 3]
             block_cls_name: "BottleneckResNetBlock"
