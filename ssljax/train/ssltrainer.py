@@ -26,6 +26,8 @@ from ssljax.train.trainstate import TrainState
 from tensorboardX import GlobalSummaryWriter
 from tensorflow.io import gfile
 from tqdm import tqdm
+from flax.core import freeze, unfreeze
+from flax.training.checkpoints import restore_checkpoint
 
 CHECKPOINTSDIR = Path("outs/checkpoints/")
 CHECKPOINTSDIR.mkdir(parents=True, exist_ok=True)
@@ -408,15 +410,13 @@ def load_pretrained(config, state):
         config (DictConfig): SSLTrainer config at task.config.model.branches
         state (flax.training.TrainState): model state
     """
-    from flax.core import freeze, unfreeze
-    from flax.training.checkpoints import restore_checkpoint
 
     params = unfreeze(state.params)
 
     for branch_key, branch in config.items():
         if "pretrained" in branch:
             replace = restore_checkpoint(
-                branch["pretrained"],
+                str(Path(__file__).parents[2]) + branch["pretrained"],
                 target=None,
             )
             if "model_state" in replace:
@@ -429,8 +429,9 @@ def load_pretrained(config, state):
         for stage_key, stage in branch["stages"].items():
             if stage_key != "stop_gradient":
                 if "pretrained" in stage:
+                    print(str(Path(__file__).parents[2]) + stage["pretrained"])
                     replace = restore_checkpoint(
-                        stage["pretrained"],
+                        str(Path(__file__).parents[2]) + stage["pretrained"],
                         target=None,
                     )
                     if "model_state" in replace:

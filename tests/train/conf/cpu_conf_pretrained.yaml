@@ -29,7 +29,7 @@ model:
         stop_gradient: False
         body:
           module: MLP
-          pretrained: "/home/anokhiml/Documents/ssljax/tests/train/conf/mlp_test_checkpoint"
+          pretrained: "/tests/train/conf/mlp_test_checkpoint"
           params:
             layer_dims: [1]
             dropout_prob: 0.0
