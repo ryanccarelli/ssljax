@@ -57,6 +57,7 @@ model:
             activation_name: "relu"
     1:
       name: Branch
+      pretrained: "/tests/train/conf/cpu_branch2_test_checkpoint"
       stages:
         stop_gradient: True
         body:

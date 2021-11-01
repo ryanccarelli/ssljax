@@ -420,9 +420,11 @@ def load_pretrained(config, state):
                 target=None,
             )
             if "model_state" in replace:
-                replace = replace["model_state"]
+                while "model_state" in replace:
+                    replace = replace["model_state"]
             elif "params" in replace:
-                replace = replace["params"]
+                while "params" in replace:
+                    replace = replace["params"]
             else:
                 raise Exception("checkpoint file structure not recognized")
             params["branch_{branch_key}"] = replace
@@ -435,9 +437,11 @@ def load_pretrained(config, state):
                         target=None,
                     )
                     if "model_state" in replace:
-                        replace = replace["model_state"]
+                        while "model_state" in replace:
+                            replace = replace["model_state"]
                     elif "params" in replace:
-                        replace = replace["params"]
+                        while "params" in replace:
+                            replace = replace["params"]
                     else:
                         raise Exception("checkpoint file structure not recognized")
                     params[f"branch_{branch_key}"][stage_key] = replace
