@@ -43,10 +43,6 @@ def ema_builder(online_branch_name, target_branch_name, tau, remove_from_online)
         online_filtered_params = model_params_filter.update(
             lambda x: x, params[online_branch_name]
         )
-
-        debug_flatten = lambda params: [
-            "/".join(k) for k, _ in traverse_util.flatten_dict(params).items()
-        ]
         updated_target_params = ema_update(
             online_filtered_params, params[target_branch_name]
         )

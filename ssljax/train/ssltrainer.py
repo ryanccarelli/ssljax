@@ -11,19 +11,20 @@ from typing import Callable
 import flax
 import flax.optim as optim
 import jax
-from omegaconf import DictConfig
 import jax.numpy as jnp
 import numpy as np
 import optax
 from flax import jax_utils, traverse_util
 from flax.training import checkpoints
 from jax import random
+from omegaconf import DictConfig
 from ssljax.core.utils import (add_prefix_to_dict_keys, flattened_traversal,
                                get_from_register, register)
 from ssljax.optimizers import Optimizer
 from ssljax.train.trainer import Trainer
 from ssljax.train.trainstate import TrainState
 from tensorboardX import GlobalSummaryWriter
+from tensorflow.io import gfile
 from tqdm import tqdm
 
 CHECKPOINTSDIR = Path("outs/checkpoints/")
@@ -328,12 +329,6 @@ class SSLTrainer(Trainer):
         )
         params = jax.jit(self.model.init)(self.rng, init_data)
 
-        if self.task.config.env.restore_checkpoint.params:
-            state = checkpoints.restore_checkpoint(
-                target=self.model,
-                **self.task.config.env.restore_checkpoint,
-            )
-
         opt_collect = []
         prefix_branch = lambda x: "branch_" + str(x)
         for opt_idx, opt in self.task.optimizers.items():
@@ -362,10 +357,18 @@ class SSLTrainer(Trainer):
                 tx=multi_tx,
                 batch_stats=None,
             )
-        # TODO: build stage from pretrained
-        # state = load_pretrained(self.task.config, state)
 
-        # Create init steps
+        # load pretrained modules
+        state = load_pretrained(self.task.config.model.branches, state)
+
+        # load checkpoint
+        if self.task.config.env.restore_checkpoint.params:
+            state = checkpoints.restore_checkpoint(
+                target=self.model,
+                **self.task.config.env.restore_checkpoint,
+            )
+
+        # configure batch stats
         has_batch_stats = state.batch_stats is not None
         has_aux = has_batch_stats
         mutable_keys = None
@@ -395,24 +398,32 @@ class SSLTrainer(Trainer):
 
         return state, p_step
 
+
 def load_pretrained(config, state):
     """
-    Traverse config.model.batches.stages.
-    If pretrained, overwrite params from checkpoint.
+    Overwrite branches or modules from pretrained checkpoint indicated in
+    config.model.branches.
 
     Args:
-        config (DictConfig): config at task.config.model.branches
+        config (DictConfig): SSLTrainer config at task.config.model.branches
+        state (flax.training.TrainState): model state
     """
-    # ModelParamFilter
     from flax.core import freeze, unfreeze
+    from flax.training.checkpoints import restore_checkpoint
+
     params = unfreeze(state.params)
+
     for branch_key, branch in config.items():
+        if "pretrained" in branch:
+            params["branch_{branch_key}"] = restore_checkpoint(
+                branch["pretrained"],
+                target=None,
+            )["params"]
         for stage_key, stage in branch["stages"].items():
             if stage_key != "stop_gradient":
                 if "pretrained" in stage:
-                    params[f"branch_{branch_key}"]["stages"][stage_key] = checkpoint.load_pretrained(
-                        pretrained_path=stage["pretrained"],
-                        init_params=params[f"branch_{branch_key}"]["stages"][stage_key]
-                    )
-    params = freeze(params)
-    return params
+                    params[f"branch_{branch_key}"][stage_key][
+                        stage_key
+                    ] = restore_checkpoint(stage["pretrained"], target=None,)["params"]
+    state.replace(params=freeze(params))
+    return state

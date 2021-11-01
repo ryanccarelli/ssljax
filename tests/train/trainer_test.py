@@ -16,6 +16,11 @@ class TestTrainer:
         trainer = task.trainer
         trainer.train()
 
+    def test_train_cpu_pretrained(self, cputestpretrainedconfig):
+        task = Task(cputestpretrainedconfig)
+        trainer = task.trainer
+        trainer.train()
+
     """
     def test_train_vit(self, cputestconfig):
         cputestconfig["model"]["branches"][0]["params"]["body"]["name"] = "VIT"
