@@ -3,9 +3,11 @@ import os
 import pytest
 from hydra import compose, initialize
 from ssljax.train.task import Task
+from ssljax.core.utils import download_from_url
 
 
 class TestTrainer:
+    """
     def test_train_cpu(self, cputestconfig):
         task = Task(cputestconfig)
         trainer = task.trainer
@@ -13,6 +15,12 @@ class TestTrainer:
 
     def test_train_cpu_dynamic_scaling(self, cputestdynamicscalingconfig):
         task = Task(cputestdynamicscalingconfig)
+        trainer = task.trainer
+        trainer.train()
+    """
+
+    def test_train_cpu_pretrained(self, cputestpretrainedconfig):
+        task = Task(cputestpretrainedconfig)
         trainer = task.trainer
         trainer.train()
 
@@ -27,16 +35,9 @@ class TestTrainer:
         trainer = task.trainer
         trainer.train()
 
-
     def test_train_byol(self, byoltestconfig):
+        download_from_url("https://storage.googleapis.com/scenic-bucket/baselines/ResNet50_ImageNet1k", "conf/")
         task = Task(byoltestconfig)
         trainer = task.trainer
         trainer.train()
     """
-
-
-def byoltestconfig():
-    hydra.core.global_hydra.GlobalHydra.instance().clear()
-    initialize(config_path="../train/conf")
-    cfg = compose(config_name="byol_conf.yaml")
-    return cfg

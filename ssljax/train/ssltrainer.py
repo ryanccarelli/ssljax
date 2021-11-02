@@ -17,13 +17,17 @@ import optax
 from flax import jax_utils, traverse_util
 from flax.training import checkpoints
 from jax import random
+from omegaconf import DictConfig
 from ssljax.core.utils import (add_prefix_to_dict_keys, flattened_traversal,
                                get_from_register, register)
 from ssljax.optimizers import Optimizer
 from ssljax.train.trainer import Trainer
 from ssljax.train.trainstate import TrainState
 from tensorboardX import GlobalSummaryWriter
+from tensorflow.io import gfile
 from tqdm import tqdm
+from flax.core import freeze, unfreeze
+from flax.training.checkpoints import restore_checkpoint
 
 CHECKPOINTSDIR = Path("outs/checkpoints/")
 CHECKPOINTSDIR.mkdir(parents=True, exist_ok=True)
@@ -327,15 +331,6 @@ class SSLTrainer(Trainer):
         )
         params = jax.jit(self.model.init)(self.rng, init_data)
 
-        # TODO: check whether there are batchnorm params to manage
-        # check whether BatchNorm_ in any leafdict
-
-        if self.task.config.env.restore_checkpoint.params:
-            state = checkpoints.restore_checkpoint(
-                target=self.model,
-                **self.task.config.env.restore_checkpoint,
-            )
-
         opt_collect = []
         prefix_branch = lambda x: "branch_" + str(x)
         for opt_idx, opt in self.task.optimizers.items():
@@ -365,7 +360,17 @@ class SSLTrainer(Trainer):
                 batch_stats=None,
             )
 
-        # Create init steps
+        # load pretrained modules
+        state = load_pretrained(self.task.config.model.branches, state)
+
+        # load checkpoint
+        if self.task.config.env.restore_checkpoint.params:
+            state = checkpoints.restore_checkpoint(
+                target=self.model,
+                **self.task.config.env.restore_checkpoint,
+            )
+
+        # configure batch stats
         has_batch_stats = state.batch_stats is not None
         has_aux = has_batch_stats
         mutable_keys = None
@@ -394,3 +399,51 @@ class SSLTrainer(Trainer):
         )
 
         return state, p_step
+
+
+def load_pretrained(config, state):
+    """
+    Overwrite branches or modules from pretrained checkpoint indicated in
+    config.model.branches.
+
+    Args:
+        config (DictConfig): SSLTrainer config at task.config.model.branches
+        state (flax.training.TrainState): model state
+    """
+
+    params = unfreeze(state.params)
+
+    for branch_key, branch in config.items():
+        if "pretrained" in branch:
+            replace = restore_checkpoint(
+                str(Path(__file__).parents[2]) + branch["pretrained"],
+                target=None,
+            )
+            if "model_state" in replace:
+                while "model_state" in replace:
+                    replace = replace["model_state"]
+            elif "params" in replace:
+                while "params" in replace:
+                    replace = replace["params"]
+            else:
+                raise Exception("checkpoint file structure not recognized")
+            params["branch_{branch_key}"] = replace
+        for stage_key, stage in branch["stages"].items():
+            if stage_key != "stop_gradient":
+                if "pretrained" in stage:
+                    print(str(Path(__file__).parents[2]) + stage["pretrained"])
+                    replace = restore_checkpoint(
+                        str(Path(__file__).parents[2]) + stage["pretrained"],
+                        target=None,
+                    )
+                    if "model_state" in replace:
+                        while "model_state" in replace:
+                            replace = replace["model_state"]
+                    elif "params" in replace:
+                        while "params" in replace:
+                            replace = replace["params"]
+                    else:
+                        raise Exception("checkpoint file structure not recognized")
+                    params[f"branch_{branch_key}"][stage_key] = replace
+    state.replace(params=freeze(params))
+    return state
