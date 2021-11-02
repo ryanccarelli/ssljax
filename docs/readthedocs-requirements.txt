@@ -1,7 +1,0 @@
-sphinx
-nbsphinx
-nbsphinx-link
-sphinx-rtd-theme
-sphinx-autoapi
-sphinxcontrib-bibtex
-Ipython
