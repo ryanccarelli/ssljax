@@ -123,6 +123,9 @@ meter:
 pipelines:
   pre:
     augmentations:
+      RandomCrop:
+        params:
+          prob: 1.0
       RandomFlip:
         params:
           prob: 1.0
