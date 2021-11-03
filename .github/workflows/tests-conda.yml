@@ -2,7 +2,13 @@ name: Tests
 
 on:
   pull_request:
-    branches: [dev, master]
+    branches:
+      - dev
+      - master
+  push:
+    branches:
+      - dev
+      - master
 
 jobs:
   build-linux:
@@ -42,13 +48,13 @@ jobs:
       run: |
         sudo df -h
         sudo du -h
-    - name: Test with pytest
+    - name: Test with pytest and generate coverage report
       shell: bash -l {0}
       run: |
-        pytest
+        coverage run -m pytest -m "not gpu"
+        coverage xml
     - name: Compile docs
       shell: bash -l {0}
       run: |
         cd docs
-        conda env update -n ssljax -f readthedocs-requirements.yml
         make html
