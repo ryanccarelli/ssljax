@@ -1,0 +1,16 @@
+name: ssljax
+
+channels:
+    - conda-forge
+
+dependencies:
+    - pip
+    - sphinx
+    - nbsphinx
+    - nbsphinx-link
+    - sphinx-autoapi
+    - sphinxcontrib-bibtex
+    - Ipython
+    - sphinx-copybutton
+    - pip:
+        - sphinx-rtd-theme

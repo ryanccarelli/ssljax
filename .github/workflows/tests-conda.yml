@@ -42,13 +42,13 @@ jobs:
       run: |
         sudo df -h
         sudo du -h
-    - name: Test with pytest
+    - name: Test with pytest and generate coverage report
       shell: bash -l {0}
       run: |
-        pytest
+        coverage run -m pytest -m "not gpu"
+        coverage xml
     - name: Compile docs
       shell: bash -l {0}
       run: |
         cd docs
-        conda env update -n ssljax -f readthedocs-requirements.txt
         make html
