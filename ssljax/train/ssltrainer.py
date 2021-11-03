@@ -1,12 +1,10 @@
-import cProfile
 import logging
-import pstats
 
 logger = logging.getLogger(__name__)
 
-from functools import partial, reduce
+from functools import partial
 from pathlib import Path
-from typing import Callable
+import time
 
 import flax
 import flax.optim as optim
@@ -14,17 +12,15 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
-from flax import jax_utils, traverse_util
+from flax import jax_utils
 from flax.training import checkpoints
 from jax import random
 from omegaconf import DictConfig
-from ssljax.core.utils import (add_prefix_to_dict_keys, flattened_traversal,
-                               get_from_register, register)
-from ssljax.optimizers import Optimizer
+from ssljax.core.utils import (flattened_traversal,
+                               register)
 from ssljax.train.trainer import Trainer
 from ssljax.train.trainstate import TrainState
 from tensorboardX import GlobalSummaryWriter
-from tensorflow.io import gfile
 from tqdm import tqdm
 from flax.core import freeze, unfreeze
 from flax.training.checkpoints import restore_checkpoint
@@ -114,7 +110,10 @@ class SSLTrainer(Trainer):
             )
             batch = jnp.stack(batch, axis=-1)
             batch = jax_utils.replicate(batch)
+            start_time = time.time()
             state, loss = p_step(state, batch)
+            end_time = time.time()
+            print("Exec time: ",end_time-start_time)
             for idx, fun in enumerate(self.task.post_process_funcs):
                 state = state.replace(params=fun(state.params))
             if state.batch_stats:
@@ -164,19 +163,15 @@ class SSLTrainer(Trainer):
             loss, aux, grad = accumulate_gradients(
                 grad_fn,
                 batch,
-                {"params": state.params, "batch_stats": state.batch_stats},
-                has_aux=has_aux,
-                mutable_keys=mutable_keys,
-                dynamic_scale=dynamic_scale,
+                {"params": state.params, "batch_stats": state.batch_stats}
             )
-            aux = (jax.lax.pmean(aux, axis_name="batch"),)
+            # aux = (jax.lax.pmean(aux, axis_name="batch"),) don't think we need this as we are already syncing
+            # batch_stats elsewhere
         else:
             loss, grad = accumulate_gradients(
                 grad_fn,
                 batch,
-                {"params": state.params},
-                has_aux=has_aux,
-                dynamic_scale=dynamic_scale,
+                {"params": state.params}
             )
             aux = None
         loss, grad = (
@@ -186,7 +181,7 @@ class SSLTrainer(Trainer):
         if has_aux:
             state = state.apply_gradients(
                 grads=grad["params"],
-                batch_stats=aux[0].unfreeze(),
+                batch_stats=aux["batch_stats"],
             )
         else:
             state = state.apply_gradients(
@@ -328,7 +323,7 @@ class SSLTrainer(Trainer):
             tuple(init_shape),
             model_dtype,
         )
-        params = jax.jit(self.model.init)(self.rng, init_data)
+        params = self.model.init(self.rng, init_data)
 
         opt_collect = []
         prefix_branch = lambda x: "branch_" + str(x)
@@ -344,7 +339,7 @@ class SSLTrainer(Trainer):
 
         multi_tx = optax.chain(*opt_collect)
 
-        if "batch_stats" in params.keys():
+        if "batch_stats" in params:
             state = TrainState.create(
                 apply_fn=self.model.apply,
                 params=params["params"].unfreeze(),
@@ -371,16 +366,12 @@ class SSLTrainer(Trainer):
 
         # configure batch stats
         has_batch_stats = state.batch_stats is not None
-        has_aux = has_batch_stats
+        has_aux = has_batch_stats # has_aux and has_batch_stats are the same but could be different in future
+        loss_fn = partial(self.loss, model_fn=self.model)
         mutable_keys = None
         if has_batch_stats:
             mutable_keys = ["batch_stats"]
-
-        if mutable_keys is not None:
-            loss_fn = partial(self.loss, mutable_keys=mutable_keys)
-        else:
-            loss_fn = self.loss
-        loss_fn = partial(loss_fn, model_fn=self.model)
+            loss_fn = partial(loss_fn, mutable_keys=mutable_keys)
 
         p_step = jax.pmap(
             partial(
