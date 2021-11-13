@@ -256,8 +256,8 @@ class SSLTrainer(Trainer):
                 return jax.tree_map(lambda x: x / accumulate_steps, (loss, grad))
         else:
             if dynamic_scale:
-                dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(
-                    {"params": params}, batch
+                dyn_scale, is_fin, loss_and_aux, grad = grad_fn(
+                    params, batch
                 )
             else:
                 loss_and_aux, grad = grad_fn(params, batch)
