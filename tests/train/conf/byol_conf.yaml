@@ -126,6 +126,8 @@ pipelines:
       RandomCrop:
         params:
           prob: 1.0
+          height: 32
+          width: 32
       RandomFlip:
         params:
           prob: 1.0
