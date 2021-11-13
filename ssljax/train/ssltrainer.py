@@ -211,6 +211,9 @@ class SSLTrainer(Trainer):
             assert (
                 batch.shape[0] % accumulate_steps == 0
             ), f"Bad accum_steps {self.task.config.env.accum_steps} for batch size {batch.shape[0]}"
+            assert (
+                "batch_stats" not in params
+            ), f"Batchnorm not supported when accumulating gradients"
             step_size = batch.shape[0] // accumulate_steps
             if dynamic_scale:
                 dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(
