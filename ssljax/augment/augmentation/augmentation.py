@@ -40,36 +40,6 @@ class Augmentation:
         """
         raise NotImplementedError
 
-
-class AugmentationDistribution:
-    """
-    A distribution of augmentations with sampling.
-
-    Args:
-        augmentations (List[`ssljax.augment.augmentation.Augmentation`]):
-            A list of augmentations.
-    """
-
-    def __init__(self, augmentations):
-        assert all([isinstance(t, Augmentation) for t in augmentations]), (
-            f"All elements in input list must be of"
-            f" type ssljax.augment.Augmentation"
-        )
-        self.augmentations = augmentations
-
-    def sample(self, rng):
-        """
-        Sample from distribution.
-        """
-        key, subkey = jax.random.split(rng)
-        sampledIndex = jax.random.choice(
-            subkey,
-            a=len(self.augmentations),
-            p=jnp.array([aug.prob for aug in self.augmentations]),
-        )
-        return self.augmentations[sampledIndex]
-
-
 # byol augmentations
 @register(Augmentation, "RandomFlip")
 class RandomFlip(Augmentation):
@@ -91,6 +61,9 @@ class RandomFlip(Augmentation):
     def __call__(self, x, rng):
         rngs = jax.random.split(rng, x.shape[0])
         return jax.vmap(self._random_flip_single_image, in_axes=0)(x, rngs)
+
+    def __repr__(self):
+        return "RandomFlip"
 
     def _random_flip_single_image(self, image, rng):
         _, flip_rng = jax.random.split(rng)
@@ -206,6 +179,9 @@ class GaussianBlur(Augmentation):
         )
         blurred = jnp.squeeze(blurred, axis=0)
         return blurred
+
+    def __repr__(self):
+        return "GaussianBlur"
 
 
 @register(Augmentation, "ColorTransform")
@@ -352,6 +328,9 @@ class ColorTransform(Augmentation):
         )
         return jnp.clip(out_apply, 0.0, 1.0)
 
+    def __repr__(self):
+        return "ColorJitter"
+
 
 @register(Augmentation, "Solarize")
 class Solarize(Augmentation):
@@ -386,6 +365,9 @@ class Solarize(Augmentation):
         should_apply = jax.random.uniform(rng, shape=()) <= apply_prob
         return jax.lax.cond(should_apply, inputs, apply_fn, inputs, lambda x: x)
 
+    def __repr__(self):
+        return "Solarize"
+
 
 @register(Augmentation, "Clip")
 class Clip(Augmentation):
@@ -406,6 +388,9 @@ class Clip(Augmentation):
         x = jnp.clip(x, self.x_min, self.x_max)
         return x
 
+    def __repr__(self):
+        return "Clip"
+
 
 @register(Augmentation, "Identity")
 class Identity(Augmentation):
@@ -418,9 +403,10 @@ class Identity(Augmentation):
 
     def __call__(self, x, rng):
         return x
+      
+    def __repr__(self):
+        return "Identity"
 
-
-### NEW
 @register(Augmentation, "RandomCrop")
 class RandomCrop(Augmentation):
     """

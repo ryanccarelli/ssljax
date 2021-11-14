@@ -1,11 +1,6 @@
-import flax.linen as nn
 import hydra
 import pytest
 from hydra import compose, initialize
-from ssljax.augment.augmentation.augmentation import (Augmentation,
-                                                      AugmentationDistribution)
-from ssljax.augment.pipeline.pipeline import Pipeline
-from ssljax.core.utils import register
 
 
 @pytest.fixture

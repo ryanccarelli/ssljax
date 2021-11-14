@@ -1,29 +1,27 @@
 import jax
 import jax.numpy as jnp
-from ssljax.augment.augmentation.augmentation import (Augmentation,
-                                                      AugmentationDistribution)
+from ssljax.augment.augmentation.augmentation import Augmentation
 from ssljax.core.utils import get_from_register
 
 
 class Pipeline(Augmentation):
     """
-    A Pipeline is a composition of AugmentationDistribution.
+    A Pipeline is a composition of Augmentations.
 
     Args:
         config (hydra.OmegaConf): config at pipelines.branches.i where i is branch index
     """
 
     def __init__(self, config):
-        aug_dist_list = [
-            AugmentationDistribution([get_from_register(Augmentation, x)(**y.params)])
-            for x, y in config.items()
+        aug_list = [
+            get_from_register(Augmentation, x)(**y.params) for x, y in config.items()
         ]
 
-        assert all([isinstance(t, AugmentationDistribution) for t in aug_dist_list]), (
+        assert all([isinstance(t, Augmentation) for t in aug_list]), (
             f"all elements in input list must be of"
-            f" type ssljax.augment.AugmentationDistribution"
+            f" type ssljax.augment.Augmentation"
         )
-        self.pipeline = aug_dist_list
+        self.pipeline = aug_list
 
     def __len__(self):
         return len(self.pipeline)
@@ -36,9 +34,8 @@ class Pipeline(Augmentation):
         return out
 
     def __call__(self, x, rng):
-        for aug_distribution in self.pipeline:
+        for aug in self.pipeline:
             rng, _ = jax.random.split(rng)
-            aug = aug_distribution.sample(rng)
             x = aug(x, rng)
         x = jax.lax.stop_gradient(x)
         return x
