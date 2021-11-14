@@ -85,7 +85,7 @@ class SSLTrainer(Trainer):
             save_state = jax.device_get(jax.tree_map(lambda x: x[0], state))
             checkpoints.save_checkpoint(
                 target=save_state,
-                step=int(state.step),
+                step=int(jax_utils.unreplicate(state.step)),
                 prefix="checkpoint_",
                 **self.task.config.env.save_checkpoint.params,
             )
@@ -100,25 +100,16 @@ class SSLTrainer(Trainer):
         for data, _ in iter(self.task.dataloader):
             # TODO: need to wrap torch and tfds dataloaders so they return a consistent format
             batch = jax.device_put(data)
-            self.rng, prepiperng = jax.random.split(self.rng)
-            batch = self.task.pre_pipelines(batch, prepiperng)
-            postpiperngs = jax.random.split(self.rng, len(self.task.post_pipelines) + 1)
-            self.rng = postpiperngs[-1]
-            batch = list(
-                map(
-                    lambda rng, pipeline: pipeline(batch, rng),
-                    postpiperngs[:-1],
-                    self.task.post_pipelines,
-                )
-            )
-            batch = jnp.stack(batch, axis=-1)
+
+            self.rng, rng_step = jax.random.split(self.rng)
+
+            rng_step = jax_utils.replicate(rng_step)
             batch = jax_utils.replicate(batch)
             start_time = time.time()
-            state, loss = p_step(state, batch)
+            state, loss = p_step(state, batch, rng_step)
+
             end_time = time.time()
             print("Exec time: ",end_time-start_time)
-            for idx, fun in enumerate(self.task.post_process_funcs):
-                state = state.replace(params=fun(state.params))
 
             # Sync batch stats across multiple devices
             if "batch_stats" in state.mutable_states.keys():
@@ -130,6 +121,7 @@ class SSLTrainer(Trainer):
         self,
         state,
         batch,
+        rng,
         mutable_keys,
         loss_fn,
         dynamic_scale,
@@ -143,7 +135,18 @@ class SSLTrainer(Trainer):
             state (flax.training.train_state.TrainState): model state
             batch (jnp.array): a single data batch
         """
-        # get losses
+        rng_pre, rng = jax.random.split(rng)
+        batch = self.task.pre_pipelines(batch, rng_pre)
+        postpiperngs = jax.random.split(rng, len(self.task.post_pipelines) )
+        batch = list(
+            map(
+                lambda rng, pipeline: pipeline(batch, rng),
+                postpiperngs,
+                self.task.post_pipelines,
+                )
+            )
+        batch = jnp.stack(batch, axis=-1)
+
         accumulate_gradients = partial(
             self.accumulate_gradients,
             accumulate_steps=accumulate_steps,
@@ -186,6 +189,9 @@ class SSLTrainer(Trainer):
             state = state.apply_gradients(
                 grads=grad["params"],
             )
+
+        for idx, fun in enumerate(self.task.post_process_funcs):
+                state = state.replace(params=fun(state.params))
 
         return state, loss
 
