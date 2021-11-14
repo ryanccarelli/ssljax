@@ -403,6 +403,128 @@ class Identity(Augmentation):
 
     def __call__(self, x, rng):
         return x
-
+      
     def __repr__(self):
         return "Identity"
+
+@register(Augmentation, "RandomCrop")
+class RandomCrop(Augmentation):
+    """
+    Make a random crop.
+    # TODO: THIS IS NOT STOCHASTIC DO NOT USE
+
+    Args:
+        prob(float): probability of execution.
+    """
+
+    def __init__(
+        self,
+        prob=1.0,
+        height=224,
+        width=224,
+    ):
+        super().__init__(prob)
+        self.height = height
+        self.width = width
+
+    def __call__(self, x, rng):
+        rngs = jax.random.split(rng, x.shape[0])
+        random_crop_fn = functools.partial(
+            self._random_crop, crop_height=self.height, crop_width=self.width
+        )
+        return jax.vmap(random_crop_fn)(x, rngs)
+
+    def _random_crop(
+        self,
+        img: jnp.ndarray,
+        rngs: jnp.array,
+        crop_height: int,
+        crop_width: int,
+        h_start: float = 0,
+        w_start: float = 0,
+    ):
+        height, width = img.shape[:2]
+        if height < crop_height or width < crop_width:
+            raise ValueError(
+                "Requested crop size ({crop_height}, {crop_width}) is "
+                "larger than the image size ({height}, {width})".format(
+                    crop_height=crop_height,
+                    crop_width=crop_width,
+                    height=height,
+                    width=width,
+                )
+            )
+        x1, y1, x2, y2 = self._get_random_crop_coords(
+            height, width, crop_height, crop_width, h_start, w_start
+        )
+        img = img[y1:y2, x1:x2]
+        return img
+
+    def _get_random_crop_coords(
+        self,
+        height: int,
+        width: int,
+        crop_height: int,
+        crop_width: int,
+        h_start: float,
+        w_start: float,
+    ):
+        y1 = int((height - crop_height) * h_start)
+        y2 = y1 + crop_height
+        x1 = int((width - crop_width) * w_start)
+        x2 = x1 + crop_width
+        return x1, y1, x2, y2
+
+
+@register(Augmentation, "CenterCrop")
+class CenterCrop(Augmentation):
+    """
+    Make a center crop.
+
+    Args:
+        prob(float): probability of execution.
+    """
+
+    def __init__(
+        self,
+        prob=1.0,
+        height=224,
+        width=224,
+    ):
+        super().__init__(prob)
+        self.height = height
+        self.width = width
+
+    def __call__(self, x, rng):
+        rngs = jax.random.split(rng, x.shape[0])
+        center_crop_fn = functools.partial(
+            self._center_crop, crop_height=self.height, crop_width=self.width
+        )
+        return jax.vmap(center_crop_fn)(x, rngs)
+
+    def _get_center_crop_coords(
+        self, height: int, width: int, crop_height: int, crop_width: int
+    ):
+        y1 = (height - crop_height) // 2
+        y2 = y1 + crop_height
+        x1 = (width - crop_width) // 2
+        x2 = x1 + crop_width
+        return x1, y1, x2, y2
+
+    def _center_crop(self, img: jnp.ndarray, crop_height: int, crop_width: int):
+        height, width = img.shape[:2]
+        if height < crop_height or width < crop_width:
+            raise ValueError(
+                "Requested crop size ({crop_height}, {crop_width}) is "
+                "larger than the image size ({height}, {width})".format(
+                    crop_height=crop_height,
+                    crop_width=crop_width,
+                    height=height,
+                    width=width,
+                )
+            )
+        x1, y1, x2, y2 = self._get_center_crop_coords(
+            height, width, crop_height, crop_width
+        )
+        img = img[y1:y2, x1:x2]
+        return img
