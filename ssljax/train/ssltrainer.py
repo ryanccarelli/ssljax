@@ -166,7 +166,7 @@ class SSLTrainer(Trainer):
             if (val := getattr(state, mutable_key, None)) is not None:
                 state_params[mutable_key] = val
 
-        loss, grad, aux = accumulate_gradients(
+        (loss, grad), aux = accumulate_gradients(
             grad_fn,
             batch,
             state_params
@@ -177,9 +177,14 @@ class SSLTrainer(Trainer):
         )
 
 
-        state = state.apply_gradients(
-            grads=grad["params"],
-            **{"mutable_states":aux["mutable_states"]},
+        if ("mutable_states" in aux):
+            state = state.apply_gradients(
+                grads=grad["params"],
+                **{"mutable_states": aux["mutable_states"]},
+            )
+        else:
+            state = state.apply_gradients(
+                grads=grad["params"],
             )
 
         return state, loss
@@ -223,7 +228,7 @@ class SSLTrainer(Trainer):
                     batch, (i * step_size, 0, 0), (step_size,) + batch.shape[1:]
                 )
                 if dynamic_scale:
-                    dyn_scale, is_fin, loss__and_aux, grad_i = grad_fn(
+                    dyn_scale, is_fin, loss_and_aux, grad_i = grad_fn(
                         {"params": params["params"]}, btch
                     )
                 else:
@@ -234,10 +239,11 @@ class SSLTrainer(Trainer):
                 return (
                     loss + loss_i,
                     jax.tree_multimap(lambda x, y: x + y, grad, grad_i),
+                    aux
                 )
 
-            loss, grad = jax.lax.fori_loop(
-                1, accumulate_steps, acc_grad_and_loss, (loss, grad)
+            loss, grad, aux = jax.lax.fori_loop(
+                1, accumulate_steps, acc_grad_and_loss, (loss, grad, aux)
             )
             return jax.tree_map(lambda x: x / accumulate_steps, (loss, grad)), aux
         else:
@@ -249,7 +255,7 @@ class SSLTrainer(Trainer):
                 loss_and_aux, grad = grad_fn(params, batch)
 
             (loss, aux) = loss_and_aux
-            return loss, grad, aux
+            return (loss, grad), aux
 
     def loss(self, params, batch, model_fn, mutable_keys=None):
         """
