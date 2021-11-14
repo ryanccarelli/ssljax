@@ -42,14 +42,19 @@ model:
             stochastic_depth:
             classifier:
             dtype:
-        head:
-          module: DINO_MLP
+        basehead:
+          module: DINOMLP
           params:
-            layer_dims: [2048, 10]
+            layer_dims: [2048, 2048, 256]
             dropout_prob: 0.0
             batch_norm: False
             batch_norm_params: {}
-            activation_name: "relu"
+            activation_name: "gelu"
+        dinohead:
+          module: DINOHead
+          params:
+            # TODO: what is K?
+            out_dim: 10
         proj:
           module: CenterSoftmax
           params: {}
@@ -73,16 +78,21 @@ model:
             stochastic_depth:
             classifier:
             dtype:
-        head:
-          module: DINO_MLP
+        basehead:
+          module: DINOMLP
           params:
-            layer_dims: [2048, 10]
+            layer_dims: [2048, 2048, 256]
             dropout_prob: 0.0
             batch_norm: False
             batch_norm_params: {}
-            activation_name: "relu"
+            activation_name: "gelu"
+        dinohead:
+          module: DINOHead
+          params:
+            # TODO: what is K?
+            out_dim: 10
         proj:
-          module: Softmax
+          module: CenterSoftmax
           params: {}
 
 loss: cross_entropy_loss
