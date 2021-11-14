@@ -107,7 +107,6 @@ class SSLTrainer(Trainer):
             batch = jax_utils.replicate(batch)
             start_time = time.time()
             state, loss = p_step(state, batch, rng_step)
-            print("loss:", loss)
 
             end_time = time.time()
             print("Exec time: ",end_time-start_time)
