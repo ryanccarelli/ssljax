@@ -45,7 +45,10 @@ def sync_batch_stats(state):
     """Sync the batch statistics across replicas."""
     # Each device has its own version of the running average batch statistics and
     # we sync them before evaluation.
-    return state.replace(batch_stats=cross_replica_mean(state.batch_stats))
+    new_mutable_states = state.mutable_states.unfreeze()
+    new_mutable_states["batch_stats"] = cross_replica_mean(state.mutable_states["batch_stats"])
+    state.replace(mutable_states=new_mutable_states)
+    return state
 
 
 @register(Trainer, "SSLTrainer")
@@ -116,7 +119,9 @@ class SSLTrainer(Trainer):
             print("Exec time: ",end_time-start_time)
             for idx, fun in enumerate(self.task.post_process_funcs):
                 state = state.replace(params=fun(state.params))
-            if state.batch_stats:
+
+            # Sync batch stats across multiple devices
+            if "batch_stats" in state.mutable_states.keys():
                 state = sync_batch_stats(state)
             writer.add_scalar("loss", np.array(loss).mean())
         return state
@@ -125,8 +130,6 @@ class SSLTrainer(Trainer):
         self,
         state,
         batch,
-        has_batch_stats,
-        has_aux,
         mutable_keys,
         loss_fn,
         dynamic_scale,
@@ -144,7 +147,6 @@ class SSLTrainer(Trainer):
         accumulate_gradients = partial(
             self.accumulate_gradients,
             accumulate_steps=accumulate_steps,
-            has_aux=has_aux,
             mutable_keys=mutable_keys,
             dynamic_scale=dynamic_scale,
         )
@@ -153,40 +155,33 @@ class SSLTrainer(Trainer):
             # optim.DynamicScale returns a DynamicScaleResult object
             grad_fn = jax.jit(
                 optim.DynamicScale(**dynamic_scale_params).value_and_grad(
-                    loss_fn, has_aux=has_aux
+                    loss_fn, has_aux=True
                 )
             )
         else:
-            grad_fn = jax.value_and_grad(loss_fn, has_aux=has_aux)
+            grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
 
-        if has_aux:
-            loss, aux, grad = accumulate_gradients(
-                grad_fn,
-                batch,
-                {"params": state.params, "batch_stats": state.batch_stats}
-            )
-            # aux = (jax.lax.pmean(aux, axis_name="batch"),) don't think we need this as we are already syncing
-            # batch_stats elsewhere
-        else:
-            loss, grad = accumulate_gradients(
-                grad_fn,
-                batch,
-                {"params": state.params}
-            )
-            aux = None
+        state_params = {"params": state.params}
+        for mutable_key in mutable_keys:
+            if (val := getattr(state, mutable_key, None)) is not None:
+                state_params[mutable_key] = val
+
+        loss, grad, aux = accumulate_gradients(
+            grad_fn,
+            batch,
+            state_params
+        )
         loss, grad = (
             jax.lax.pmean(loss, axis_name="batch"),
             jax.lax.pmean(grad, axis_name="batch"),
         )
-        if has_aux:
-            state = state.apply_gradients(
-                grads=grad["params"],
-                batch_stats=aux["batch_stats"],
+
+
+        state = state.apply_gradients(
+            grads=grad["params"],
+            **{"mutable_states":aux["mutable_states"]},
             )
-        else:
-            state = state.apply_gradients(
-                grads=grad["params"],
-            )
+
         return state, loss
 
     def accumulate_gradients(
@@ -195,7 +190,6 @@ class SSLTrainer(Trainer):
         batch,
         params,
         mutable_keys=[],
-        has_aux=False,
         dynamic_scale=False,
         accumulate_steps=1,
     ):
@@ -221,42 +215,31 @@ class SSLTrainer(Trainer):
                 )
             else:
                 loss_and_aux, grad = grad_fn({"params": params["params"]}, batch)
-            if has_aux:
-                (loss, aux) = loss_and_aux
-            else:
-                loss = loss_and_aux
+            (loss, aux) = loss_and_aux
+
 
             def acc_grad_and_loss(i, loss_and_grad):
                 btch = jax.lax.dynamic_slice(
                     batch, (i * step_size, 0, 0), (step_size,) + batch.shape[1:]
                 )
                 if dynamic_scale:
-                    dyn_scale, is_fin, loss_i, grad_i = grad_fn(
+                    dyn_scale, is_fin, loss__and_aux, grad_i = grad_fn(
                         {"params": params["params"]}, btch
                     )
                 else:
-                    loss_i, grad_i = grad_fn(params, btch)
+                    loss_and_aux, grad_i = grad_fn(params, btch)
+                loss_i, aux = loss_and_aux
                 grad_i = jax.lax.pmean(grad_i, axis_name="batch")
-                if has_aux:
-                    loss_i, aux_i = loss_i
-                    return (
-                        loss + loss_i,
-                        aux + aux_i,
-                        jax.tree_multimap(lambda x, y: x + y, grad, grad_i),
-                    )
-                else:
-                    return (
-                        loss + loss_i,
-                        jax.tree_multimap(lambda x, y: x + y, grad, grad_i),
-                    )
+
+                return (
+                    loss + loss_i,
+                    jax.tree_multimap(lambda x, y: x + y, grad, grad_i),
+                )
 
             loss, grad = jax.lax.fori_loop(
                 1, accumulate_steps, acc_grad_and_loss, (loss, grad)
             )
-            if has_aux:
-                return jax.tree_map(lambda x: x / accumulate_steps, (loss, aux, grad))
-            else:
-                return jax.tree_map(lambda x: x / accumulate_steps, (loss, grad))
+            return jax.tree_map(lambda x: x / accumulate_steps, (loss, grad)), aux
         else:
             if dynamic_scale:
                 dyn_scale, is_fin, loss_and_aux, grad = grad_fn(
@@ -264,12 +247,9 @@ class SSLTrainer(Trainer):
                 )
             else:
                 loss_and_aux, grad = grad_fn(params, batch)
-            if has_aux:
-                (loss, aux) = loss_and_aux
-                return loss, aux, grad
-            else:
-                loss = loss_and_aux
-                return loss, grad
+
+            (loss, aux) = loss_and_aux
+            return loss, grad, aux
 
     def loss(self, params, batch, model_fn, mutable_keys=None):
         """
@@ -278,18 +258,19 @@ class SSLTrainer(Trainer):
         # loss must return a single float (since we grad loss)
         # but here we have also new_state
         # but we need new_state to manage mutable batch_params
-        new_state = None
+        aux = {}
         if mutable_keys:
             outs, new_state = model_fn.apply(params, batch, mutable=mutable_keys)
             loss = self.task.loss(*outs)
             loss = jnp.mean(loss)
 
-            return loss, new_state
+            aux['mutable_states'] = new_state
+            return loss, aux
         else:
             outs = self.model.apply(params, batch)
             loss = self.task.loss(*outs)
             loss = jnp.mean(loss)
-            return loss
+            return loss, aux
 
     def eval(self):
         raise NotImplementedError
@@ -342,20 +323,27 @@ class SSLTrainer(Trainer):
 
         multi_tx = optax.chain(*opt_collect)
 
-        if "batch_stats" in params:
-            state = TrainState.create(
-                apply_fn=self.model.apply,
-                params=params["params"].unfreeze(),
-                tx=multi_tx,
-                batch_stats=params["batch_stats"].unfreeze(),
-            )
-        else:
-            state = TrainState.create(
-                apply_fn=self.model.apply,
-                params=params["params"].unfreeze(),
-                tx=multi_tx,
-                batch_stats=None,
-            )
+        mutable_keys = list(params.keys())
+        mutable_keys.remove("params")
+
+        mutable_states = {}
+        for mutable_key in mutable_keys:
+            mutable_states[mutable_key] = params[mutable_key].unfreeze()
+
+
+        state_params = {"apply_fn": self.model.apply,
+                        "params": params["params"].unfreeze(),
+                        "tx": multi_tx,
+                        "mutable_states": mutable_states
+                        }
+
+
+        state = TrainState.create(
+            apply_fn=self.model.apply,
+            params=params["params"].unfreeze(),
+            tx=multi_tx,
+            mutable_states=mutable_states
+        )
 
         # load pretrained modules
         state = load_pretrained(self.task.config.model.branches, state)
@@ -367,21 +355,12 @@ class SSLTrainer(Trainer):
                 **self.task.config.env.restore_checkpoint,
             )
 
-        # configure batch stats
-        has_batch_stats = state.batch_stats is not None
-        has_aux = has_batch_stats # has_aux and has_batch_stats are the same but could be different in future
-        loss_fn = partial(self.loss, model_fn=self.model)
-        mutable_keys = None
-        if has_batch_stats:
-            mutable_keys = ["batch_stats"]
-            loss_fn = partial(loss_fn, mutable_keys=mutable_keys)
+        loss_fn = partial(self.loss, model_fn=self.model, mutable_keys=mutable_keys)
 
         p_step = jax.pmap(
             partial(
                 self.step,
-                has_batch_stats=has_batch_stats,
                 dynamic_scale=self.task.config.env.dynamic_scale,
-                has_aux=has_aux,
                 mutable_keys=mutable_keys,
                 loss_fn=loss_fn,
                 dynamic_scale_params=self.task.config.env.dynamic_scale_params,
