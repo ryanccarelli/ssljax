@@ -102,15 +102,24 @@ optimizers:
 schedulers:
   branches:
     0:
-      name: BYOL
-      params:
-        # note that learning rate scales w/ number of epochs see deepmind implementation
-        base_learning_rate: 0.45
-        warmup_steps: 1000
-        batch_size: 8
-        # epochs * train_images_per_epoch // batch_size
-        # TODO: for now this is a random number
-        total_steps: 100000
+      learning_rate:
+        name: BYOL
+        params:
+          # note that learning rate scales w/ number of epochs see deepmind implementation
+          base_learning_rate: 0.2
+          warmup_steps: 1000
+          batch_size: 4096
+          # epochs * train_images_per_epoch // batch_size
+          # TODO: for now this is a random number
+          total_steps: 100000
+  post_process:
+    0:
+      tau:
+        name: BYOLema
+        params:
+          # TODO: why is this max_steps and total_steps above (inherit this weirdness from DM implementation)
+          max_steps: 100000
+          initial_value: .996
 
 post_process:
   funcs:
@@ -119,7 +128,6 @@ post_process:
       params:
         online_branch_name: branch_0
         target_branch_name: branch_1
-        tau: 0.9
         remove_from_online: [proj]
 
 meter:

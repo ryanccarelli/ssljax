@@ -36,12 +36,15 @@ for name, func in schedulers.items():
     register(Scheduler, name)(func)
 
 
-@register(Scheduler, "BYOL")
-def byol_schedule(
-    batch_size: int, base_learning_rate: float, total_steps: int, warmup_steps: int,
+@register(Scheduler, "BYOLlars")
+def BYOLlars(
+    batch_size: int,
+    base_learning_rate: float,
+    total_steps: int,
+    warmup_steps: int,
 ) -> float:
     """
-    Cosine learning rate scheduler for BYOL.
+    Cosine learning rate scheduler for BYOL lars optimizer.
     """
 
     def schedule(global_step):
@@ -61,6 +64,22 @@ def byol_schedule(
                 global_step - warmup_steps, total_steps - warmup_steps, scaled_lr
             ),
         )
+
+    return schedule
+
+
+@register(Scheduler, "BYOLema")
+def BYOLema(
+    base_ema: float,
+    max_steps: int,
+) -> jnp.ndarray:
+    """
+    Cosine learning rate scheduler for BYOL ema updates.
+    """
+
+    def schedule(global_step):
+        decay = _cosine_decay(global_step, max_steps, 1.0)
+        return 1.0 - (1.0 - base_ema) * decay
 
     return schedule
 

@@ -88,15 +88,23 @@ optimizers:
 schedulers:
   branches:
     0:
-      name: cosine_decay
-      params:
-        init_value: 0.01
-        decay_steps: 1000
+      learning_rate:
+        name: cosine_decay
+        params:
+          init_value: 0.01
+          decay_steps: 1000
     1:
-      name: cosine_decay
-      params:
-        init_value: 0.01
-        decay_steps: 1000
+      learning_rate:
+        name: cosine_decay
+        params:
+          init_value: 0.01
+          decay_steps: 1000
+  post_process:
+    0:
+      tau:
+        name: constant
+        params:
+          value: 0.2
 
 post_process:
   funcs:
@@ -105,7 +113,6 @@ post_process:
       params:
         online_branch_name: branch_0
         target_branch_name: branch_1
-        tau: 0.2
         remove_from_online: [pred]
 
 meter:
