@@ -7,8 +7,7 @@ from flax import traverse_util
 from optax._src import base
 from optax._src.alias import _scale_by_learning_rate
 from ssljax.core.utils.pytrees import ModelParamFilter
-from ssljax.core.utils.register import (get_from_register, print_registry,
-                                        register)
+from ssljax.core.utils.register import get_from_register, register
 from ssljax.train.postprocess import PostProcess
 from ssljax.train.scheduler import Scheduler
 

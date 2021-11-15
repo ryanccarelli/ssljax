@@ -87,8 +87,6 @@ class Task:
         for optimizer_key, optimizer_params in self.config.optimizers.branches.items():
             schedulers = {}
             for key, val in self.schedulers["branches"][optimizer_key].items():
-                print("key is", key)
-                print("val is", val)
                 schedulers[key] = get_from_register(Scheduler, val.name)(**val.params)
             optimizer = get_from_register(Optimizer, optimizer_params.name)(
                 **schedulers,
@@ -167,7 +165,6 @@ class Task:
             raise KeyError("dataloader.platform must be in {torch, tfds}")
 
     def _get_post_process_list(self) -> List[Callable]:
-        print_registry()
         post_process_list = []
 
         for (
