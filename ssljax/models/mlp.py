@@ -33,10 +33,10 @@ class MLP(Model):
     """
 
     layer_dims: List[int]
+    batch_norm_params: dict
     dtype: jax._src.numpy.lax_numpy._ScalarMeta = jnp.float32
     dropout_prob: float = 0.0
     batch_norm: bool = False
-    batch_norm_params: dict
     activation_name: Callable = "relu"
 
     def setup(self):
@@ -97,20 +97,20 @@ class DINOMLP(Model):
         batch_norm(bool): whether to use batchnorm between layers
         batch_norm_params(dict): params to be passed to nn.BatchNorm
         activation_name(str): activation function
-        kernel_init(Callable[[jnp.PRNGKey, Shape, Dtype], Array]): linear layer kernel init function
-        bias_init(Callable[[jnp.PRNGKey, Shape, Dtype], Array]): linear layer bias init function
+        kernel_init(Callable[[PRNGKey, Shape, Dtype], Array]): linear layer kernel init function
+        bias_init(Callable[[PRNGKey, Shape, Dtype], Array]): linear layer bias init function
     """
 
     layer_dims: List[int]
+    batch_norm_params: dict
     dtype: jax._src.numpy.lax_numpy._ScalarMeta = jnp.float32
     dropout_prob: float = 0.0
     batch_norm: bool = False
-    batch_norm_params: dict
     activation_name: Callable = "gelu"
-    kernel_init: Callable[[jnp.PRNGKey, Shape, Dtype], Array] = _truncated_normal(
+    kernel_init: Callable[[PRNGKey, Shape, Dtype], Array] = _truncated_normal(
         stddev=0.02, lower=-2.0, upper=2.0
     )
-    bias_init: Callable[[jnp.PRNGKey, Shape, Dtype], Array] = zeros()
+    bias_init: Callable[[PRNGKey, Shape, Dtype], Array] = zeros
 
     def setup(self):
         if self.activation_name == "relu":
@@ -156,12 +156,12 @@ class DINOHead(Model):
     Args:
         out_dim(int): dimension of output
         dtype: jnp datatype
-        kernel_init(Callable[[jnp.PRNGKey, Shape, Dtype], Array]): linear layer kernel init function
+        kernel_init(Callable[[PRNGKey, Shape, Dtype], Array]): linear layer kernel init function
     """
 
     out_dim: int
     dtype: jax._src.numpy.lax_numpy._ScalarMeta = jnp.float32
-    kernel_init: Callable[[jnp.PRNGKey, Shape, Dtype], Array] = _truncated_normal(
+    kernel_init: Callable[[PRNGKey, Shape, Dtype], Array] = _truncated_normal(
         stddev=0.02, lower=-2.0, upper=2.0
     )
 
