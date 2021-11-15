@@ -2,9 +2,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import time
 from functools import partial
 from pathlib import Path
-import time
 
 import flax
 import flax.optim as optim
@@ -13,17 +13,16 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 from flax import jax_utils
+from flax.core import freeze, unfreeze
 from flax.training import checkpoints
+from flax.training.checkpoints import restore_checkpoint
 from jax import random
 from omegaconf import DictConfig
-from ssljax.core.utils import (flattened_traversal,
-                               register)
+from ssljax.core.utils import flattened_traversal, register
 from ssljax.train.trainer import Trainer
 from ssljax.train.trainstate import TrainState
 from tensorboardX import GlobalSummaryWriter
 from tqdm import tqdm
-from flax.core import freeze, unfreeze
-from flax.training.checkpoints import restore_checkpoint
 
 CHECKPOINTSDIR = Path("outs/checkpoints/")
 CHECKPOINTSDIR.mkdir(parents=True, exist_ok=True)
@@ -191,7 +190,7 @@ class SSLTrainer(Trainer):
             )
 
         for idx, fun in enumerate(self.task.post_process_funcs):
-                state = state.replace(params=fun(state.params))
+            state = state.replace(params=fun(state.params, state.step))
 
         return state, loss
 
