@@ -4,6 +4,7 @@ import random
 import jax
 import numpy
 from jax import random as jax_random
+import jax.numpy as jnp
 
 logger = logging.getLogger(__name__)
 __all__ = [
@@ -11,12 +12,12 @@ __all__ = [
 ]
 
 
-def prepare_environment(config) -> jax.numpy.DeviceArray:
+def prepare_environment(config) -> jnp.DeviceArray:
     """
-    Set the random seeds.
+    Set random seeds.
 
     Args:
-    config: The config object.
+        config (omegaconf.ConfigDict): The config object.
 
     Returns (jax.numpy.DeviceArray): The jax RNG generator.
     """
@@ -39,7 +40,7 @@ def prepare_environment(config) -> jax.numpy.DeviceArray:
 
 
 def wrap_func_in_class_call(name, func, BaseClass=object):
-    """ Wraps a function in a class with the function as __call__
+    """Wraps a function in a class with the function as __call__
 
     Args:
         name(str): Name of the new class

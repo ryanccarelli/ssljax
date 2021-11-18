@@ -62,8 +62,8 @@ def register(type_, name, override=False):
 
 def get_from_register(type_, name):
     """
-    get_from_register gets the entity (class or function) from the global
-    registry if it exists.  Else, throws a ValueError
+    Gets the entity (class or function) from the global registry if it exists.
+    Else, throws a ValueError
 
     Args;
         type_ (class/callable): Specify the type of the class/module being retrieved
@@ -81,4 +81,3 @@ def get_from_register(type_, name):
         raise ValueError(msg.format(name, type_))
 
     return GLOBAL_TYPE_REGISTRY[type_][name]
-

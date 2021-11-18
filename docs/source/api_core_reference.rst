@@ -3,30 +3,61 @@ Core API
 
 Task
 ----
-Every ``ssljax`` experiment instantiates its components in a Task object.
+
+Every ``ssljax`` configuration defines a ``Task``.
 
 .. autoapiclass:: ssljax.train.task.Task
 
 
-Trainer
-----------
+Train
+-----
 
-
-The core ssljax class implementing self-supervised training.
+The core ssljax class implementing the self-supervised training loop.
 
 .. autoapiclass:: ssljax.train.trainer.Trainer
 
 .. autoapiclass:: ssljax.train.ssltrainer.SSLTrainer
 
+.. autoapiclass:: ssljax.train.trainstate.TrainState
 
-Branches
---------
+
+Branch
+------
+
 .. autoapiclass:: ssljax.models.branch.branch.Branch
 
-We implement the common online and target branch convention,
+Pipelines
+---------
 
-.. autoapiclass:: ssljax.models.branch.branch.OnlineBranch
-.. autoapiclass:: ssljax.models.branch.branch.TargetBranch
+Pipelines implement data augmentation.
+
+.. autoapiclass:: ssljax.augment.pipeline.pipeline.Pipeline
+
+Augmentations
+-------------
+
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.Augmentation
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.AugmentationDistribution
+
+We provide implementations of common augmentations.
+
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.RandomFlip
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.GaussianBlur
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.ColorTransform
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.Solarize
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.Clip
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.Identity
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.RandomCrop
+.. autoapiclass:: ssljax.augment.augmentation.augmentation.CenterCrop
+
+Models
+------
+
+.. autoapiclass:: ssljax.models.model.Model
+.. autoapiclass:: ssljax.models.vit.ViT
+.. autoapiclass:: ssljax.models.resnet.ResNet
+.. autoapiclass:: ssljax.models.mlp.MLP
+.. autoapiclass:: ssljax.models.mixer.Mixer
 
 Postprocess
 -----------
@@ -57,29 +88,6 @@ We wrap optimizers from Deepmind's `optax <https://github.com/deepmind/optax>`_ 
     ``ssljax.optimizers.zerog``      used internally in optax to compose optimizers
     ================================ ==============================================================================================================================================================
 
-Augmentations
--------------
-.. autoapiclass:: ssljax.augment.augmentation.augmentation.Augmentation
-.. autoapiclass:: ssljax.augment.augmentation.augmentation.AugmentationDistribution
-
-We provide implementations of common augmentations.
-
-.. autoapiclass:: ssljax.augment.augmentation.augmentation.RandomFlip
-.. autoapiclass:: ssljax.augment.augmentation.augmentation.RandomGaussianBlur
-.. autoapiclass:: ssljax.augment.augmentation.augmentation.ColorTransform
-.. autoapiclass:: ssljax.augment.augmentation.augmentation.Solarize
-.. autoapiclass:: ssljax.augment.augmentation.augmentation.Clip
-
-Pipelines
----------
-Augmentations are composed into Pipelines that transform data into branch inputs.
-
-.. autoapiclass:: ssljax.augment.pipeline.pipeline.Pipeline
-
-We provide implementations of popular pipelines.
-
-.. autoapiclass:: ssljax.augment.pipeline.byolpipeline.BYOLOnlinePipeline
-.. autoapiclass:: ssljax.augment.pipeline.byolpipeline.BYOLTargetPipeline
 
 Schedulers
 ----------
@@ -94,20 +102,50 @@ We wrap schedulers from Deepmind's `optax <https://github.com/deepmind/optax>`_ 
   | ``ssljax.scheduler.piecewise_interpolate``
   | ``ssljax.scheduler.polynomial``
 
+We also implement ``ssljax.models.sslmodel.SSLModel``-specific schedulers.
+
+.. autoapifunction:: ssljax.train.scheduler.scheduler.BYOLlars
+
+Losses
+------
+
+.. autoapiclass:: ssljax.losses.loss.Losso
+
+.. autoapifunction:: ssljax.losses.byol.byol_regression_loss
+
+.. autoapifunction:: ssljax.losses.byol.byol_softmax_cross_entropy
+
 Data
 ----
 
 .. autoapiclass:: ssljax.data.dataloader.DataLoader
 
 We provide dataloaders for popular datasets.
+#TODO: Complete this section following refactor by Bun
 
 .. autoapifunction:: ssljax.data.dataloader.MNISTLoader
 
-Utils
------
+Core
+----
 
 Register
 ^^^^^^^^
+
 Tasks are constructed from config files by getting objects from a global registry.
 
-.. autoapifunction:: ssljax.core.utils.register.register
+.. autoapifunction:: ssljax.core.register.register
+.. autoapifunction:: ssljax.core.register.get_from_register
+
+Pytrees
+^^^^^^^
+
+We implement utilities for manipulating `pytrees <https://jax.readthedocs.io/en/latest/pytrees.html>`_.
+
+.. autoapiclass:: ssljax.core.pytrees.ModelParamFilter
+.. autoapifuntion:: ssljax.core.pytrees.add_prefix_to_dict_keys
+.. autoapifuntion:: ssljax.core.pytrees.flattened_traversal
+
+Utils
+^^^^^
+
+.. autoapifunction:: ssljax.core.utils.prepare_environment

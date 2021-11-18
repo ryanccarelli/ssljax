@@ -5,7 +5,7 @@ from optax import (constant_schedule, cosine_decay_schedule,
                    cosine_onecycle_schedule, exponential_decay,
                    linear_onecycle_schedule, piecewise_constant_schedule,
                    piecewise_interpolate_schedule, polynomial_schedule)
-from ssljax.core.utils.register import register
+from ssljax.core import register
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,12 @@ def BYOLlars(
 ) -> float:
     """
     Cosine learning rate scheduler for BYOL lars optimizer.
+
+    Args:
+        batch_size (int): batch size
+        base_learning_rate (float): learning rate at step 0
+        total_steps (int): number of steps over all epochs (required for cosine scaling)
+        warmup_steps (int): number of steps before beginning cosine schedule
     """
 
     def schedule(global_step):

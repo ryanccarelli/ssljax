@@ -18,5 +18,4 @@ Welcome to ssljax
 Indices and tables
 ==================
 
-* :ref:`genindex`
 * :ref:`search`

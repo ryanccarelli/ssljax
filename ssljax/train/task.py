@@ -3,10 +3,9 @@ import logging
 from collections import OrderedDict
 from typing import Callable, Dict, List
 
+from omegaconf import DictConfig
 from ssljax.augment.pipeline.pipeline import Pipeline
-from ssljax.core.config import Config
-from ssljax.core.utils import prepare_environment
-from ssljax.core.utils.register import get_from_register, print_registry
+from ssljax.core import get_from_register, prepare_environment, print_registry
 from ssljax.data import DataLoader, ScenicData, TorchData
 from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
@@ -33,10 +32,10 @@ class Task:
         - post-processing
 
     Args:
-        config (ssljax.config): a hydra configuration file
+        config (omegaconf.DictConfig): a hydra configuration file
     """
 
-    def __init__(self, config: Config):
+    def __init__(self, config: DictConfig):
         super().__init__()
         self.config = config
         self.rng = prepare_environment(self.config)

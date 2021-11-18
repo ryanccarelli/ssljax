@@ -2,7 +2,7 @@ import logging
 from collections import Counter
 from typing import Callable, Dict
 
-from ssljax.core.utils import register
+from ssljax.core import register
 
 logger = logging.getLogger(__name__)
 

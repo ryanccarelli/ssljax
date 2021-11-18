@@ -4,7 +4,7 @@ import optax
 from optax import (adabelief, adagrad, adam, adamw, dpsgd, fromage, lamb,
                    noisy_sgd, radam, rmsprop, sgd, yogi)
 from optax._src.alias import lars
-from ssljax.core.utils import register
+from ssljax.core import register
 
 __all__ = ["Optimizer"]
 
