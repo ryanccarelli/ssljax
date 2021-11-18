@@ -67,9 +67,9 @@ class MLP(Model):
         return x
 
 
-def _truncated_normal(stddev, lower, upper, dtype=jnp.float_):
+def _truncated_normal(lower, upper, mean=0, stddev=1, dtype=jnp.float_):
     """
-    Sample random values from truncated zero-centered normal distribution.
+    Sample random values from zero-centered, truncated normal distribution.
     """
 
     def init(key, shape, dtype=dtype):
@@ -77,9 +77,9 @@ def _truncated_normal(stddev, lower, upper, dtype=jnp.float_):
         key_tn, key = jax.random.split(key)
         return (
             truncated_normal(
-                key=key_tn, lower=lower, upper=upper, shape=shape, dtype=dtype
+                key=key_tn, lower=lower/stddev, upper=upper/stddev, shape=shape, dtype=dtype
             )
-            * stddev
+            * stddev + mean
         )
 
     return init
