@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from ssljax.core.utils import register
+from ssljax.core import register
 from ssljax.train.metrics.metric import Metric
 
 

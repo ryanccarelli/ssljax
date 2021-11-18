@@ -1,7 +1,8 @@
-from ssljax.core.utils import utils
 import random
-import numpy as np
+
 import jax
+import numpy as np
+import ssljax.core.utils as utils
 
 
 def test_prepare_environment():

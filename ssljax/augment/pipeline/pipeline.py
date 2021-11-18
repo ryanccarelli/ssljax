@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 from ssljax.augment.augmentation.augmentation import Augmentation
-from ssljax.core.utils import get_from_register
+from ssljax.core import get_from_register
 
 
 class Pipeline(Augmentation):

@@ -112,8 +112,8 @@ schedulers:
         name: BYOLema
         params:
           # TODO: why is this max_steps and total_steps above (inherit this weirdness from DM implementation)
+          base_ema: .996
           max_steps: 100000
-          initial_value: .996
 
 
 post_process:

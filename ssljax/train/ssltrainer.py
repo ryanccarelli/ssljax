@@ -18,7 +18,7 @@ from flax.training import checkpoints
 from flax.training.checkpoints import restore_checkpoint
 from jax import random
 from omegaconf import DictConfig
-from ssljax.core.utils import flattened_traversal, register
+from ssljax.core import flattened_traversal, register
 from ssljax.train.trainer import Trainer
 from ssljax.train.trainstate import TrainState
 from tensorboardX import GlobalSummaryWriter
@@ -95,6 +95,7 @@ class SSLTrainer(Trainer):
 
         Args:
             state (flax.training.train_state.TrainState): model state
+            p_step: pmapped step function
         """
         for data, _ in iter(self.task.dataloader):
             # TODO: need to wrap torch and tfds dataloaders so they return a consistent format
@@ -132,8 +133,15 @@ class SSLTrainer(Trainer):
 
         Args:
             state (flax.training.train_state.TrainState): model state
-            batch (jnp.array): a single data batch
+            batch (jnp.ndarray): a single data batch
+            rng (jnp.ndarray): PRNG key
+            mutable_keys (List[str]): parameters that are mutable
+            loss_fn: loss
+            dynamic_scale (bool): whether to apply dynamic scaling
+            dynamic_scale_params (dict): params passed to dynamic scale optimizer
+            accumulate_steps (int): number of steps to accumulate
         """
+
         rng_pre, rng = jax.random.split(rng)
         batch = self.task.pre_pipelines(batch, rng_pre)
         postpiperngs = jax.random.split(rng, len(self.task.post_pipelines) )

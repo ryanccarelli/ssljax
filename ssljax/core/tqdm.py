@@ -8,10 +8,11 @@ The TQDM handlers were taken from [AllenNLP's tqdm handler](https://github.com/a
 No changes were made to this file and thus it falls under the Apache 2.0 License.
 """
 import logging
-from ssljax.core.utils import log_util as common_logging
 import sys
 from time import time
 from typing import Optional
+
+from ssljax.core import log_util as common_logging
 
 try:
     SHELL = str(type(get_ipython()))  # type:ignore # noqa: F821
@@ -43,7 +44,7 @@ def replace_cr_with_newline(message: str) -> str:
     # In addition to carriage returns, nested progress-bars will contain extra new-line
     # characters and this special control sequence which tells the terminal to move the
     # cursor one line up.
-    message = message.replace("\r", "").replace("\n", "").replace("[A", "")
+    message = message.replace("\r", "").replace("\n", "").replace("", "")
     if message and message[-1] != "\n":
         message += "\n"
     return message
@@ -99,7 +100,7 @@ class Tqdm:
         default_mininterval = 2.0 if common_logging.FILE_FRIENDLY_LOGGING else 0.1
 
         new_kwargs = {
-            "file"       : TqdmToLogsWriter(),
+            "file": TqdmToLogsWriter(),
             "mininterval": default_mininterval,
             **kwargs,
         }

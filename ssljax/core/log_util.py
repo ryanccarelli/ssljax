@@ -10,19 +10,18 @@ Our changes are as follows:
 
 """
 import logging
-from logging import Filter
 import os
+import sys
+from logging import Filter
 from os import PathLike
 from typing import Union
-
-import sys
 
 logger = logging.getLogger(__name__)
 
 FILE_FRIENDLY_LOGGING: bool = False
 """
-If this flag is set to `True`, we add newlines to tqdm output, even on an 
-interactive terminal, and we slow down tqdm's output to only once every 10 
+If this flag is set to `True`, we add newlines to tqdm output, even on an
+interactive terminal, and we slow down tqdm's output to only once every 10
 seconds. By default, it is set to `False`.
 """
 
@@ -39,10 +38,10 @@ class ErrorFilter(Filter):
 
 
 def prepare_global_logging(
-        serialization_dir: Union[str, PathLike],
-        rank: int = 0,
-        world_size: int = 1,
-        log_file_name: str = "out"
+    serialization_dir: Union[str, PathLike],
+    rank: int = 0,
+    world_size: int = 1,
+    log_file_name: str = "out",
 ) -> None:
     """
     Prepare the global logging handlers.
@@ -69,26 +68,23 @@ def prepare_global_logging(
 
     # Define three different logging formats, the purpose of this is to make
     # console messages brief while file and errors are verbose.
-    console_format = '[%(levelname)8s] %(message)s'
-    file_format = '[%(asctime)s - %(levelname)8s - %(name)s] %(message)s'
-    error_format = '[%(asctime)s - %(levelname)8s - %(name)s] %(message)s'
+    console_format = "[%(levelname)8s] %(message)s"
+    file_format = "[%(asctime)s - %(levelname)8s - %(name)s] %(message)s"
+    error_format = "[%(asctime)s - %(levelname)8s - %(name)s] %(message)s"
 
     # Create the handlers. If the world size is greater than 1, than there are
     # more than 1 process running. So we need to mark that in the logging.
     if world_size == 1:
         log_file = os.path.join(serialization_dir, f"{log_file_name}.log")
     else:
-        log_file = os.path.join(serialization_dir,
-                                f"{logging}_worker{rank}.log")
+        log_file = os.path.join(serialization_dir, f"{logging}_worker{rank}.log")
         console_format = f"{rank} | {console_format}"
         file_format = f"{rank} | {file_format}"
         error_format = f"{rank} | {error_format}"
 
     console_format = logging.Formatter(fmt=console_format)
-    error_format = logging.Formatter(fmt=error_format,
-                                     datefmt='%Y-%m-%d %H:%M:%S')
-    file_format = logging.Formatter(fmt=file_format,
-                                    datefmt='%Y-%m-%d %H:%M:%S')
+    error_format = logging.Formatter(fmt=error_format, datefmt="%Y-%m-%d %H:%M:%S")
+    file_format = logging.Formatter(fmt=file_format, datefmt="%Y-%m-%d %H:%M:%S")
 
     file_handler = logging.FileHandler(log_file)
     stderr_handler = logging.StreamHandler(sys.stderr)
@@ -132,12 +128,12 @@ def prepare_global_logging(
         if issubclass(exctype, KeyboardInterrupt):
             sys.__excepthook__(exctype, value, traceback)
             return
-        root_logger.critical("Uncaught exception",
-                             exc_info=(exctype, value, traceback))
+        root_logger.critical("Uncaught exception", exc_info=(exctype, value, traceback))
 
     sys.excepthook = excepthook
 
     # Avoid circular imports by doing this
-    from ssljax.core.utils.tqdm import logger as tqdm_logger
+    from ssljax.core.tqdm import logger as tqdm_logger
+
     tqdm_logger.handlers.clear()
     tqdm_logger.addHandler(file_handler)

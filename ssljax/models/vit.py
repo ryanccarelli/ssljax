@@ -4,18 +4,18 @@ import jax
 import jax.numpy as jnp
 from omegaconf import DictConfig
 from scenic.projects.baselines.vit import ViT
-from ssljax.core.utils import register
+from ssljax.core import register
 from ssljax.models.model import Model
 
 
 @register(Model, "ViT")
 class ViT(Model):
     """
-    Flax implementation of vision transformer.
-    We wrap the ViT model in https://github.com/google-research/scenic
+    Flax implementation of a vision transformer.
+    We wrap the ViT model in `<scenic> https://github.com/google-research/scenic`_.
 
     Args:
-        config (ssljax.core.config): OmegaConf
+        config (omegaconf.DictConfig): configuration
     """
 
     config: DictConfig

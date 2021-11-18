@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from flax import linen as nn
 from omegaconf import DictConfig
 from ssljax.augment import Augment
-from ssljax.core.utils.register import get_from_register, register
+from ssljax.core import get_from_register, register
 from ssljax.models.branch.branch import Branch
 from ssljax.models.model import Model
 
@@ -14,11 +14,11 @@ from ssljax.models.model import Model
 @register(Model, "SSLModel")
 class SSLModel(Model):
     """
-    Base class implementing self-supervised model.
+    Base class implementing a self-supervised model.
+    A self-supervised model consists of a list of branches
+    that are executed in parallel to process augmented views of inputs.
 
-    A self-supervised model consists of a set of branches
-    that are executed in parallel on a list of augmented inputs,
-    returning a list of branch outs.
+    This class is used by ``ssljax.core.utils.register``.
 
     Args:
         config (ssljax.conf.config): model specification

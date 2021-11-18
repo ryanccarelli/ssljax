@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 from flax.training import train_state
 from omegaconf import DictConfig
-from ssljax.core.utils import register
+from ssljax.core import register
 from ssljax.models.model import Model
 
 

@@ -1,6 +1,12 @@
-import flax
 from typing import Any
+
+import flax
 from flax.training.train_state import TrainState
 
+
 class TrainState(TrainState):
-  mutable_states: Any
+    """
+    flax.training.train_state with optional mutable parameters.
+    """
+
+    mutable_states: Any
