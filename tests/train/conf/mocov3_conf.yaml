@@ -1,0 +1,204 @@
+env:
+  seed: 1337
+  numpy_seed: 1337
+  jax_seed: 1337
+  epochs: 100
+  accum_steps: 1
+  save_checkpoint:
+    params:
+      ckpt_dir: "outs/checkpoints/"
+      keep: 1
+      overwrite: True
+      keep_every_n_steps: 300
+  restore_checkpoint:
+    params: {}
+  half_precision: False
+  dynamic_scale: False
+  dynamic_scale_params: {}
+  input_shape: (32,32,3)
+
+trainer:
+  name: SSLTrainer
+
+model:
+  name: SSLModel
+  branches:
+    0:
+      name: Branch
+      stages:
+        stop_gradient: False
+        body:
+          module: ViT
+          params:
+            num_classes:
+            mlp_dim:
+            num_layers:
+            num_heads:
+            patches:
+            hidden_size:
+            representation_size:
+            dropout_rate:
+            attention_dropout_rate:
+            stochastic_depth:
+            classifier:
+            dtype:
+        projectionhead:
+          module: MLP
+          params:
+            layer_dims: [4096, 4096, 256]
+            dropout_prob: 0.0
+            batch_norm: True
+            batch_norm_params: {}
+            activation_name: "relu"
+        predictionhead:
+          module: MLP
+          params:
+            layer_dims: [4096, 256]
+            dropout_prob: 0.0
+            batch_norm: True
+            batch_norm_params: {}
+            activation_name: "relu"
+
+    1:
+      name: Branch
+      stages:
+        stop_gradient: False
+        body:
+          module: ViT
+          params:
+            num_classes:
+            mlp_dim:
+            num_layers:
+            num_heads:
+            patches:
+            hidden_size:
+            representation_size:
+            dropout_rate:
+            attention_dropout_rate:
+            stochastic_depth:
+            classifier:
+            dtype:
+        projectionhead:
+          module: MLP
+          params:
+            layer_dims: [4096, 4096, 256]
+            dropout_prob: 0.0
+            batch_norm: True
+            batch_norm_params: {}
+            activation_name: "relu"
+        predictionhead:
+          module: MLP
+          params:
+            layer_dims: [4096, 256]
+            dropout_prob: 0.0
+            batch_norm: True
+            batch_norm_params: {}
+            activation_name: "relu"
+
+loss: info_nce_loss
+
+optimizers:
+  branches:
+    0:
+      name: adamw
+      params:
+        weight_decay: 1e-6
+
+schedulers:
+  branches:
+    0:
+      learning_rate:
+        name: BYOL
+        params:
+          base_learning_rate: 0.6
+          warmup_steps: 10000
+          batch_size: 4096
+          # epochs * train_images_per_epoch // batch_size
+          # TODO: for now this is a random number
+          total_steps: 100000
+  post_process:
+    0:
+      tau:
+        name: BYOLema
+        params:
+          base_ema: 0.99
+          # TODO: why is this max_steps and total_steps above (inherit this weirdness from DM implementation)
+          max_steps: 100000
+
+post_process:
+  funcs:
+    0:
+      name: ema
+      params:
+        online_branch_name: branch_0
+        target_branch_name: branch_1
+        remove_from_online: [proj]
+
+meter:
+  name: SSLMeter
+
+pipelines:
+  pre:
+    augmentations:
+      RandomFlip:
+        params:
+          prop: 1.0
+  branches:
+    0:
+      augmentations:
+        RandomFlip:
+          params:
+            prob: 1.0
+        ColorTransform:
+          params:
+            prob: 1.0
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.2
+            hue: 0.1
+            color_jitter_prob: 0.8
+            to_grayscale_prob: 0.2
+            shuffle: True
+        GaussianBlur:
+          params:
+            prob: 0.1
+        Solarize:
+          params:
+            prob: 0.2
+            threshold: 0.5
+        Clip:
+          params:
+            prob: 1.0
+            x_min: 0
+            x_max: 1
+    1:
+      augmentations:
+        RandomFlip:
+          params:
+            prob: 1.0
+        ColorTransform:
+          params:
+            prob: 1.0
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.2
+            hue: 0.1
+            color_jitter_prob: 0.8
+            to_grayscale_prob: 0.2
+            shuffle: True
+        GaussianBlur:
+          params:
+            prob: 1.0
+        Clip:
+          params:
+            prob: 1.0
+            x_min: 0
+            x_max: 1
+
+dataloader:
+  platform: torch
+  name: CIFAR10
+  params:
+    batch_size: 4096
+    flatten: False
+    input_shape: (32,32,3)
