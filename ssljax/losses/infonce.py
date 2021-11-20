@@ -24,11 +24,10 @@ def infonce_loss(kp: jnp.ndarray, kq: jnp.ndarray, q: jnp.ndarray, tau: float):
 def moco_infonce_loss(q, k, tau):
     q = jnp.linalg.norm(q, ord=2, axis=1)
     k = jnp.linalg.norm(k, ord=2, axis=1)
-    # here moco gathers from devices
+    # TODO: concat_all_gather in torch implementation
     logits = jnp.einsum("nc,mc->nm", [q, k]) / tau
     labels = jnp.arange(logits.shape[0], dtype=jnp.float32)
-
-    return 2 * tau * loss
+    return sigmoid_binary_cross_entropy(logits, labels) * 2 * tau
 
 
 def cross_entropy_loss(logits, labels):
