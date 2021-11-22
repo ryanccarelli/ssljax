@@ -27,10 +27,10 @@ class SSLModel(Model):
     config: DictConfig
 
     def setup(self):
-        branch = []
-        for branch_idx, branch_params in self.config.model.branches.items():
+        branch = {}
+        for idx, branch_params in self.config.model.branches.items():
             b = Branch(branch_params.stages)
-            branch.append(b)
+            branch[idx] = {"branch": b, "pipelines": branch_params.pipelines}
         self.branch = branch
 
     def __call__(self, x):
@@ -38,15 +38,14 @@ class SSLModel(Model):
         Forward pass branches.
 
         Args:
-            x(tuple(jnp.array)): each element of x represents
+            x(dict(jnp.array)): each element of x represents
                 raw data mapped through a different augmentation.Pipeline
         """
-        outs = []
-        # x = jnp.split(x, x.shape[-1], axis=-1)
-        # x = [jnp.squeeze(y, axis=-1) for y in x]
+        outs = {}
 
-        for idx, b in enumerate(self.branch):
-            outs.append(b(x[..., idx]))
+        for key, (branch, pipelines) in self.branch.items():
+            for pipeline in pipelines:
+                outs[key][pipeline] = branch(x[pipeline])
 
         return outs
 

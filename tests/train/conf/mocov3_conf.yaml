@@ -25,6 +25,7 @@ model:
   branches:
     0:
       name: Branch
+      pipelines: ["0","1"]
       stages:
         stop_gradient: False
         body:
@@ -61,6 +62,7 @@ model:
 
     1:
       name: Branch
+      pipelines: ["0","1"]
       stages:
         stop_gradient: False
         body:
@@ -95,7 +97,7 @@ model:
             batch_norm_params: {}
             activation_name: "relu"
 
-loss: info_nce_loss
+loss: moco_loss
 
 optimizers:
   branches:
