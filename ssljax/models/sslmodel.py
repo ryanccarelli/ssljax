@@ -28,10 +28,13 @@ class SSLModel(Model):
 
     def setup(self):
         branch = {}
+        pipelines = {}
         for idx, branch_params in self.config.model.branches.items():
             b = Branch(branch_params.stages)
-            branch[idx] = {"branch": b, "pipelines": branch_params.pipelines}
+            branch[str(idx)] = b
+            pipelines[str(idx)] = branch_params.pipelines
         self.branch = branch
+        self.pipelines = pipelines
 
     def __call__(self, x):
         """
@@ -42,10 +45,11 @@ class SSLModel(Model):
                 raw data mapped through a different augmentation.Pipeline
         """
         outs = {}
-
-        for key, (branch, pipelines) in self.branch.items():
-            for pipeline in pipelines:
-                outs[key][pipeline] = branch(x[pipeline])
+        for key, val in self.branch.items():
+            add = {}
+            for pipeline in self.pipelines[key]:
+                add[pipeline] = val(x[pipeline])
+            outs[key] = add
 
         return outs
 

@@ -25,6 +25,7 @@ model:
   branches:
     0:
       name: Branch
+      pipelines: ["0"]
       stages:
         stop_gradient: False
         body:
@@ -57,6 +58,7 @@ model:
             activation_name: "relu"
     1:
       name: Branch
+      pipelines: ["1"]
       pretrained: "/tests/train/conf/cpu_branch2_test_checkpoint"
       stages:
         stop_gradient: True

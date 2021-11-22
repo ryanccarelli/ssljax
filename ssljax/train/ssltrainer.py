@@ -144,7 +144,6 @@ class SSLTrainer(Trainer):
         rng_pre, rng = jax.random.split(rng)
         batch = self.task.pre_pipelines(batch, rng_pre)
         postpiperngs = jax.random.split(rng, len(self.task.post_pipelines))
-        # TODO: generalize batch
         batch = list(
             map(
                 lambda rng, pipeline: pipeline(batch, rng),
@@ -152,7 +151,8 @@ class SSLTrainer(Trainer):
                 self.task.post_pipelines,
             )
         )
-        batch = {idx: val for idx, val in enumerate(batch)}
+        # batch stores views indexed by the pipeline that produced them
+        batch = {str(idx): val for idx, val in enumerate(batch)}
 
         accumulate_gradients = partial(
             self.accumulate_gradients,
@@ -213,12 +213,12 @@ class SSLTrainer(Trainer):
         """
         if accumulate_steps > 1:
             assert (
-                batch.shape[0] % accumulate_steps == 0
+                all(array.shape[0] % accumulate_steps == 0) for array in jax.tree_util.tree_leaves(batch)
             ), f"Bad accum_steps {self.task.config.env.accum_steps} for batch size {batch.shape[0]}"
             assert (
                 "batch_stats" not in params
             ), f"Batchnorm not supported when accumulating gradients"
-            step_size = batch.shape[0] // accumulate_steps
+            step_size = jax.tree_util.tree_leaves(batch)[0].shape[0] // accumulate_steps
             if dynamic_scale:
                 dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(
                     {"params": params["params"]}, batch
@@ -228,9 +228,10 @@ class SSLTrainer(Trainer):
             (loss, aux) = loss_and_aux
 
             def acc_grad_and_loss(i, loss_and_grad):
-                btch = jax.lax.dynamic_slice(
-                    batch, (i * step_size, 0, 0), (step_size,) + batch.shape[1:]
-                )
+                # TODO: (i * step_size, 0) assumes image shape, should generalize
+                btch = {str(pipeid): jax.lax.dynamic_slice(
+                    view, (i * step_size, 0), (step_size,) + view.shape[1:]
+                ) for pipeid, view in batch.items()}
                 if dynamic_scale:
                     dyn_scale, is_fin, loss_and_aux, grad_i = grad_fn(
                         {"params": params["params"]}, btch
@@ -271,12 +272,11 @@ class SSLTrainer(Trainer):
             outs, new_state = model_fn.apply(params, batch, mutable=mutable_keys)
             loss = self.task.loss(*outs)
             loss = jnp.mean(loss)
-
             aux["mutable_states"] = new_state
             return loss, aux
         else:
             outs = self.model.apply(params, batch)
-            loss = self.task.loss(*outs)
+            loss = self.task.loss(outs)
             loss = jnp.mean(loss)
             return loss, aux
 
@@ -305,14 +305,18 @@ class SSLTrainer(Trainer):
 
         self.model = self.task.model(config=self.task.config)
 
-        init_shape = (
+        data_shape = (
             [1]  # Batch size == 1
             + list(eval(self.task.config.env.input_shape))
-            + [len(self.task.config.model.branches)]
         )
 
-        init_data = jnp.ones(tuple(init_shape), model_dtype,)
-        params = self.model.init(self.rng, init_data)
+        init_data = jnp.ones(tuple(data_shape), model_dtype,)
+
+        init_shape = {}
+        for branch, _ in self.task.config.pipelines.branches.items():
+            init_shape[str(branch)] = init_data.copy()
+
+        params = self.model.init(self.rng, init_shape)
 
         opt_collect = []
         prefix_branch = lambda x: "branch_" + str(x)

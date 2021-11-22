@@ -25,6 +25,7 @@ model:
   branches:
     0:
       name: Branch
+      pipelines: ["0"]
       stages:
         stop_gradient: False
         body:
@@ -58,6 +59,7 @@ model:
 
     1:
       name: Branch
+      pipelines: ["1"]
       stages:
         stop_gradient: True
         body:
