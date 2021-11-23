@@ -3,7 +3,7 @@ import logging
 import jax.numpy as jnp
 import numpy as np
 from scenic.dataset_lib.datasets import get_dataset
-from ssljax.core.utils.register import register
+from ssljax.core import register
 from torch.utils import data
 from torchvision.datasets import CIFAR10, CIFAR100, MNIST
 
@@ -18,10 +18,10 @@ class DataLoader:
 
     def __init__(self, data):
         if isinstance(data, TorchData):
-            pass 
+            pass
 
         elif isinstance(data, ScenicData):
-            pass 
+            pass
 
         else:
             raise ValueError("must pass TorchData or ScenicData")

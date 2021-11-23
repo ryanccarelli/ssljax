@@ -12,7 +12,7 @@ from ssljax.augment.augmentation.colortransform import (_random_brightness,
                                                         adjust_hue,
                                                         adjust_saturation,
                                                         hsv_to_rgb, rgb_to_hsv)
-from ssljax.core.utils import register
+from ssljax.core import register
 
 
 class Augmentation:
@@ -334,7 +334,9 @@ class ColorTransform(Augmentation):
 
 @register(Augmentation, "Solarize")
 class Solarize(Augmentation):
-    """Applies solarization.
+    """
+    Applies solarization.
+
     Args:
         x (jnp.array): an NHWC tensor (with C=3).
         rng (jnp.array): Jax PRNG
@@ -395,7 +397,10 @@ class Clip(Augmentation):
 @register(Augmentation, "Identity")
 class Identity(Augmentation):
     """
-    Map image by identity.
+    Apply identity map.
+
+    Args:
+        prob (float): probability of execution.
     """
 
     def __init__(self, prob=1.0):
@@ -403,18 +408,18 @@ class Identity(Augmentation):
 
     def __call__(self, x, rng):
         return x
-      
+
     def __repr__(self):
         return "Identity"
 
 @register(Augmentation, "RandomCrop")
 class RandomCrop(Augmentation):
     """
-    Make a random crop.
+    Apply a random crop.
     # TODO: THIS IS NOT STOCHASTIC DO NOT USE
 
     Args:
-        prob(float): probability of execution.
+        prob (float): probability of execution.
     """
 
     def __init__(
@@ -479,10 +484,10 @@ class RandomCrop(Augmentation):
 @register(Augmentation, "CenterCrop")
 class CenterCrop(Augmentation):
     """
-    Make a center crop.
+    Apply a center crop.
 
     Args:
-        prob(float): probability of execution.
+        prob (float): probability of execution.
     """
 
     def __init__(

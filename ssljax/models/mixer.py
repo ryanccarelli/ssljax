@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 from omegaconf import DictConfig
 from scenic.projects.baselines.mixer import Mixer
-from ssljax.core.utils import register
+from ssljax.core import register
 from ssljax.models.model import Model
 
 
@@ -12,10 +12,10 @@ from ssljax.models.model import Model
 class Mixer(Model):
     """
     Flax implementation of MLP Mixer.
-    We wrap the Mixer model in https://github.com/google-research/scenic
+    We wrap the Mixer model in `<scenic> https://github.com/google-research/scenic`_.
 
     Args:
-        config (ssljax.core.config): OmegaConf
+        config (omegaconf.DictConfig): configuration
     """
 
     config: DictConfig

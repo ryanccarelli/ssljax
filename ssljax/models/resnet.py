@@ -19,7 +19,7 @@ from typing import Any, Callable, Sequence, Tuple
 
 import jax.numpy as jnp
 from flax import linen as nn
-from ssljax.core.utils.register import register
+from ssljax.core import register
 from ssljax.models.model import Model
 from ssljax.models.utils import BottleneckResNetBlock, ResNetBlock
 

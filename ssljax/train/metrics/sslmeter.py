@@ -1,6 +1,6 @@
 from typing import Dict
 
-from ssljax.core.utils import register
+from ssljax.core import register
 from ssljax.train.metrics import Meter, Metric
 
 

@@ -2,8 +2,8 @@ import os
 
 import pytest
 from hydra import compose, initialize
+from ssljax.core import download_from_url
 from ssljax.train.task import Task
-from ssljax.core.utils import download_from_url
 
 
 class TestTrainer:
@@ -35,7 +35,10 @@ class TestTrainer:
 
     @pytest.mark.gpu
     def test_train_byol(self, byoltestconfig):
-        download_from_url("https://storage.googleapis.com/scenic-bucket/baselines/ResNet50_ImageNet1k", "tests/train/conf")
+        download_from_url(
+            "https://storage.googleapis.com/scenic-bucket/baselines/ResNet50_ImageNet1k",
+            "tests/train/conf",
+        )
         task = Task(byoltestconfig)
         trainer = task.trainer
         trainer.train()

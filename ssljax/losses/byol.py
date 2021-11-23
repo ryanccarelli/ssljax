@@ -25,6 +25,10 @@ from ssljax.losses.loss import Loss
 def byol_regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
     """
     Cosine similarity regression loss.
+
+    Args:
+        x (jnp.ndarray): model output
+        y (jnp.ndarray): targets
     """
     assert isinstance(x, jnp.ndarray), f"loss functions act on jnp.arrays. Given {type(x)}"
     assert isinstance(y, jnp.ndarray), f"loss functions act on jnp.arrays Given {type(x)}"
@@ -36,12 +40,13 @@ def byol_regression_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
 def byol_softmax_cross_entropy(
     logits: jnp.ndarray, labels: jnp.ndarray, reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
-    """Computes softmax cross entropy given logits and one-hot class labels.
+    """
+    Computes softmax cross entropy given logits and one-hot class labels.
 
     Args:
-        logits: Logit output values.
-        labels: Ground truth one-hot-encoded labels.
-        reduction: Type of reduction to apply to loss.
+        logits (jnp.ndarray): Logit output values.
+        labels (jnp.ndarray): Ground truth one-hot-encoded labels.
+        reduction (str): Type of reduction to apply to loss.
 
     Returns:
         Loss value. If `reduction` is `none`, this has the same shape as `labels`;

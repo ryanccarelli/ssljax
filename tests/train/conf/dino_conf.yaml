@@ -70,14 +70,19 @@ model:
             classifier: "token"
             # TODO: convert str to jnp type
             dtype: "float32"
-        head:
-          module: DINO_MLP
+        basehead:
+          module: DINOMLP
           params:
-            layer_dims: [2048, 10]
+            layer_dims: [2048, 2048, 256]
             dropout_prob: 0.0
             batch_norm: False
             batch_norm_params: {}
-            activation_name: "relu"
+            activation_name: "gelu"
+        dinohead:
+          module: DINOHead
+          params:
+            # TODO: what is K?
+            out_dim: 10
         proj:
           module: CenterSoftmax
           params: {}
@@ -129,16 +134,21 @@ model:
             classifier: "token"
             # TODO: convert str to jnp type
             dtype: "float32"
-        head:
-          module: DINO_MLP
+        basehead:
+          module: DINOMLP
           params:
-            layer_dims: [2048, 10]
+            layer_dims: [2048, 2048, 256]
             dropout_prob: 0.0
             batch_norm: False
             batch_norm_params: {}
-            activation_name: "relu"
+            activation_name: "gelu"
+        dinohead:
+          module: DINOHead
+          params:
+            # TODO: what is K?
+            out_dim: 10
         proj:
-          module: Softmax
+          module: CenterSoftmax
           params: {}
 
 loss: cross_entropy_loss
@@ -174,8 +184,8 @@ schedulers:
         name: BYOLema
         params:
           # TODO: why is this max_steps and total_steps above (inherit this weirdness from DM implementation)
+          base_ema: .996
           max_steps: 100000
-          initial_value: .996
 
 post_process:
   funcs:
