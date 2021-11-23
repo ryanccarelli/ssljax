@@ -27,21 +27,49 @@ model:
       name: Branch
       stages:
         stop_gradient: False
+        # B/16 on imagenet
         body:
           module: ViT
           params:
             num_classes:
-            mlp_dim:
-            num_layers:
-            num_heads:
-            patches:
-            hidden_size:
-            representation_size:
-            dropout_rate:
-            attention_dropout_rate:
-            stochastic_depth:
-            classifier:
-            dtype:
+            # mlp_dim
+            # Ti 768
+            # S 1536
+            # B 3072
+            # L 4096
+            # H 5120
+            mlp_dim: 3072
+            # num_layers
+            # Ti 12
+            # S 12
+            # B 12
+            # L 24
+            # H 32
+            num_layers: 12
+            # num_heads
+            # Ti 3
+            # S 6
+            # B 12
+            # L 16
+            # H 16
+            num_heads: 12
+            # patches
+            # 16 for B/16 (in general after /)
+            patches: 16
+            # hidden_size
+            # Ti 192
+            # S 384
+            # B 768
+            # L 1024
+            # H 1280
+            hidden_size: 768
+            representation_size: None
+            dropout_rate: 0.1
+            attention_dropout_rate: 0.
+            stochastic_depth: None
+            classifier: "token"
+            # TODO: convert str to jnp type
+            dtype: "float32"
         basehead:
           module: DINOMLP
           params:
@@ -64,20 +92,48 @@ model:
       stages:
         stop_gradient: True
         body:
+          # from https://github.com/google-research/scenic/blob/main/scenic/projects/baselines/configs/imagenet/imagenet_vit_config.py
           module: ViT
           params:
             num_classes:
-            mlp_dim:
-            num_layers:
-            num_heads:
-            patches:
-            hidden_size:
-            representation_size:
-            dropout_rate:
-            attention_dropout_rate:
-            stochastic_depth:
-            classifier:
-            dtype:
+            # mlp_dim
+            # Ti 768
+            # S 1536
+            # B 3072
+            # L 4096
+            # H 5120
+            mlp_dim: 3072
+            # num_layers
+            # Ti 12
+            # S 12
+            # B 12
+            # L 24
+            # H 32
+            num_layers: 12
+            # num_heads
+            # Ti 3
+            # S 6
+            # B 12
+            # L 16
+            # H 16
+            num_heads: 12
+            # patches
+            # 16 for B/16 (in general after /)
+            patches: 16
+            # hidden_size
+            # Ti 192
+            # S 384
+            # B 768
+            # L 1024
+            # H 1280
+            hidden_size: 768
+            representation_size: None
+            dropout_rate: 0.1
+            attention_dropout_rate: 0.
+            stochastic_depth: None
+            classifier: "token"
+            # TODO: convert str to jnp type
+            dtype: "float32"
         basehead:
           module: DINOMLP
           params:
