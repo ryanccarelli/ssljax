@@ -52,9 +52,7 @@ model:
             layer_dims: [4096, 256]
             dropout_prob: 0.0
             batch_norm: False
-            batch_norm_params:
-                decay_rate: 0.9
-                epsilon: 1e-5
+            batch_norm_params: {}
             activation_name: "relu"
 
     1:
@@ -100,7 +98,7 @@ schedulers:
   branches:
     0:
       learning_rate:
-        name: BYOLlars
+        name: BYOLlr
         params:
           # lr = 0.2 * batchsize/256
           base_learning_rate: 0.2
@@ -133,6 +131,7 @@ meter:
 pipelines:
   pre:
     augmentations:
+      # TODO: this needs to be RandomResizedCrop
       RandomCrop:
         params:
           prob: 1.0

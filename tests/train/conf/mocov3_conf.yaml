@@ -43,28 +43,37 @@ model:
             stochastic_depth:
             classifier:
             dtype:
-        projectionhead:
+        proj:
           module: MLP
           params:
             layer_dims: [4096, 4096, 256]
             dropout_prob: 0.0
+            # TODO: SyncBN? Paper first says follows SIMCLR
+            # then later says follows BYOL in appendix A
             batch_norm: True
-            batch_norm_params: {}
+            batch_norm_params:
+              use_running_average: True
+              momentum: 0.9
+              epsilon: 1e-5
             activation_name: "relu"
-        predictionhead:
+        pred:
           module: MLP
           params:
             layer_dims: [4096, 256]
             dropout_prob: 0.0
+            # TODO: SyncBN? Paper first says follows SIMCLR
+            # then later says follows BYOL in appendix A
             batch_norm: True
-            batch_norm_params: {}
+            batch_norm_params:
+                decay_rate: 0.9
+                epsilon: 1e-5
             activation_name: "relu"
 
     1:
       name: Branch
       pipelines: ["0", "1"]
       stages:
-        stop_gradient: False
+        stop_gradient: True
         body:
           module: ViT
           params:
@@ -80,21 +89,18 @@ model:
             stochastic_depth:
             classifier:
             dtype:
-        projectionhead:
+        proj:
           module: MLP
           params:
             layer_dims: [4096, 4096, 256]
             dropout_prob: 0.0
             batch_norm: True
-            batch_norm_params: {}
-            activation_name: "relu"
-        predictionhead:
-          module: MLP
-          params:
-            layer_dims: [4096, 256]
-            dropout_prob: 0.0
-            batch_norm: True
-            batch_norm_params: {}
+            # TODO: SyncBN? Paper first says follows SIMCLR
+            # then later says follows BYOL in appendix A
+            batch_norm_params:
+              use_running_average: True
+              momentum: 0.9
+              epsilon: 1e-5
             activation_name: "relu"
 
 loss: moco_loss
@@ -110,7 +116,7 @@ schedulers:
   branches:
     0:
       learning_rate:
-        name: BYOL
+        name: BYOLlr
         params:
           base_learning_rate: 0.6
           warmup_steps: 10000
@@ -134,7 +140,7 @@ post_process:
       params:
         online_branch_name: branch_0
         target_branch_name: branch_1
-        remove_from_online: [proj]
+        remove_from_online: [pred]
 
 meter:
   name: SSLMeter
@@ -142,9 +148,12 @@ meter:
 pipelines:
   pre:
     augmentations:
-      RandomFlip:
+      # TODO: this needs to be RandomResizedCrop
+      RandomCrop:
         params:
           prop: 1.0
+          height: 224
+          width: 224
   branches:
     0:
       augmentations:

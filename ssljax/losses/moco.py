@@ -8,7 +8,8 @@ from ssljax.losses.loss import Loss
 
 @register(Loss, "moco_loss")
 def moco_infonce_loss(
-    outs: Mapping[str, Mapping[str, jnp.ndarray]], tau: float
+    outs: Mapping[str, Mapping[str, jnp.ndarray]],
+    tau: float = 0.2,
 ) -> jnp.ndarray:
     """
     Compute MoCo v3 loss.
