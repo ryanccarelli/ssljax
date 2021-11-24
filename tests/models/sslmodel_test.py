@@ -1,10 +1,10 @@
 # test ssljax/models/sslmodel.py
 
-import chex
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import pytest
+from chex import assert_shape
 from flax.training import train_state
 from jax.tree_util import tree_leaves
 from omegaconf import DictConfig, OmegaConf
@@ -24,7 +24,7 @@ class TestSSLModel:
         params = mocksslmodel.init(k3, x)
 
         # assert params correctly index branches
-        # internals of branches tested in branch
+        # internals of branches tested in branch_test.py
         assert all(x in params["params"] for x in ["branch_0", "branch_1"])
         assert all(isinstance(x, jnp.ndarray) for x in tree_leaves(params))
 
@@ -37,6 +37,8 @@ class TestSSLModel:
         assert "1" in out["1"]
         assert "1" not in out["0"]
         assert all(isinstance(x, jnp.ndarray) for x in tree_leaves(out))
+        for x in tree_leaves(out):
+            assert_shape(x, (10,))
 
     def test_detach(self, mocksslmodel):
         pass

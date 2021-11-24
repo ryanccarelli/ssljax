@@ -96,6 +96,7 @@ class SSLTrainer(Trainer):
             state (flax.training.train_state.TrainState): model state
             p_step: pmapped step function
         """
+
         for data, _ in iter(self.task.dataloader):
             # TODO: need to wrap torch and tfds dataloaders so they return a consistent format
             batch = jax.device_put(data)
