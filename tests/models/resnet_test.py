@@ -32,7 +32,7 @@ class TestResnet:
         key = jax.random.PRNGKey(0)
         k1, _ = jax.random.split(key)
         x = jnp.ones((1, 224, 224, 3), jnp.float16)
-        params = resnet.init(k1, x)
+        params = resnet.init(k1, x, mutable="batch_stats")
         out = resnet.apply(params, x)
         # assertions
         assert_rank(out, 1)
