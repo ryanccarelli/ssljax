@@ -18,7 +18,10 @@ class SSLModelTest(parameterized.TestCase):
     def test_withid(self):
         key = jax.random.PRNGKey(0)
         k1, k2, k3 = jax.random.split(key, 3)
-        x = jnp.array(jax.random.normal(k1, (2000, 2)))
+        x = {
+            "0": jnp.array(jax.random.normal(k1, (2000,))),
+            "1": jnp.array(jax.random.normal(k1, (2000,))),
+        }
         params = self.mocksslmodel.init(k2, x)
         out = self.mocksslmodel.apply(params, x)
         assert len(out) == 2
@@ -28,10 +31,11 @@ class MockSSLModel(SSLModel):
     config: DictConfig
 
     def setup(self):
-        self.branch = [
-            LinearBranch(config=OmegaConf.create()),
-            LinearBranch(config=OmegaConf.create()),
-        ]
+        self.branch = {
+            "0": LinearBranch(config=OmegaConf.create()),
+            "1": LinearBranch(config=OmegaConf.create()),
+        }
+        self.pipelines = {"0": ["0"], "1": ["0"]}
 
 
 class LinearBranch(Branch):

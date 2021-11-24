@@ -34,10 +34,7 @@ writer = GlobalSummaryWriter(TBDIR)
 from jax import lax
 
 # TODO. Move to utils
-cross_replica_mean = jax.pmap(
-    lambda x: lax.pmean(x, "x"),
-    "x",
-)
+cross_replica_mean = jax.pmap(lambda x: lax.pmean(x, "x"), "x",)
 
 
 def sync_batch_stats(state):
@@ -45,7 +42,9 @@ def sync_batch_stats(state):
     # Each device has its own version of the running average batch statistics and
     # we sync them before evaluation.
     new_mutable_states = state.mutable_states.unfreeze()
-    new_mutable_states["batch_stats"] = cross_replica_mean(state.mutable_states["batch_stats"])
+    new_mutable_states["batch_stats"] = cross_replica_mean(
+        state.mutable_states["batch_stats"]
+    )
     state.replace(mutable_states=new_mutable_states)
     return state
 
@@ -109,7 +108,7 @@ class SSLTrainer(Trainer):
             state, loss = p_step(state, batch, rng_step)
 
             end_time = time.time()
-            print("Exec time: ",end_time-start_time)
+            print("Exec time: ", end_time - start_time)
 
             # Sync batch stats across multiple devices
             if "batch_stats" in state.mutable_states.keys():
@@ -144,15 +143,16 @@ class SSLTrainer(Trainer):
 
         rng_pre, rng = jax.random.split(rng)
         batch = self.task.pre_pipelines(batch, rng_pre)
-        postpiperngs = jax.random.split(rng, len(self.task.post_pipelines) )
+        postpiperngs = jax.random.split(rng, len(self.task.post_pipelines))
         batch = list(
             map(
                 lambda rng, pipeline: pipeline(batch, rng),
                 postpiperngs,
                 self.task.post_pipelines,
-                )
             )
-        batch = jnp.stack(batch, axis=-1)
+        )
+        # batch stores views indexed by the pipeline that produced them
+        batch = {str(idx): val for idx, val in enumerate(batch)}
 
         accumulate_gradients = partial(
             self.accumulate_gradients,
@@ -176,26 +176,18 @@ class SSLTrainer(Trainer):
             if (val := getattr(state, mutable_key, None)) is not None:
                 state_params[mutable_key] = val
 
-        (loss, grad), aux = accumulate_gradients(
-            grad_fn,
-            batch,
-            state_params
-        )
+        (loss, grad), aux = accumulate_gradients(grad_fn, batch, state_params)
         loss, grad = (
             jax.lax.pmean(loss, axis_name="batch"),
             jax.lax.pmean(grad, axis_name="batch"),
         )
 
-
-        if ("mutable_states" in aux):
+        if "mutable_states" in aux:
             state = state.apply_gradients(
-                grads=grad["params"],
-                **{"mutable_states": aux["mutable_states"]},
+                grads=grad["params"], **{"mutable_states": aux["mutable_states"]},
             )
         else:
-            state = state.apply_gradients(
-                grads=grad["params"],
-            )
+            state = state.apply_gradients(grads=grad["params"],)
 
         for idx, fun in enumerate(self.task.post_process_funcs):
             state = state.replace(params=fun(state.params, state.step))
@@ -221,12 +213,12 @@ class SSLTrainer(Trainer):
         """
         if accumulate_steps > 1:
             assert (
-                batch.shape[0] % accumulate_steps == 0
+                all(array.shape[0] % accumulate_steps == 0) for array in jax.tree_util.tree_leaves(batch)
             ), f"Bad accum_steps {self.task.config.env.accum_steps} for batch size {batch.shape[0]}"
             assert (
                 "batch_stats" not in params
             ), f"Batchnorm not supported when accumulating gradients"
-            step_size = batch.shape[0] // accumulate_steps
+            step_size = jax.tree_util.tree_leaves(batch)[0].shape[0] // accumulate_steps
             if dynamic_scale:
                 dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(
                     {"params": params["params"]}, batch
@@ -235,11 +227,11 @@ class SSLTrainer(Trainer):
                 loss_and_aux, grad = grad_fn({"params": params["params"]}, batch)
             (loss, aux) = loss_and_aux
 
-
             def acc_grad_and_loss(i, loss_and_grad):
-                btch = jax.lax.dynamic_slice(
-                    batch, (i * step_size, 0, 0), (step_size,) + batch.shape[1:]
-                )
+                # TODO: (i * step_size, 0) assumes image shape, should generalize
+                btch = {str(pipeid): jax.lax.dynamic_slice(
+                    view, (i * step_size, 0), (step_size,) + view.shape[1:]
+                ) for pipeid, view in batch.items()}
                 if dynamic_scale:
                     dyn_scale, is_fin, loss_and_aux, grad_i = grad_fn(
                         {"params": params["params"]}, btch
@@ -252,7 +244,7 @@ class SSLTrainer(Trainer):
                 return (
                     loss + loss_i,
                     jax.tree_multimap(lambda x, y: x + y, grad, grad_i),
-                    aux
+                    aux,
                 )
 
             loss, grad, aux = jax.lax.fori_loop(
@@ -261,9 +253,7 @@ class SSLTrainer(Trainer):
             return jax.tree_map(lambda x: x / accumulate_steps, (loss, grad)), aux
         else:
             if dynamic_scale:
-                dyn_scale, is_fin, loss_and_aux, grad = grad_fn(
-                    params, batch
-                )
+                dyn_scale, is_fin, loss_and_aux, grad = grad_fn(params, batch)
             else:
                 loss_and_aux, grad = grad_fn(params, batch)
 
@@ -282,12 +272,11 @@ class SSLTrainer(Trainer):
             outs, new_state = model_fn.apply(params, batch, mutable=mutable_keys)
             loss = self.task.loss(*outs)
             loss = jnp.mean(loss)
-
-            aux['mutable_states'] = new_state
+            aux["mutable_states"] = new_state
             return loss, aux
         else:
             outs = self.model.apply(params, batch)
-            loss = self.task.loss(*outs)
+            loss = self.task.loss(outs)
             loss = jnp.mean(loss)
             return loss, aux
 
@@ -316,17 +305,18 @@ class SSLTrainer(Trainer):
 
         self.model = self.task.model(config=self.task.config)
 
-        init_shape = (
+        data_shape = (
             [1]  # Batch size == 1
             + list(eval(self.task.config.env.input_shape))
-            + [len(self.task.config.model.branches)]
         )
 
-        init_data = jnp.ones(
-            tuple(init_shape),
-            model_dtype,
-        )
-        params = self.model.init(self.rng, init_data)
+        init_data = jnp.ones(tuple(data_shape), model_dtype,)
+
+        init_shape = {}
+        for branch, _ in self.task.config.pipelines.branches.items():
+            init_shape[str(branch)] = init_data.copy()
+
+        params = self.model.init(self.rng, init_shape)
 
         opt_collect = []
         prefix_branch = lambda x: "branch_" + str(x)
@@ -349,19 +339,18 @@ class SSLTrainer(Trainer):
         for mutable_key in mutable_keys:
             mutable_states[mutable_key] = params[mutable_key].unfreeze()
 
-
-        state_params = {"apply_fn": self.model.apply,
-                        "params": params["params"].unfreeze(),
-                        "tx": multi_tx,
-                        "mutable_states": mutable_states
-                        }
-
+        state_params = {
+            "apply_fn": self.model.apply,
+            "params": params["params"].unfreeze(),
+            "tx": multi_tx,
+            "mutable_states": mutable_states,
+        }
 
         state = TrainState.create(
             apply_fn=self.model.apply,
             params=params["params"].unfreeze(),
             tx=multi_tx,
-            mutable_states=mutable_states
+            mutable_states=mutable_states,
         )
 
         # load pretrained modules
@@ -370,8 +359,7 @@ class SSLTrainer(Trainer):
         # load checkpoint
         if self.task.config.env.restore_checkpoint.params:
             state = checkpoints.restore_checkpoint(
-                target=self.model,
-                **self.task.config.env.restore_checkpoint,
+                target=self.model, **self.task.config.env.restore_checkpoint,
             )
 
         loss_fn = partial(self.loss, model_fn=self.model, mutable_keys=mutable_keys)
@@ -407,8 +395,7 @@ def load_pretrained(config, state):
     for branch_key, branch in config.items():
         if "pretrained" in branch:
             replace = restore_checkpoint(
-                str(Path(__file__).parents[2]) + branch["pretrained"],
-                target=None,
+                str(Path(__file__).parents[2]) + branch["pretrained"], target=None,
             )
             if "model_state" in replace:
                 while "model_state" in replace:

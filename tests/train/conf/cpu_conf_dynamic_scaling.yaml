@@ -25,6 +25,7 @@ model:
   branches:
     0:
       name: OnlineBranch
+      pipelines: ["0"]
       stages:
         stop_gradient: False
         body:
@@ -56,6 +57,7 @@ model:
             activation_name: "relu"
     1:
       name: TargetBranch
+      pipelines: ["1"]
       stages:
         stop_gradient: True
         body:
@@ -120,9 +122,9 @@ meter:
 pipelines:
   pre:
     augmentations:
-        Identity:
-          params:
-            prob: 1.0
+      Identity:
+        params:
+          prob: 1.0
   branches:
     0:
       augmentations:

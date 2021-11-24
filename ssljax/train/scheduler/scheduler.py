@@ -36,8 +36,8 @@ for name, func in schedulers.items():
     register(Scheduler, name)(func)
 
 
-@register(Scheduler, "BYOLlars")
-def BYOLlars(
+@register(Scheduler, "BYOLlr")
+def BYOLlr(
     batch_size: int,
     base_learning_rate: float,
     total_steps: int,
