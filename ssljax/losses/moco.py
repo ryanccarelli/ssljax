@@ -1,6 +1,7 @@
 from typing import Mapping
 
 import jax.numpy as jnp
+from jax.tree_util import tree_leaves
 from optax.loss import sigmoid_binary_cross_entropy
 from ssljax.core import register
 from ssljax.losses.loss import Loss
@@ -32,6 +33,10 @@ def moco_infonce_loss(
         logits = jnp.einsum("nc,mc->nm", [q, k]) / tau
         labels = jnp.arange(logits.shape[0], dtype=jnp.float32)
         return sigmoid_binary_cross_entropy(logits, labels) * 2 * tau
+
+    assert all(
+        isinstance(x, jnp.ndarray) for x in tree_leaves(outs)
+    ), "loss functions act on jnp.arrays"
 
     # outs["i"]["j"] indicates output of branch i applied to pipeline j
     return _contrastive_loss(outs["0"]["0"], outs["1"]["1"], tau) + _contrastive_loss(
