@@ -33,7 +33,7 @@ class MLP(Model):
     """
 
     layer_dims: List[int]
-    batch_norm_params: dict
+    batch_norm_params: dict = None
     dtype: jax._src.numpy.lax_numpy._ScalarMeta = jnp.float32
     dropout_prob: float = 0.0
     batch_norm: bool = False
