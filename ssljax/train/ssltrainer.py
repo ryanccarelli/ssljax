@@ -278,7 +278,6 @@ class SSLTrainer(Trainer):
         else:
             outs = self.model.apply(params, batch)
             loss = self.task.loss(outs)
-            loss = jnp.mean(loss)
             return loss, aux
 
     def eval(self):

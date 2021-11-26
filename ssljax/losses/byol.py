@@ -23,34 +23,45 @@ from ssljax.losses.loss import Loss
 
 
 @register(Loss, "byol_regression_loss")
-def byol_regression_loss(outs: Mapping[str, Mapping[str, jnp.ndarray]]) -> jnp.ndarray:
+def byol_regression_loss(
+    outs: Mapping[str, Mapping[str, jnp.ndarray]], reduction: Optional[Text] = "mean"
+) -> jnp.ndarray:
     """
     Cosine similarity regression loss.
 
     Args:
         outs (Mapping[str, Mapping[str, jnp.ndarray]]): model output
+        reduction (str): Type of reduction to apply to batch.
     """
     assert all(
         isinstance(x, jnp.ndarray) for x in tree_leaves(outs)
     ), "loss functions act on jnp.arrays"
     # outs["i"]["j"] indicates output of branch i applied to pipeline j
-    normed_x, normed_y = l2_normalize(outs["0"]["0"], axis=-1), l2_normalize(
-        outs["1"]["1"], axis=-1
+    normed_x, normed_y = (
+        l2_normalize(outs["0"]["0"], axis=-1),
+        l2_normalize(outs["1"]["1"], axis=-1),
     )
-    return jnp.sum((normed_x - normed_y) ** 2, axis=-1)
+    loss = jnp.sum((normed_x - normed_y) ** 2, axis=-1)
+    if reduction == "sum":
+        return jnp.sum(loss)
+    elif reduction == "mean":
+        return jnp.mean(loss)
+    elif reduction == "none" or reduction is None:
+        return loss
+    else:
+        raise ValueError(f"Incorrect reduction mode {reduction}")
 
 
 @register(Loss, "byol_softmax_cross_entropy_loss")
 def byol_softmax_cross_entropy(
-    outs: Mapping[str, Mapping[str, jnp.ndarray]],
-    reduction: Optional[Text] = "mean",
+    outs: Mapping[str, Mapping[str, jnp.ndarray]], reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
     """
     Computes softmax cross entropy given logits and one-hot class labels.
 
     Args:
         outs (Mapping[str, Mapping[str, jnp.ndarray]]): model output
-        reduction (str): Type of reduction to apply to loss.
+        reduction (str): Type of reduction to apply to batch.
 
     Returns:
         Loss value. If `reduction` is `none`, this has the same shape as `labels`;
@@ -75,15 +86,13 @@ def byol_softmax_cross_entropy(
 
 
 def l2_normalize(
-    x: jnp.ndarray,
-    axis: Optional[int] = None,
-    epsilon: float = 1e-12,
+    x: jnp.ndarray, axis: Optional[int] = None, epsilon: float = 1e-12,
 ) -> jnp.ndarray:
     """
     l2 normalize a tensor on an axis with numerical stability.
 
     Args:
-        x (jnp.mdarray):
+        x (jnp.ndarray):
     """
     assert isinstance(x, jnp.ndarray), "loss functions act on jnp.arrays"
     assert isinstance(axis, int), "axis must be int"
