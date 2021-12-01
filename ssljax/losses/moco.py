@@ -29,8 +29,7 @@ def moco_infonce_loss(
             k (jnp.ndarray): key
             tau (float): temperature parameter
         """
-        # l2_normalize in byol vs jnp.linalg.norm
-        q_norm  = jnp.linalg.norm(q, ord=2, axis=1)
+        q_norm = jnp.linalg.norm(q, ord=2, axis=1)
         k_norm = jnp.linalg.norm(k, ord=2, axis=1)
         q = q / q_norm
         k = q / k_norm

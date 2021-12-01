@@ -22,6 +22,7 @@ class TestTrainer:
         trainer = task.trainer
         trainer.train()
 
+    """
     @pytest.mark.gpu
     def test_train_vit(self, cputestconfig):
         cputestconfig["model"]["branches"][0]["params"]["body"]["name"] = "VIT"
@@ -32,6 +33,7 @@ class TestTrainer:
         task = Task(cputestconfig)
         trainer = task.trainer
         trainer.train()
+    """
 
     @pytest.mark.gpu
     def test_train_byol(self, byoltestconfig):
