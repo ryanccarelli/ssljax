@@ -30,11 +30,12 @@ def moco_infonce_loss(
             tau (float): temperature parameter
         """
         # l2_normalize in byol vs jnp.linalg.norm
-        q = jnp.linalg.norm(q, ord=2, axis=1)
-        k = jnp.linalg.norm(k, ord=2, axis=1)
-        # TODO: there is a gather all targets step here
-        # possibly needed to prevent einsum error
-        logits = jnp.einsum("nc,mc->nm", [q, k]) / tau
+        q_norm  = jnp.linalg.norm(q, ord=2, axis=1)
+        k_norm = jnp.linalg.norm(k, ord=2, axis=1)
+        q = q / q_norm
+        k = q / k_norm
+        print("shape,", q.shape, k.shape)
+        logits = jnp.einsum("nc,mc->nm", q, k) / tau
         labels = jnp.arange(logits.shape[0], dtype=jnp.float32)
         return sigmoid_binary_cross_entropy(logits, labels) * 2 * tau
 
