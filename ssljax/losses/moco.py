@@ -34,7 +34,6 @@ def moco_infonce_loss(
         k_norm = jnp.linalg.norm(k, ord=2, axis=1)
         q = q / q_norm
         k = q / k_norm
-        print("shape,", q.shape, k.shape)
         logits = jnp.einsum("nc,mc->nm", q, k) / tau
         labels = jnp.arange(logits.shape[0], dtype=jnp.float32)
         return sigmoid_binary_cross_entropy(logits, labels) * 2 * tau
@@ -45,7 +44,7 @@ def moco_infonce_loss(
 
     # outs["i"]["j"] indicates output of branch i applied to pipeline j
     loss = _contrastive_loss(outs["0"]["0"], outs["1"]["1"], tau) + _contrastive_loss(
-        outs["0"]["1"], outs["1"]["0"], tau
+        outs["1"]["1"], outs["0"]["0"], tau
     )
     if reduction == "sum":
         return jnp.sum(loss)
