@@ -43,7 +43,7 @@ def moco_infonce_loss(
 
     # outs["i"]["j"] indicates output of branch i applied to pipeline j
     loss = _contrastive_loss(outs["0"]["0"], outs["1"]["1"], tau) + _contrastive_loss(
-        outs["1"]["1"], outs["0"]["0"], tau
+        outs["0"]["1"], outs["1"]["0"], tau
     )
     if reduction == "sum":
         return jnp.sum(loss)
