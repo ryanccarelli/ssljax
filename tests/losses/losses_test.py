@@ -11,7 +11,10 @@ class TestLosses:
     )
     def test_returns(self, fn):
         # (embedding, batch)
-        outs = {"0": {"0": jnp.ones((10, 10))}, "1": {"1": jnp.ones((10, 10))}}
+        outs = {
+            "0": {"0": jnp.ones((10, 10)), "1": jnp.ones((10, 10))},
+            "1": {"0": jnp.ones((10, 10)), "1": jnp.ones((10, 10))},
+        }
         loss = fn(outs)
         # reduction transforms rank 1 -> 0
         assert_rank(loss, 0)
