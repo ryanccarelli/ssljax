@@ -53,11 +53,23 @@ class SSLModel(Model):
 
         return outs
 
-    def freeze_head(self, branch_name):
-        raise NotImplementedError
+    def detach_module(self, branch, module):
+        """
+        Detach a module (for inference).
 
-    def freeze_body(self, branch_name):
+        Args:
+            branch (str): branch key
+            module (str): module key
+
+        Example:
+            TODO
+        """
+        # overwrite call?
         raise NotImplementedError
 
     def is_frozen(self):
+        """
+        Returns:
+            bool: true if any module is frozen
+        """
         raise NotImplementedError

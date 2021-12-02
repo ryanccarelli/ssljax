@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 from ssljax.augment.augmentation.augmentation import Augmentation
 from ssljax.core import get_from_register
+from omegaconf import DictConfig
 
 
 class Pipeline(Augmentation):
@@ -9,7 +10,7 @@ class Pipeline(Augmentation):
     A Pipeline is a composition of Augmentations.
 
     Args:
-        config (hydra.OmegaConf): config at pipelines.branches.i where i is branch index
+        config (DictConfig): config at pipelines.branches.i where i is pipeline index
     """
 
     def __init__(self, config):

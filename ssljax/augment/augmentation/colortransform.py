@@ -49,7 +49,7 @@ def hsv_to_rgb(h, s, v):
     dh = (h % 1.0) * 6.0
     fmodu = dh % 2.0
     x = c * (1 - jnp.abs(fmodu - 1))
-    hcat = jnp.floor(dh).astype(jnp.int32)
+    hcat = jnp.floor(dh).astype(jnp.float32)
     rr = (
         jnp.where(
             (hcat == 0) | (hcat == 5), c, jnp.where((hcat == 1) | (hcat == 4), x, 0)

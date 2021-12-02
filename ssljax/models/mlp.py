@@ -33,13 +33,21 @@ class MLP(Model):
     """
 
     layer_dims: List[int]
-    batch_norm_params: dict
+    batch_norm_params: dict = None
     dtype: jax._src.numpy.lax_numpy._ScalarMeta = jnp.float32
     dropout_prob: float = 0.0
     batch_norm: bool = False
-    activation_name: Callable = "relu"
+    activation_name: str = "relu"
 
     def setup(self):
+        assert (
+            isinstance(self.layer_dims, list) and isinstance(i, int)
+            for i in self.layer_dims
+        ), "layer dimensions must be a list of integers"
+        assert self.activation_name in [
+            "relu",
+            "gelu",
+        ], "supported activations are {'relu', 'gelu'}"
         if self.activation_name == "relu":
             self.activation = nn.relu
         elif self.activation_name == "gelu":
@@ -77,9 +85,14 @@ def _truncated_normal(lower, upper, mean=0, stddev=1, dtype=jnp.float_):
         key_tn, key = jax.random.split(key)
         return (
             truncated_normal(
-                key=key_tn, lower=lower/stddev, upper=upper/stddev, shape=shape, dtype=dtype
+                key=key_tn,
+                lower=lower / stddev,
+                upper=upper / stddev,
+                shape=shape,
+                dtype=dtype,
             )
-            * stddev + mean
+            * stddev
+            + mean
         )
 
     return init

@@ -300,7 +300,7 @@ class ColorTransform(Augmentation):
         def _color_jitter(x):
             rgb_tuple = tuple(jax.tree_map(jnp.squeeze, jnp.split(x, 3, axis=-1)))
             if shuffle:
-                order = jax.random.permutation(perm_rng, jnp.arange(4, dtype=jnp.int32))
+                order = jax.random.permutation(perm_rng, jnp.arange(4, dtype=jnp.float32))
             else:
                 order = range(4)
             for idx in order:
@@ -329,7 +329,7 @@ class ColorTransform(Augmentation):
         return jnp.clip(out_apply, 0.0, 1.0)
 
     def __repr__(self):
-        return "ColorJitter"
+        return "ColorTransform"
 
 
 @register(Augmentation, "Solarize")
@@ -480,6 +480,8 @@ class RandomCrop(Augmentation):
         x2 = x1 + crop_width
         return x1, y1, x2, y2
 
+    def __repr__(self):
+        return "RandomCrop"
 
 @register(Augmentation, "CenterCrop")
 class CenterCrop(Augmentation):
@@ -505,7 +507,7 @@ class CenterCrop(Augmentation):
         center_crop_fn = functools.partial(
             self._center_crop, crop_height=self.height, crop_width=self.width
         )
-        return jax.vmap(center_crop_fn)(x, rngs)
+        return jax.vmap(center_crop_fn)(img=x)
 
     def _get_center_crop_coords(
         self, height: int, width: int, crop_height: int, crop_width: int
@@ -533,3 +535,6 @@ class CenterCrop(Augmentation):
         )
         img = img[y1:y2, x1:x2]
         return img
+
+    def __repr__(self):
+        return "CenterCrop"
