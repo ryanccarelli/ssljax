@@ -98,12 +98,3 @@ def scenic(
         dataset_service_address=dataset_service_address,
     )
     return dataset
-
-"""
-data = {
-    "Base": scenic
-}
-
-for name, func in data.items():
-    register(ScenicData, name)(func)
-"""

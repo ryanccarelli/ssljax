@@ -185,7 +185,10 @@ pipelines:
             x_min: 0
             x_max: 1
 
-dataloader:
-  name: CIFAR10
+data:
+  name: Base
   params:
+    dataset_name: "cifar10"
     batch_size: 128
+    data_dtype_str: "float32"
+    dataset_configs: {}
