@@ -132,7 +132,7 @@ meter:
 pipelines:
   # pre-augmentations should be computed in the dataloader
   # these typically include decode/centercrop, random crop+resize
- flatten: False
+  flatten: False
   branches:
     0:
       augmentations:
