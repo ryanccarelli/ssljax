@@ -121,7 +121,6 @@ class SSLTrainer(Trainer):
             if "batch_stats" in state.mutable_states.keys():
                 state = sync_batch_stats(state)
             writer.add_scalar("loss", np.array(loss).mean())
-        raise Exception("Exception")
         return state
 
     def step(

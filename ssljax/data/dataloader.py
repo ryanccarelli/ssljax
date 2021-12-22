@@ -49,7 +49,7 @@ class ScenicData:
 
 
 @register(ScenicData, "Base")
-def Scenic(
+def scenic(
     config: omegaconf.DictConfig,
     data_rng: jax.random.PRNGKey,
     *,
@@ -98,3 +98,12 @@ def Scenic(
         dataset_service_address=dataset_service_address,
     )
     return dataset
+
+"""
+data = {
+    "Base": scenic
+}
+
+for name, func in data.items():
+    register(ScenicData, name)(func)
+"""

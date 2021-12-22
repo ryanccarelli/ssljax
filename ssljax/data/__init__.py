@@ -1,1 +1,1 @@
-from .dataloader import Scenic, ScenicData
+from .dataloader import scenic, ScenicData

@@ -9,7 +9,7 @@ import jax.random
 from omegaconf import DictConfig
 from ssljax.augment.pipeline.pipeline import Pipeline
 from ssljax.core import get_from_register, prepare_environment, print_registry
-from ssljax.data import Scenic
+from ssljax.data import ScenicData
 from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
@@ -157,7 +157,7 @@ class Task:
         Returns (Dataloader): The dataloader to use for the task.
         """
         _, data_rng = jax.random.split(self.rng)
-        return get_from_register("ScenicData", self.config.data.name)(
+        return get_from_register(ScenicData, self.config.data.name)(
             config=self.config.data.params,
             data_rng=data_rng,
         )
