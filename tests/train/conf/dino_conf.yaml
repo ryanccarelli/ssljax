@@ -153,7 +153,9 @@ model:
           module: CenterSoftmax
           params: {}
 
-loss: cross_entropy_loss
+loss:
+  name: cross_entropy_loss
+  params: {}
 
 optimizers:
   branches:
@@ -202,6 +204,7 @@ meter:
   name: SSLMeter
 
 pipelines:
+  flatten: False
   pre:
     augmentations:
       RandomFlip:
@@ -260,9 +263,6 @@ pipelines:
             x_max: 1
 
 dataloader:
-  platform: torch
   name: CIFAR10
   params:
     batch_size: 8
-    flatten: False
-    input_shape: (32,32,3)

@@ -1,20 +1,23 @@
 # test ssljax/models/resnet.py
 from typing import Any
 
+import flax.optim
 import jax.numpy as jnp
 import jax.random
+import optax
 import pytest
 from chex import assert_rank
-from ssljax.models.resnet import ResNet
-import optax
 from flax.training import train_state
-import flax.optim
+from ssljax.models.resnet import ResNet
+
 
 class TrainState(train_state.TrainState):
     batch_stats: Any
     dynamic_scale: flax.optim.DynamicScale
 
+
 # popular named resnet configurations
+@pytest.mark.gpu
 @pytest.mark.parametrize(
     "stage_sizes,block_cls_name",
     [
@@ -52,6 +55,10 @@ class TestResnet:
             batch_stats=params["batch_stats"],
             dynamic_scale=None,
         )
-        out, state = state.apply_fn({"params": params["params"], "batch_stats": state.batch_stats}, x, mutable=["batch_stats"])
+        out, state = state.apply_fn(
+            {"params": params["params"], "batch_stats": state.batch_stats},
+            x,
+            mutable=["batch_stats"],
+        )
         # assertions
         assert len(out.shape) == 2

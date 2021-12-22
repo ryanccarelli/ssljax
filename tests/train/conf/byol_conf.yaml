@@ -15,7 +15,6 @@ env:
   half_precision: False
   dynamic_scale: False
   dynamic_scale_params: {}
-  input_shape: (32,32,3)
 
 trainer:
   name: SSLTrainer
@@ -80,7 +79,9 @@ model:
             activation_name: "relu"
 
 
-loss: byol_regression_loss
+loss:
+  name: byol_regression_loss
+  params: {}
 
 optimizers:
   branches:
@@ -129,14 +130,9 @@ meter:
   name: SSLMeter
 
 pipelines:
-  pre:
-    augmentations:
-      # TODO: this needs to be RandomResizedCrop
-      RandomCrop:
-        params:
-          prob: 1.0
-          height: 32
-          width: 32
+  # pre-augmentations should be computed in the dataloader
+  # these typically include decode/centercrop, random crop+resize
+ flatten: False
   branches:
     0:
       augmentations:
@@ -190,9 +186,6 @@ pipelines:
             x_max: 1
 
 dataloader:
-  platform: torch
   name: CIFAR10
   params:
     batch_size: 128
-    flatten: False
-    input_shape: (32,32,3)

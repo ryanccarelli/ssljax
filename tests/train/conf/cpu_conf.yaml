@@ -77,7 +77,9 @@ model:
             batch_norm_params: {}
             activation_name: "relu"
 
-loss: byol_regression_loss
+loss:
+  name: byol_regression_loss
+  params: {}
 
 optimizers:
   branches:
@@ -106,7 +108,6 @@ schedulers:
         params:
           value: 0.2
 
-
 post_process:
   funcs:
     0:
@@ -120,6 +121,7 @@ meter:
   name: SSLMeter
 
 pipelines:
+  flatten: True
   pre:
     augmentations:
       Identity:
@@ -137,9 +139,10 @@ pipelines:
           params:
             prob: 1.0
 
-dataloader:
-  platform: torch
-  name: MNIST
+data:
+  name: Base
   params:
-    batch_size: 32
-    num_shards: 8
+    dataset_name: "mnist"
+    batch_size: 40
+    data_dtype_str: "float32"
+    dataset_configs: {}

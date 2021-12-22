@@ -157,7 +157,9 @@ model:
               epsilon: 1e-5
             activation_name: "relu"
 
-loss: moco_loss
+loss:
+  name: moco_loss
+  params: {}
 
 optimizers:
   branches:
@@ -200,6 +202,7 @@ meter:
   name: SSLMeter
 
 pipelines:
+  flatten: False
   pre:
     augmentations:
       # TODO: this needs to be RandomResizedCrop
@@ -261,9 +264,6 @@ pipelines:
             x_max: 1
 
 dataloader:
-  platform: torch
   name: CIFAR10
   params:
     batch_size: 4096
-    flatten: False
-    input_shape: (32,32,3)

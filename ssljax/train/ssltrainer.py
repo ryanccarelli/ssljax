@@ -97,8 +97,14 @@ class SSLTrainer(Trainer):
             p_step: pmapped step function
         """
 
-        for data, _ in iter(self.task.dataloader):
-            # TODO: need to wrap torch and tfds dataloaders so they return a consistent format
+        # get training steps
+        steps_per_epoch = self.task.data.meta_data.get("num_training_examples", 0) // self.task.config.data.params.batch_size
+        for step in range(steps_per_epoch):
+            data = next(self.task.data.train_iter)
+            data = data["inputs"]
+            if self.task.config.pipelines.flatten:
+                # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
+                data = data.reshape(*data.shape[:-3], -1)
             batch = jax.device_put(data)
 
             self.rng, rng_step = jax.random.split(self.rng)
@@ -109,12 +115,13 @@ class SSLTrainer(Trainer):
             state, loss = p_step(state, batch, rng_step)
 
             end_time = time.time()
-            print("Exec time: ", end_time - start_time)
+            print("Step time: ", end_time - start_time)
 
             # Sync batch stats across multiple devices
             if "batch_stats" in state.mutable_states.keys():
                 state = sync_batch_stats(state)
             writer.add_scalar("loss", np.array(loss).mean())
+        raise Exception("Exception")
         return state
 
     def step(
@@ -172,6 +179,7 @@ class SSLTrainer(Trainer):
         else:
             grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
 
+
         state_params = {"params": state.params}
         for mutable_key in mutable_keys:
             if (val := getattr(state, mutable_key, None)) is not None:
@@ -212,6 +220,7 @@ class SSLTrainer(Trainer):
             batch (jnp.array): a single data batch
             params (flax.core.frozen_dict.FrozenDict[str, Any]): model parameters
         """
+
         if accumulate_steps > 1:
             assert (
                 all(array.shape[0] % accumulate_steps == 0) for array in jax.tree_util.tree_leaves(batch)
@@ -231,7 +240,7 @@ class SSLTrainer(Trainer):
             def acc_grad_and_loss(i, loss_and_grad):
                 # TODO: (i * step_size, 0) assumes image shape, should generalize
                 btch = {str(pipeid): jax.lax.dynamic_slice(
-                    view, (i * step_size, 0), (step_size,) + view.shape[1:]
+                    view, (0, i * step_size, 0), (view.shape[0],) + (step_size,) + view.shape[2:]
                 ) for pipeid, view in batch.items()}
                 if dynamic_scale:
                     dyn_scale, is_fin, loss_and_aux, grad_i = grad_fn(
@@ -305,12 +314,13 @@ class SSLTrainer(Trainer):
 
         self.model = self.task.model(config=self.task.config)
 
-        data_shape = (
-            [1]  # Batch size == 1
-            + list(eval(self.task.config.env.input_shape))
-        )
+        data_shape = self.task.data.meta_data["input_shape"][1:]
 
-        init_data = jnp.ones(tuple(data_shape), model_dtype,)
+        init_data = jnp.ones(data_shape, model_dtype,)
+
+        if self.task.config.pipelines.flatten:
+            # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
+            init_data = init_data.reshape(*init_data.shape[:-3], -1)
 
         init_shape = {}
         for branch, _ in self.task.config.pipelines.branches.items():
@@ -347,6 +357,7 @@ class SSLTrainer(Trainer):
         }
 
         state = TrainState.create(
+            global_step=0,
             apply_fn=self.model.apply,
             params=params["params"].unfreeze(),
             tx=multi_tx,

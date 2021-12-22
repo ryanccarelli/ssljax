@@ -1,12 +1,15 @@
 # similar to https://github.com/facebookresearch/vissl/blob/master/vissl/trainer/train_task.py
 import logging
 from collections import OrderedDict
+from functools import partial
 from typing import Callable, Dict, List
 
+import jax.numpy as jnp
+import jax.random
 from omegaconf import DictConfig
 from ssljax.augment.pipeline.pipeline import Pipeline
 from ssljax.core import get_from_register, prepare_environment, print_registry
-from ssljax.data import DataLoader, ScenicData, TorchData
+from ssljax.data import Scenic
 from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
@@ -49,7 +52,7 @@ class Task:
         self.meter = self._get_meter()
         self.pre_pipelines = self._get_pre_pipelines()
         self.post_pipelines = self._get_post_pipelines()
-        self.dataloader = self._get_dataloader()
+        self.data = self._get_data()
         self.post_process_funcs = self._get_post_process_list()
 
     def _get_trainer(self) -> Trainer:
@@ -73,7 +76,9 @@ class Task:
 
         Returns (Loss): The loss to use for the task.
         """
-        return get_from_register(Loss, self.config.loss)
+        return partial(
+            get_from_register(Loss, self.config.loss.name), **self.config.loss.params
+        )
 
     def _get_optimizers(self) -> List[Optimizer]:
         """
@@ -145,23 +150,17 @@ class Task:
 
         return pipelines
 
-    def _get_dataloader(self) -> DataLoader:
+    def _get_data(self):
         """
         Initialize the dataloader. This must be implemented by child tasks.
 
         Returns (Dataloader): The dataloader to use for the task.
         """
-        if self.config.dataloader.platform == "torch":
-            return get_from_register(TorchData, self.config.dataloader.name)(
-                **self.config.dataloader.params
-            )
-
-        elif self.config.dataloader.platform == "tfds":
-            return get_from_register(ScenicData, self.config.dataloader.name)(
-                **self.config.dataloader.params
-            )
-        else:
-            raise KeyError("dataloader.platform must be in {torch, tfds}")
+        _, data_rng = jax.random.split(self.rng)
+        return get_from_register("ScenicData", self.config.data.name)(
+            config=self.config.data.params,
+            data_rng=data_rng,
+        )
 
     def _get_post_process_list(self) -> List[Callable]:
         post_process_list = []
