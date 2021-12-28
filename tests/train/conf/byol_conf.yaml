@@ -9,7 +9,7 @@ env:
       ckpt_dir: "outs/checkpoints/"
       keep: 1
       overwrite: True
-      keep_every_n_steps: 300
+      keep_every_n_steps: 10
   restore_checkpoint:
     params: {}
   half_precision: False
@@ -29,11 +29,10 @@ model:
         stop_gradient: False
         body:
           module: ResNet
-          pretrained: "/tests/train/conf/ResNet50_ImageNet1k"
           params:
-            stage_sizes: [3, 4, 6, 3]
-            block_cls_name: "BottleneckResNetBlock"
-            num_classes: False
+            num_outputs: False
+            num_filters: 64
+            num_layers: 50
         head:
           module: MLP
           params:
@@ -45,6 +44,7 @@ model:
               momentum: 0.9
               epsilon: 1e-5
             activation_name: "relu"
+            dtype: "float32"
         pred:
           module: MLP
           params:
@@ -53,6 +53,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
 
     1:
       name: Branch
@@ -61,11 +62,10 @@ model:
         stop_gradient: True
         body:
           module: ResNet
-          pretrained: "/tests/train/conf/ResNet50_ImageNet1k"
           params:
-            stage_sizes: [3, 4, 6, 3]
-            block_cls_name: "BottleneckResNetBlock"
-            num_classes: False
+            num_outputs: False
+            num_filters: 64
+            num_layers: 50
         head:
           module: MLP
           params:
@@ -77,6 +77,7 @@ model:
               momentum: 0.9
               epsilon: 1e-5
             activation_name: "relu"
+            dtype: "float32"
 
 
 loss:

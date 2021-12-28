@@ -98,7 +98,7 @@ class SSLTrainer(Trainer):
         """
 
         # get training steps
-        steps_per_epoch = self.task.data.meta_data.get("num_training_examples", 0) // self.task.config.data.params.batch_size
+        steps_per_epoch = self.task.data.meta_data.get("num_train_examples", 0) // self.task.config.data.params.batch_size
         for step in range(steps_per_epoch):
             data = next(self.task.data.train_iter)
             data = data["inputs"]
@@ -149,7 +149,8 @@ class SSLTrainer(Trainer):
         """
 
         rng_pre, rng = jax.random.split(rng)
-        batch = self.task.pre_pipelines(batch, rng_pre)
+        if self.task.pre_pipelines:
+            batch = self.task.pre_pipelines(batch, rng_pre)
         postpiperngs = jax.random.split(rng, len(self.task.post_pipelines))
         batch = list(
             map(
@@ -227,7 +228,8 @@ class SSLTrainer(Trainer):
             assert (
                 "batch_stats" not in params
             ), f"Batchnorm not supported when accumulating gradients"
-            step_size = jax.tree_util.tree_leaves(batch)[0].shape[0] // accumulate_steps
+            # batch dimensions represent (shard, example, shape)
+            step_size = jax.tree_util.tree_leaves(batch)[0].shape[1] // accumulate_steps
             if dynamic_scale:
                 dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(
                     {"params": params["params"]}, batch
@@ -237,9 +239,12 @@ class SSLTrainer(Trainer):
             (loss, aux) = loss_and_aux
 
             def acc_grad_and_loss(i, loss_and_grad):
-                # TODO: (i * step_size, 0) assumes image shape, should generalize
+                # view shape is (1, 32, 784) (shard, example, shape) where 32 is batch size
+                # we slice into step_size chunks along the example dimension
                 btch = {str(pipeid): jax.lax.dynamic_slice(
-                    view, (0, i * step_size, 0), (view.shape[0],) + (step_size,) + view.shape[2:]
+                    view,
+                    (0, i*step_size,) + tuple(np.zeros(len(view.shape[2:]), int)),
+                    (view.shape[0],) + (step_size,) + view.shape[2:],
                 ) for pipeid, view in batch.items()}
                 if dynamic_scale:
                     dyn_scale, is_fin, loss_and_aux, grad_i = grad_fn(
@@ -313,7 +318,12 @@ class SSLTrainer(Trainer):
 
         self.model = self.task.model(config=self.task.config)
 
+        # .meta_data["input_shape"] is (-1, H, W, C)
         data_shape = self.task.data.meta_data["input_shape"][1:]
+        # add batch dimension
+        data_shape = (1,) + data_shape
+
+        print(data_shape)
 
         init_data = jnp.ones(data_shape, model_dtype,)
 

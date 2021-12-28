@@ -15,7 +15,6 @@ env:
   half_precision: False
   dynamic_scale: False
   dynamic_scale_params: {}
-  input_shape: (784,)
 
 trainer:
   name: SSLTrainer

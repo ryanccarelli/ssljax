@@ -177,7 +177,7 @@ class GaussianBlur(Augmentation):
         blurred = self._depthwise_conv2d(
             blurred, blur_v, strides=[1, 1], padding=padding
         )
-        blurred = jnp.squeeze(blurred, axis=0)
+        # blurred = jnp.squeeze(blurred, axis=0)
         return blurred
 
     def __repr__(self):

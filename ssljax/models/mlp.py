@@ -21,48 +21,47 @@ Array = Any
 @register(Model, "MLP")
 class MLP(Model):
     """
-    Base implementation of multilayer perceptron.
+    Base implementation of multilayer perceptron. Args format is for consistency
+    with Scenic.
 
     Args:
-        layer_dims(List[int]): list indicating number of neurons in each layer
-        dtype: jnp datatype
-        dropout_prob(float): dropout rate hyperparameteri
-        batch_norm(bool): whether to use batchnorm between layers
-        batch_norm_params(dict): params to be passed to nn.BatchNorm
-        activation_name(str): activation function
+        config (omegaconf.DictConfig): configuration containing
+            layer_dims(List[int]): list indicating number of neurons in each layer
+            dtype: jnp datatype
+            dropout_prob(float): dropout rate hyperparameteri
+            batch_norm(bool): whether to use batchnorm between layers
+            batch_norm_params(dict): params to be passed to nn.BatchNorm
+            activation_name(str): activation function
     """
 
-    layer_dims: List[int]
-    batch_norm_params: dict = None
-    dtype: jax._src.numpy.lax_numpy._ScalarMeta = jnp.float32
-    dropout_prob: float = 0.0
-    batch_norm: bool = False
-    activation_name: str = "relu"
+    config: DictConfig
 
     def setup(self):
         assert (
-            isinstance(self.layer_dims, list) and isinstance(i, int)
-            for i in self.layer_dims
+            isinstance(self.config.layer_dims, list) and isinstance(i, int)
+            for i in self.config.layer_dims
         ), "layer dimensions must be a list of integers"
-        assert self.activation_name in [
+        assert self.config.activation_name in [
             "relu",
             "gelu",
         ], "supported activations are {'relu', 'gelu'}"
-        if self.activation_name == "relu":
+        if self.config.activation_name == "relu":
             self.activation = nn.relu
-        elif self.activation_name == "gelu":
+        elif self.config.activation_name == "gelu":
             self.activation = nn.gelu
         else:
             raise KeyError("activation must be in {relu, gelu}")
+        dtypedict = {"float32": jnp.float32, "float16": jnp.float16, "bfloat16": jnp.bfloat16}
+        self.dtype = dtypedict[self.config.dtype]
         layers = []
-        for layer in self.layer_dims[:-1]:
-            layers.append(nn.Dense(layer, dtype=self.dtype))
-            if self.batch_norm:
-                layers.append(nn.BatchNorm(**self.batch_norm_params))
+        for layer in self.config.layer_dims[:-1]:
+            layers.append(nn.Dense(layer, dtype=self.config.dtype))
+            if self.config.batch_norm:
+                layers.append(nn.BatchNorm(**self.config.batch_norm_params))
             layers.append(self.activation)
-            if self.dropout_prob:
-                layers.append(nn.Dropout(rate=self.dropout_prob))
-        layers.append(nn.Dense(self.layer_dims[-1], dtype=self.dtype))
+            if self.config.dropout_prob:
+                layers.append(nn.Dropout(rate=self.config.dropout_prob))
+        layers.append(nn.Dense(self.config.layer_dims[-1], dtype=self.config.dtype))
         self.layers = layers
 
     @nn.compact
