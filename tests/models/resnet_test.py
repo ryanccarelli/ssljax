@@ -10,6 +10,7 @@ from chex import assert_rank
 from flax.training import train_state
 from ssljax.models.resnet import ResNet
 from omegaconf import OmegaConf
+from scenic.projects.baselines.resnet import BLOCK_SIZE_OPTIONS
 
 
 class TrainState(train_state.TrainState):
@@ -57,8 +58,7 @@ class TestResnet:
             x,
             mutable=["batch_stats"],
         )
-        # assertions
         if num_outputs:
             assert out.shape[1] == num_outputs
         else:
-            assert isinstance(out, dict)
+            assert isinstance(out, jnp.ndarray)
