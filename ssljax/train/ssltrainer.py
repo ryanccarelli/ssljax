@@ -283,7 +283,7 @@ class SSLTrainer(Trainer):
         aux = {}
         if mutable_keys:
             outs, new_state = model_fn.apply(params, batch, mutable=mutable_keys)
-            loss = self.task.loss(*outs)
+            loss = self.task.loss(outs)
             loss = jnp.mean(loss)
             aux["mutable_states"] = new_state
             return loss, aux
