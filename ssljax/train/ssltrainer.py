@@ -108,9 +108,8 @@ class SSLTrainer(Trainer):
             batch = jax.device_put(data)
 
             self.rng, rng_step = jax.random.split(self.rng)
-
             rng_step = jax_utils.replicate(rng_step)
-            batch = jax_utils.replicate(batch)
+
             start_time = time.time()
             state, loss = p_step(state, batch, rng_step)
 
