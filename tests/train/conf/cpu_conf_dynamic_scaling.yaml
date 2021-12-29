@@ -38,6 +38,7 @@ model:
               momentum: 0.9
               epsilon: 1e-5
             activation_name: "relu"
+            dtype: "float32"
         head:
           module: MLP
           params:
@@ -46,6 +47,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
         pred:
           module: MLP
           params:
@@ -54,6 +56,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
     1:
       name: TargetBranch
       pipelines: ["1"]
@@ -67,6 +70,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
         head:
           module: MLP
           params:
@@ -75,6 +79,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
 
 
 loss:

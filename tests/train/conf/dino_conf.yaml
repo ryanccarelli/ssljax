@@ -79,6 +79,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "gelu"
+            dtype: "float32"
         dinohead:
           module: DINOHead
           params:

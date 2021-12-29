@@ -39,6 +39,7 @@ model:
               momentum: 0.9
               epsilon: 1e-5
             activation_name: "relu"
+            dtype: "float32"
         head:
           module: MLP
           params:
@@ -47,6 +48,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
         pred:
           module: MLP
           params:
@@ -55,6 +57,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
     1:
       name: Branch
       pipelines: ["1"]
@@ -69,6 +72,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
         head:
           module: MLP
           params:
@@ -77,6 +81,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
 
 loss:
   name: byol_regression_loss
@@ -144,6 +149,6 @@ data:
   name: Base
   params:
     dataset_name: "mnist"
-    batch_size: 40
+    batch_size: 32
     data_dtype_str: "float32"
     dataset_configs: {}

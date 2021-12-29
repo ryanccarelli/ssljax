@@ -102,6 +102,7 @@ class SSLTrainer(Trainer):
         for step in range(steps_per_epoch):
             data = next(self.task.data.train_iter)
             data = data["inputs"]
+            print("data shape is: ", data.shape)
             if self.task.config.pipelines.flatten:
                 # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
                 data = data.reshape(*data.shape[:-3], -1)
@@ -147,6 +148,8 @@ class SSLTrainer(Trainer):
             accumulate_steps (int): number of steps to accumulate
         """
 
+        state.replace(global_step = state.global_step + 1)
+        print(state.global_step)
         rng_pre, rng = jax.random.split(rng)
         if self.task.pre_pipelines:
             batch = self.task.pre_pipelines(batch, rng_pre)
@@ -322,7 +325,7 @@ class SSLTrainer(Trainer):
         # add batch dimension
         data_shape = (1,) + data_shape
 
-        print(data_shape)
+        print("init shape is: ", data_shape)
 
         init_data = jnp.ones(data_shape, model_dtype,)
 
