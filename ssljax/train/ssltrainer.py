@@ -250,8 +250,6 @@ class SSLTrainer(Trainer):
         # add batch dimension
         data_shape = (1,) + data_shape
 
-        print("init shape is: ", data_shape)
-
         init_data = jnp.ones(data_shape, model_dtype,)
 
         if self.task.config.pipelines.flatten:

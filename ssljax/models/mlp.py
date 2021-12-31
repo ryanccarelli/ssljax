@@ -66,8 +66,6 @@ class MLP(Model):
 
     @nn.compact
     def __call__(self, x, train=False):
-        print("mlp name: ", self.name)
-        print("mlp in: ", x.shape)
         for layer in self.layers:
             if isinstance(layer, flax.linen.stochastic.Dropout):
                 x = layer(x, deterministic=True)
