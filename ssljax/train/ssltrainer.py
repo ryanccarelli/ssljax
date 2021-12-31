@@ -102,7 +102,6 @@ class SSLTrainer(Trainer):
         for step in range(steps_per_epoch):
             data = next(self.task.data.train_iter)
             data = data["inputs"]
-            print("data shape is: ", data.shape)
             if self.task.config.pipelines.flatten:
                 # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
                 data = data.reshape(*data.shape[:-3], -1)
@@ -179,9 +178,9 @@ class SSLTrainer(Trainer):
                 state_params[mutable_key] = val
 
         if dynamic_scale:
-            dyn_scale, is_fin, loss_and_aux, grad = grad_fn(params, batch)
+            dyn_scale, is_fin, loss_and_aux, grad = grad_fn(state_params, batch)
         else:
-            loss_and_aux, grad = grad_fn(params, batch)
+            loss_and_aux, grad = grad_fn(state_params, batch)
 
         (loss, aux) = loss_and_aux
 
@@ -201,7 +200,6 @@ class SSLTrainer(Trainer):
             state = state.replace(params=fun(state.params, state.step))
 
         return state, loss
-
 
     def loss(self, params, batch, model_fn, mutable_keys=None):
         """
