@@ -28,6 +28,7 @@ def cosine_similarity(
 ) -> jnp.ndarray:
     """
     Cosine similarity regression loss.
+    Adapted from Deepmind implementation in official BYOL repo.
 
     Args:
         outs (Mapping[str, Mapping[str, jnp.ndarray]]): model output

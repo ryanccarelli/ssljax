@@ -36,8 +36,8 @@ for name, func in schedulers.items():
     register(Scheduler, name)(func)
 
 
-@register(Scheduler, "BYOLlr")
-def BYOLlr(
+@register(Scheduler, "byol_lr_schedule")
+def byol_lr_schedule(
     batch_size: int,
     base_learning_rate: float,
     total_steps: int,
@@ -74,8 +74,8 @@ def BYOLlr(
     return schedule
 
 
-@register(Scheduler, "BYOLema")
-def BYOLema(
+@register(Scheduler, "byol_ema_schedule")
+def byol_ema_schedule(
     base_ema: float,
     max_steps: int,
 ) -> jnp.ndarray:

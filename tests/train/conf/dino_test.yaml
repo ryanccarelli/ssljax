@@ -99,7 +99,7 @@ schedulers:
   branches:
     0:
       learning_rate:
-        name: BYOLlr
+        name: byol_lr_schedule
         params:
           # lr = 0.2 * batchsize/256
           base_learning_rate: 0.2
@@ -110,12 +110,11 @@ schedulers:
   post_process:
     0:
       tau:
-        name: BYOLema
+        name: byol_ema_schedule
         params:
           # TODO: why is this max_steps and total_steps above (inherit this weirdness from DM implementation)
           base_ema: .996
           max_steps: 100000
-
 
 post_process:
   funcs:
