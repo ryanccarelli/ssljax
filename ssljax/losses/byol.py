@@ -22,8 +22,8 @@ from ssljax.core import register
 from ssljax.losses.loss import Loss
 
 
-@register(Loss, "byol_regression_loss")
-def byol_regression_loss(
+@register(Loss, "cosine_similarity")
+def cosine_similarity(
     outs: Mapping[str, Mapping[str, jnp.ndarray]], reduction: Optional[Text] = "mean"
 ) -> jnp.ndarray:
     """
@@ -52,8 +52,8 @@ def byol_regression_loss(
         raise ValueError(f"Incorrect reduction mode {reduction}")
 
 
-@register(Loss, "byol_softmax_cross_entropy_loss")
-def byol_softmax_cross_entropy(
+@register(Loss, "cross_entropy")
+def cross_entropy(
     outs: Mapping[str, Mapping[str, jnp.ndarray]], reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
     """

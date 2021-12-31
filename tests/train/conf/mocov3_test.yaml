@@ -158,7 +158,7 @@ model:
             activation_name: "relu"
 
 loss:
-  name: moco_loss
+  name: infonce_loss
   params: {}
 
 optimizers:

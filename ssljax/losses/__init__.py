@@ -1,2 +1,2 @@
-from ssljax.losses.byol import *
-from ssljax.losses.moco import *
+from ssljax.losses.byol import cosine_similarity, cross_entropy
+from ssljax.losses.moco import infonce_loss

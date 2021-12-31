@@ -81,9 +81,8 @@ model:
             activation_name: "relu"
             dtype: "float32"
 
-
 loss:
-  name: byol_regression_loss
+  name: cosine_similarity
   params: {}
 
 optimizers:
