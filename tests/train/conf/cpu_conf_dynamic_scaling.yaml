@@ -15,7 +15,6 @@ env:
   half_precision: False
   dynamic_scale: True
   dynamic_scale_params: {}
-  input_shape: (784,)
 
 trainer:
   name: SSLTrainer
@@ -39,6 +38,7 @@ model:
               momentum: 0.9
               epsilon: 1e-5
             activation_name: "relu"
+            dtype: "float32"
         head:
           module: MLP
           params:
@@ -47,6 +47,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
         pred:
           module: MLP
           params:
@@ -55,6 +56,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
     1:
       name: TargetBranch
       pipelines: ["1"]
@@ -68,6 +70,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
         head:
           module: MLP
           params:
@@ -76,9 +79,12 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
 
 
-loss: byol_regression_loss
+loss:
+  name: byol_regression_loss
+  params: {}
 
 optimizers:
   branches:
@@ -120,6 +126,7 @@ meter:
   name: SSLMeter
 
 pipelines:
+  flatten: True
   pre:
     augmentations:
       Identity:
@@ -137,10 +144,10 @@ pipelines:
           params:
             prob: 1.0
 
-dataloader:
-  platform: torch
-  name: MNIST
+data:
+  name: Base
   params:
-    batch_size: 32
-    input_shape: (784,)
-    flatten: True
+    dataset_name: "mnist"
+    batch_size: 40
+    data_dtype_str: "float32"
+    dataset_configs: {}

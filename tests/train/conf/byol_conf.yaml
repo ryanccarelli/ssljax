@@ -9,13 +9,12 @@ env:
       ckpt_dir: "outs/checkpoints/"
       keep: 1
       overwrite: True
-      keep_every_n_steps: 300
+      keep_every_n_steps: 10
   restore_checkpoint:
     params: {}
   half_precision: False
   dynamic_scale: False
   dynamic_scale_params: {}
-  input_shape: (32,32,3)
 
 trainer:
   name: SSLTrainer
@@ -30,11 +29,10 @@ model:
         stop_gradient: False
         body:
           module: ResNet
-          pretrained: "/tests/train/conf/ResNet50_ImageNet1k"
           params:
-            stage_sizes: [3, 4, 6, 3]
-            block_cls_name: "BottleneckResNetBlock"
-            num_classes: False
+            num_outputs: False
+            num_filters: 64
+            num_layers: 50
         head:
           module: MLP
           params:
@@ -46,6 +44,7 @@ model:
               momentum: 0.9
               epsilon: 1e-5
             activation_name: "relu"
+            dtype: "float32"
         pred:
           module: MLP
           params:
@@ -54,6 +53,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
+            dtype: "float32"
 
     1:
       name: Branch
@@ -62,11 +62,10 @@ model:
         stop_gradient: True
         body:
           module: ResNet
-          pretrained: "/tests/train/conf/ResNet50_ImageNet1k"
           params:
-            stage_sizes: [3, 4, 6, 3]
-            block_cls_name: "BottleneckResNetBlock"
-            num_classes: False
+            num_outputs: False
+            num_filters: 64
+            num_layers: 50
         head:
           module: MLP
           params:
@@ -78,9 +77,11 @@ model:
               momentum: 0.9
               epsilon: 1e-5
             activation_name: "relu"
+            dtype: "float32"
 
-
-loss: byol_regression_loss
+loss:
+  name: byol_regression_loss
+  params: {}
 
 optimizers:
   branches:
@@ -129,14 +130,9 @@ meter:
   name: SSLMeter
 
 pipelines:
-  pre:
-    augmentations:
-      # TODO: this needs to be RandomResizedCrop
-      RandomCrop:
-        params:
-          prob: 1.0
-          height: 32
-          width: 32
+  # pre-augmentations should be computed in the dataloader
+  # these typically include decode/centercrop, random crop+resize
+  flatten: False
   branches:
     0:
       augmentations:
@@ -189,10 +185,10 @@ pipelines:
             x_min: 0
             x_max: 1
 
-dataloader:
-  platform: torch
-  name: CIFAR10
+data:
+  name: Base
   params:
+    dataset_name: "cifar10"
     batch_size: 128
-    flatten: False
-    input_shape: (32,32,3)
+    data_dtype_str: "float32"
+    dataset_configs: {}

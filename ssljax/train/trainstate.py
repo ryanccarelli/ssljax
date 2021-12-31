@@ -10,3 +10,4 @@ class TrainState(TrainState):
     """
 
     mutable_states: Any
+    global_step: int

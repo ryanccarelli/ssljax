@@ -79,6 +79,7 @@ model:
             batch_norm: False
             batch_norm_params: {}
             activation_name: "gelu"
+            dtype: "float32"
         dinohead:
           module: DINOHead
           params:
@@ -153,7 +154,9 @@ model:
           module: CenterSoftmax
           params: {}
 
-loss: cross_entropy_loss
+loss:
+  name: cross_entropy_loss
+  params: {}
 
 optimizers:
   branches:
@@ -202,6 +205,7 @@ meter:
   name: SSLMeter
 
 pipelines:
+  flatten: False
   pre:
     augmentations:
       RandomFlip:
@@ -259,10 +263,10 @@ pipelines:
             x_min: 0
             x_max: 1
 
-dataloader:
-  platform: torch
-  name: CIFAR10
+data:
+  name: Base
   params:
+    dataset_name: "cifar10"
     batch_size: 8
-    flatten: False
-    input_shape: (32,32,3)
+    data_dtype_str: "float32"
+    dataset_configs: {}

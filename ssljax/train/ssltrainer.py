@@ -97,19 +97,24 @@ class SSLTrainer(Trainer):
             p_step: pmapped step function
         """
 
-        for data, _ in iter(self.task.dataloader):
-            # TODO: need to wrap torch and tfds dataloaders so they return a consistent format
+        # get training steps
+        steps_per_epoch = self.task.data.meta_data.get("num_train_examples", 0) // self.task.config.data.params.batch_size
+        for step in range(steps_per_epoch):
+            data = next(self.task.data.train_iter)
+            data = data["inputs"]
+            if self.task.config.pipelines.flatten:
+                # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
+                data = data.reshape(*data.shape[:-3], -1)
             batch = jax.device_put(data)
 
             self.rng, rng_step = jax.random.split(self.rng)
-
             rng_step = jax_utils.replicate(rng_step)
-            batch = jax_utils.replicate(batch)
+
             start_time = time.time()
             state, loss = p_step(state, batch, rng_step)
 
             end_time = time.time()
-            print("Exec time: ", end_time - start_time)
+            print("Step time: ", end_time - start_time)
 
             # Sync batch stats across multiple devices
             if "batch_stats" in state.mutable_states.keys():
@@ -126,7 +131,6 @@ class SSLTrainer(Trainer):
         loss_fn,
         dynamic_scale,
         dynamic_scale_params,
-        accumulate_steps,
     ):
         """
         Compute and apply gradient.
@@ -139,11 +143,13 @@ class SSLTrainer(Trainer):
             loss_fn: loss
             dynamic_scale (bool): whether to apply dynamic scaling
             dynamic_scale_params (dict): params passed to dynamic scale optimizer
-            accumulate_steps (int): number of steps to accumulate
         """
 
+        state.replace(global_step = state.global_step + 1)
+        print(state.global_step)
         rng_pre, rng = jax.random.split(rng)
-        batch = self.task.pre_pipelines(batch, rng_pre)
+        if self.task.pre_pipelines:
+            batch = self.task.pre_pipelines(batch, rng_pre)
         postpiperngs = jax.random.split(rng, len(self.task.post_pipelines))
         batch = list(
             map(
@@ -155,13 +161,6 @@ class SSLTrainer(Trainer):
         # batch stores views indexed by the pipeline that produced them
         batch = {str(idx): val for idx, val in enumerate(batch)}
 
-        accumulate_gradients = partial(
-            self.accumulate_gradients,
-            accumulate_steps=accumulate_steps,
-            mutable_keys=mutable_keys,
-            dynamic_scale=dynamic_scale,
-        )
-
         if dynamic_scale:
             # optim.DynamicScale returns a DynamicScaleResult object
             grad_fn = jax.jit(
@@ -172,12 +171,19 @@ class SSLTrainer(Trainer):
         else:
             grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
 
+
         state_params = {"params": state.params}
         for mutable_key in mutable_keys:
             if (val := getattr(state, mutable_key, None)) is not None:
                 state_params[mutable_key] = val
 
-        (loss, grad), aux = accumulate_gradients(grad_fn, batch, state_params)
+        if dynamic_scale:
+            dyn_scale, is_fin, loss_and_aux, grad = grad_fn(state_params, batch)
+        else:
+            loss_and_aux, grad = grad_fn(state_params, batch)
+
+        (loss, aux) = loss_and_aux
+
         loss, grad = (
             jax.lax.pmean(loss, axis_name="batch"),
             jax.lax.pmean(grad, axis_name="batch"),
@@ -195,72 +201,6 @@ class SSLTrainer(Trainer):
 
         return state, loss
 
-    def accumulate_gradients(
-        self,
-        grad_fn,
-        batch,
-        params,
-        mutable_keys=[],
-        dynamic_scale=False,
-        accumulate_steps=1,
-    ):
-        """
-        Split a batch into sub-batches and compute gradients in each sub-batch.
-
-        Args:
-            grad_fn (Callable[..., Tuple[Any, Any]]): result of opt.value_and_gradient
-            batch (jnp.array): a single data batch
-            params (flax.core.frozen_dict.FrozenDict[str, Any]): model parameters
-        """
-        if accumulate_steps > 1:
-            assert (
-                all(array.shape[0] % accumulate_steps == 0) for array in jax.tree_util.tree_leaves(batch)
-            ), f"Bad accum_steps {self.task.config.env.accum_steps} for batch size {batch.shape[0]}"
-            assert (
-                "batch_stats" not in params
-            ), f"Batchnorm not supported when accumulating gradients"
-            step_size = jax.tree_util.tree_leaves(batch)[0].shape[0] // accumulate_steps
-            if dynamic_scale:
-                dyn_scale, is_fin, (loss_and_aux), grad = grad_fn(
-                    {"params": params["params"]}, batch
-                )
-            else:
-                loss_and_aux, grad = grad_fn({"params": params["params"]}, batch)
-            (loss, aux) = loss_and_aux
-
-            def acc_grad_and_loss(i, loss_and_grad):
-                # TODO: (i * step_size, 0) assumes image shape, should generalize
-                btch = {str(pipeid): jax.lax.dynamic_slice(
-                    view, (i * step_size, 0), (step_size,) + view.shape[1:]
-                ) for pipeid, view in batch.items()}
-                if dynamic_scale:
-                    dyn_scale, is_fin, loss_and_aux, grad_i = grad_fn(
-                        {"params": params["params"]}, btch
-                    )
-                else:
-                    loss_and_aux, grad_i = grad_fn(params, btch)
-                loss_i, aux = loss_and_aux
-                grad_i = jax.lax.pmean(grad_i, axis_name="batch")
-
-                return (
-                    loss + loss_i,
-                    jax.tree_multimap(lambda x, y: x + y, grad, grad_i),
-                    aux,
-                )
-
-            loss, grad, aux = jax.lax.fori_loop(
-                1, accumulate_steps, acc_grad_and_loss, (loss, grad, aux)
-            )
-            return jax.tree_map(lambda x: x / accumulate_steps, (loss, grad)), aux
-        else:
-            if dynamic_scale:
-                dyn_scale, is_fin, loss_and_aux, grad = grad_fn(params, batch)
-            else:
-                loss_and_aux, grad = grad_fn(params, batch)
-
-            (loss, aux) = loss_and_aux
-            return (loss, grad), aux
-
     def loss(self, params, batch, model_fn, mutable_keys=None):
         """
         Apply loss function. Passed to opt.value_and_grad.
@@ -271,7 +211,7 @@ class SSLTrainer(Trainer):
         aux = {}
         if mutable_keys:
             outs, new_state = model_fn.apply(params, batch, mutable=mutable_keys)
-            loss = self.task.loss(*outs)
+            loss = self.task.loss(outs)
             loss = jnp.mean(loss)
             aux["mutable_states"] = new_state
             return loss, aux
@@ -305,12 +245,16 @@ class SSLTrainer(Trainer):
 
         self.model = self.task.model(config=self.task.config)
 
-        data_shape = (
-            [1]  # Batch size == 1
-            + list(eval(self.task.config.env.input_shape))
-        )
+        # .meta_data["input_shape"] is (-1, H, W, C)
+        data_shape = self.task.data.meta_data["input_shape"][1:]
+        # add batch dimension
+        data_shape = (1,) + data_shape
 
-        init_data = jnp.ones(tuple(data_shape), model_dtype,)
+        init_data = jnp.ones(data_shape, model_dtype,)
+
+        if self.task.config.pipelines.flatten:
+            # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
+            init_data = init_data.reshape(*init_data.shape[:-3], -1)
 
         init_shape = {}
         for branch, _ in self.task.config.pipelines.branches.items():
@@ -347,6 +291,7 @@ class SSLTrainer(Trainer):
         }
 
         state = TrainState.create(
+            global_step=0,
             apply_fn=self.model.apply,
             params=params["params"].unfreeze(),
             tx=multi_tx,
@@ -371,7 +316,6 @@ class SSLTrainer(Trainer):
                 mutable_keys=mutable_keys,
                 loss_fn=loss_fn,
                 dynamic_scale_params=self.task.config.env.dynamic_scale_params,
-                accumulate_steps=self.task.config.env.accum_steps,
             ),
             axis_name="batch",
             donate_argnums=(0, 1),

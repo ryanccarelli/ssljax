@@ -19,14 +19,14 @@ class Branch(Model):
 
     config: DictConfig
 
-    def setup(self, **args):
+    def setup(self):
         self.stop_gradient = self.config["stop_gradient"]
         stages = []
         for stage_name, stage_params in self.config.items():
             if stage_name != "stop_gradient":
                 stages.append(
                     get_from_register(Model, stage_params.module)(
-                        name=stage_name, **stage_params.params
+                        stage_params.params, name=stage_name,
                     )
                 )
 

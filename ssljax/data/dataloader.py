@@ -1,73 +1,17 @@
 import logging
+from typing import Optional
 
+import jax
 import jax.numpy as jnp
+import jax.random
 import numpy as np
+import omegaconf
 from scenic.dataset_lib.datasets import get_dataset
 from ssljax.core import register
 from torch.utils import data
 from torchvision.datasets import CIFAR10, CIFAR100, MNIST
 
 logger = logging.getLogger(__name__)
-
-
-class DataLoader:
-    """
-    Consistent
-    DataLoader wraps TorchData or ScenicData.
-    """
-
-    def __init__(self, data):
-        if isinstance(data, TorchData):
-            pass
-
-        elif isinstance(data, ScenicData):
-            pass
-
-        else:
-            raise ValueError("must pass TorchData or ScenicData")
-
-
-class TorchData(data.DataLoader):
-    """
-    Class wrapping Pytorch dataloaders.
-    Dataloader collates numpy arrays.
-
-    Args:
-        dataset (torch.data.Dataset): torch dataset to load
-        batch_size (int): batch size
-        shuffle (bool): whether data will be shuffled
-        num_workers (int): number of workers for distributed data
-        pin_memory (bool): whether to pin memory
-        drop_last (bool): whether to drop the last sample
-    """
-
-    def __init__(
-        self,
-        dataset,
-        batch_size=1,
-        shuffle=False,
-        sampler=None,
-        batch_sampler=None,
-        num_workers=0,
-        pin_memory=False,
-        drop_last=False,
-        timeout=0,
-        worker_init_fn=None,
-        **kwargs,
-    ):
-        super(self.__class__, self).__init__(
-            dataset,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            sampler=sampler,
-            batch_sampler=batch_sampler,
-            num_workers=num_workers,
-            collate_fn=numpy_collate,
-            pin_memory=pin_memory,
-            drop_last=drop_last,
-            timeout=timeout,
-            worker_init_fn=worker_init_fn,
-        )
 
 
 def numpy_collate(batch):
@@ -97,78 +41,60 @@ class Cast:
 
 class ScenicData:
     """
-    Class wrapping distributed tfds dataloaders as implemented in
-    https://github.com/google-research/scenic
+    Class wrapping distributed tfds dataloaders implemented
+    according to conventions in https://github.com/google-research/scenic
     """
 
     pass
 
 
-# packaged dataloaders here
-@register(TorchData, "MNIST")
-def TorchMNIST(batch_size, flatten=True, num_workers=0, **kwargs):
-    """
-    Dataloader for MNIST dataset.
-    See http://www.pymvpa.org/datadb/mnist.html
-    """
-    if flatten:
-        mnist_dataset = MNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
-    else:
-        mnist_dataset = MNIST("/tmp/mnist/", download=True, transform=Cast())
-    return TorchData(
-        mnist_dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
-    )
+@register(ScenicData, "Base")
+def scenic(
+    config: omegaconf.DictConfig,
+    data_rng: jax.random.PRNGKey,
+    *,
+    dataset_service_address: Optional[str] = None,
+):
+    device_count = jax.device_count()
 
-
-@register(ScenicData, "MNIST")
-def ScenicMNIST(batch_size=32, eval_batch_size=None, num_shards=10, **kwargs):
-    if eval_batch_size is None:
-        eval_batch_size = batch_size
-    return get_dataset("mnist")(
-        batch_size=batch_size,
-        eval_batch_size=eval_batch_size,
-        num_shards=num_shards,
-        **kwargs,
-    ).train_iter
-
-
-@register(TorchData, "CIFAR10")
-def TorchCIFAR10(batch_size, flatten=False, num_workers=0, **kwargs):
-    """
-    Dataloader for CIFAR10 dataset.
-    """
-    if flatten:
-        cifar_dataset = CIFAR10(
-            "/tmp/cifar10/", download=True, transform=FlattenAndCast()
+    builder = get_dataset(config.dataset_name)
+    batch_size = config.batch_size
+    if batch_size % device_count > 0:
+        raise ValueError(
+            f"Batch size ({batch_size}) must be divisible by the "
+            f"number of devices ({device_count})"
         )
+    if "eval_batch_size" in config:
+        eval_batch_size = config.eval_batch_size
     else:
-        cifar_dataset = CIFAR10("/tmp/cifar10/", download=True, transform=Cast())
-    return TorchData(cifar_dataset, batch_size=batch_size, num_workers=0, **kwargs)
-
-
-@register(ScenicData, "CIFAR10")
-def ScenicCIFAR10(batch_size=32, eval_batch_size=None, num_shards=10, **kwargs):
-    if eval_batch_size is None:
-        eval_batch_size = batch_size
-    return get_dataset("cifar10")(
-        batch_size=batch_size,
-        eval_batch_size=eval_batch_size,
-        num_shards=num_shards,
-        **kwargs,
-    ).train_iter
-
-
-@register(TorchData, "CIFAR100")
-def TorchCIFAR100(batch_size, flatten=False, num_workers=0, **kwargs):
-    """
-    Dataloader for CIFAR100 dataset.
-    """
-    if flatten:
-        cifar_dataset = CIFAR100(
-            "/tmp/cifar100/", download=True, transform=FlattenAndCast()
+        eval_batch_size = config.batch_size
+        if eval_batch_size % device_count > 0:
+            raise ValueError(
+                f"Eval batch size ({eval_batch_size}) must be divisible "
+                f"by the number of devices ({device_count})"
+            )
+    local_batch_size = batch_size // jax.process_count()
+    eval_local_batch_size = eval_batch_size // jax.process_count()
+    device_batch_size = batch_size // device_count
+    if "shuffle_seed" in config:
+        shuffle_seed = config.shuffle_seed
+    else:
+        shuffle_seed = None
+    if dataset_service_address and shuffle_seed is not None:
+        raise ValueError(
+            "Using dataset service with a random seed causes each "
+            "worker to produce exactly the same data. Add "
+            "config.shuffle_seed = None to your config if you want "
+            "to run with dataset service."
         )
-    else:
-        cifar_dataset = CIFAR100("/tmp/cifar100/", download=True, transform=Cast())
-    return TorchDataLoader(
-        cifar_dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
+    dataset = builder(
+        batch_size=local_batch_size,
+        eval_batch_size=eval_local_batch_size,
+        num_shards=jax.local_device_count(),
+        dtype_str=config.data_dtype_str,
+        rng=data_rng,
+        shuffle_seed=shuffle_seed,
+        dataset_configs=config.dataset_configs,
+        dataset_service_address=dataset_service_address,
     )
+    return dataset

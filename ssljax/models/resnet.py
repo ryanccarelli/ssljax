@@ -19,73 +19,78 @@ from typing import Any, Callable, Sequence, Tuple
 
 import jax.numpy as jnp
 from flax import linen as nn
+from omegaconf import DictConfig
 from ssljax.core import register
 from ssljax.models.model import Model
-from ssljax.models.utils import BottleneckResNetBlock, ResNetBlock
-
+from scenic.projects.baselines.resnet import ResNet as Resnet
+from scenic.projects.baselines.resnet import BLOCK_SIZE_OPTIONS
+from scenic.projects.baselines.bit_resnet import BitResNet as Bitresnet
+from scenic.projects.baselines.axial_resnet import AxialResNet as Axialresnet
 
 @register(Model, "ResNet")
 class ResNet(Model):
     """
-    ResNetv1 declarable from config.
+    Flax implementation of a ResNet.
+    We wrap the ResNet model in `<scenic> https://github.com/google-research/scenic`_.
+    If num_outputs is None, returns representation from final stage.
+
+    Args:
+        config (omegaconf.DictConfig): configuration
     """
 
-    stage_sizes: Sequence[int]
-    num_classes: int or bool or None
-    num_filters: int = 64
-    block_cls_name: str = "BottleneckResNetBlock"
-    dtype: Any = jnp.float32
-    act: Callable = nn.relu
+    config: DictConfig
 
     def setup(self):
-        if self.block_cls_name == "ResNetBlock":
-            self.block_cls = ResNetBlock
-        elif self.block_cls_name == "BottleneckResNetBlock":
-            self.block_cls = BottleneckResNetBlock
-        else:
-            raise KeyError("must pass {ResNetBlock, BottleneckResNetBlock}")
+        self.model = Resnet(**self.config)
+        self.num_blocks = len(BLOCK_SIZE_OPTIONS[self.config.num_layers][0])
 
     @nn.compact
-    def __call__(self, x, train: bool = True):
-        conv = partial(nn.Conv, use_bias=False, dtype=self.dtype)
-        norm = partial(
-            nn.BatchNorm,
-            use_running_average=not train,
-            momentum=0.9,
-            epsilon=1e-5,
-            dtype=self.dtype,
-        )
-
-        x = conv(
-            self.num_filters, (7, 7), (2, 2), padding=[(3, 3), (3, 3)], name="conv_init"
-        )(x)
-        x = norm(name="bn_init")(x)
-        x = nn.relu(x)
-        x = nn.max_pool(x, (3, 3), strides=(2, 2), padding="SAME")
-        for i, block_size in enumerate(self.stage_sizes):
-            for j in range(block_size):
-                strides = (2, 2) if i > 0 and j == 0 else (1, 1)
-                x = self.block_cls(
-                    self.num_filters * 2 ** i,
-                    strides=strides,
-                    conv=conv,
-                    norm=norm,
-                    act=self.act,
-                )(x)
-        x = jnp.mean(x, axis=(1, 2))
-        if (self.num_classes is not False) and isinstance(self.num_classes, int):
-            x = nn.Dense(self.num_classes, dtype=self.dtype)(x)
-        x = jnp.asarray(x, self.dtype)
-        return x
+    def __call__(self, x):
+        x = self.model(x)
+        # this is directly from https://github.com/google-research/scenic/blob/c2140913a9a3fb7b7c54d50c6db7df0e6cf92ba1/scenic/projects/baselines/resnet.py#L126
+        if self.config.num_outputs:
+            return x
+        else:
+            # no +1 here since len starts at 1 while enumerate starts at 0 when
+            # dict is build in scenic
+            return x[f"stage_{self.num_blocks}"]
 
 
-ResNet18 = partial(ResNet, stage_sizes=[2, 2, 2, 2], block_cls=ResNetBlock)
-ResNet34 = partial(ResNet, stage_sizes=[3, 4, 6, 3], block_cls=ResNetBlock)
-ResNet50 = partial(ResNet, stage_sizes=[3, 4, 6, 3], block_cls=BottleneckResNetBlock)
-ResNet101 = partial(ResNet, stage_sizes=[3, 4, 23, 3], block_cls=BottleneckResNetBlock)
-ResNet152 = partial(ResNet, stage_sizes=[3, 8, 36, 3], block_cls=BottleneckResNetBlock)
-ResNet200 = partial(ResNet, stage_sizes=[3, 24, 36, 3], block_cls=BottleneckResNetBlock)
+@register(Model, "BitResNet")
+class BitResNet(Model):
+    """
+    Flax implementation of a resnet.
+    We wrap the BitResNet model in `<scenic> https://github.com/google-research/scenic`_.
+
+    Args:
+        config (omegaconf.DictConfig): configuration
+    """
+
+    config: DictConfig
+
+    def setup(self):
+        self.model = Bitresnet(**self.config)
+
+    @nn.compact
+    def __call__(self, x):
+        return self.model(x)
 
 
-# Used for testing only.
-_ResNet1 = partial(ResNet, stage_sizes=[1], block_cls=ResNetBlock)
+@register(Model, "AxialResNet")
+class AxialResNet(Model):
+    """
+    Flax implementation of a resnet.
+    We wrap the BitResNet model in `<scenic> https://github.com/google-research/scenic`_.
+
+    Args:
+        config (omegaconf.DictConfig): configuration
+    """
+
+    config: DictConfig
+
+    def setup(self):
+        self.model = Axialresnet(**self.config)
+
+    @nn.compact
+    def __call__(self, x):
+        return self.model(x)

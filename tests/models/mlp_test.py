@@ -5,6 +5,7 @@ import jax.random
 import pytest
 from chex import assert_shape
 from ssljax.models.mlp import MLP
+from omegaconf import OmegaConf
 
 
 # tests
@@ -15,7 +16,7 @@ from ssljax.models.mlp import MLP
 @pytest.mark.parametrize("batch_norm_params", [{"use_running_average": True}])
 @pytest.mark.parametrize("activation_name", ["relu", "gelu"])
 @pytest.mark.parametrize("dropout_prob", [0.0, 0.1, 1.0])
-@pytest.mark.parametrize("dtype", [jnp.float16])
+@pytest.mark.parametrize("dtype", ["float32"])
 class TestMLP:
     def test_setup_call(
         self,
@@ -27,12 +28,16 @@ class TestMLP:
         dtype,
     ):
         mlp = MLP(
-            layer_dims=layer_dims,
-            batch_norm=batch_norm,
-            batch_norm_params=batch_norm_params,
-            activation_name=activation_name,
-            dropout_prob=dropout_prob,
-            dtype=dtype,
+            OmegaConf.create(
+                {
+                    "layer_dims":layer_dims,
+                    "batch_norm":batch_norm,
+                    "batch_norm_params":batch_norm_params,
+                    "activation_name":activation_name,
+                    "dropout_prob":dropout_prob,
+                    "dtype":dtype,
+                }
+            )
         )
         key = jax.random.PRNGKey(0)
         k1, _ = jax.random.split(key)

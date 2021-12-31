@@ -17,8 +17,8 @@ class TestBranch:
         config = DictConfig(
             {
                 "stop_gradient": True,
-                "body": {"module": "MLP", "params": {"layer_dims": [1]}},
-                "head": {"module": "MLP", "params": {"layer_dims": [1]}},
+                "body": {"module": "MLP", "params": {"layer_dims": [1], "activation_name": "relu", "dtype": "float32"}},
+                "head": {"module": "MLP", "params": {"layer_dims": [1], "activation_name": "relu", "dtype": "float32"}},
             }
         )
         branch = Branch(config=config)
