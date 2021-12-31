@@ -4,32 +4,32 @@ from hydra import compose, initialize
 
 
 @pytest.fixture
-def cputestconfig():
+def basecpuconfig():
     hydra.core.global_hydra.GlobalHydra.instance().clear()
     initialize(config_path="../train/conf")
-    cfg = compose(config_name="cpu_conf.yaml")
+    cfg = compose(config_name="base_cpu_test.yaml")
     return cfg
 
 
 @pytest.fixture
-def cputestdynamicscalingconfig():
+def dynamicscalingconfig():
     hydra.core.global_hydra.GlobalHydra.instance().clear()
     initialize(config_path="../train/conf")
-    cfg = compose(config_name="cpu_conf_dynamic_scaling.yaml")
+    cfg = compose(config_name="dynamic_scaling_test.yaml")
     return cfg
 
 
 @pytest.fixture
-def cputestpretrainedconfig():
+def pretrainedconfig():
     hydra.core.global_hydra.GlobalHydra.instance().clear()
     initialize(config_path="../train/conf")
-    cfg = compose(config_name="cpu_conf_pretrained.yaml")
+    cfg = compose(config_name="pretrained_test.yaml")
     return cfg
 
 
 @pytest.fixture
-def byoltestconfig():
+def byolconfig():
     hydra.core.global_hydra.GlobalHydra.instance().clear()
     initialize(config_path="../train/conf")
-    cfg = compose(config_name="byol_conf.yaml")
+    cfg = compose(config_name="byol_test.yaml")
     return cfg
