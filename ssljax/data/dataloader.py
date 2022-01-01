@@ -96,5 +96,6 @@ def scenic(
         shuffle_seed=shuffle_seed,
         dataset_configs=config.dataset_configs,
         dataset_service_address=dataset_service_address,
+        **kwargs
     )
     return dataset

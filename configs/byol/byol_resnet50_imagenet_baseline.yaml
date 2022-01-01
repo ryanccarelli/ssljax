@@ -1,0 +1,194 @@
+env:
+  seed: 1337
+  numpy_seed: 1337
+  jax_seed: 1337
+  epochs: 2
+  save_checkpoint:
+    params:
+      ckpt_dir: "outs/checkpoints/"
+      keep: 1
+      overwrite: True
+      keep_every_n_steps: 10
+  restore_checkpoint:
+    params: {}
+  half_precision: False
+  dynamic_scale: False
+  dynamic_scale_params: {}
+
+trainer:
+  name: SSLTrainer
+
+model:
+  name: SSLModel
+  branches:
+    0:
+      name: Branch
+      pipelines: ["0"]
+      stages:
+        stop_gradient: False
+        body:
+          module: ResNet
+          params:
+            num_outputs: False
+            num_filters: 64
+            num_layers: 50
+        head:
+          module: MLP
+          params:
+            layer_dims: [4096, 256]
+            dropout_prob: 0.0
+            batch_norm: True
+            batch_norm_params:
+              use_running_average: True
+              momentum: 0.9
+              epsilon: 1e-5
+            activation_name: "relu"
+            dtype: "float32"
+        pred:
+          module: MLP
+          params:
+            layer_dims: [4096, 256]
+            dropout_prob: 0.0
+            batch_norm: False
+            batch_norm_params: {}
+            activation_name: "relu"
+            dtype: "float32"
+
+    1:
+      name: Branch
+      pipelines: ["1"]
+      stages:
+        stop_gradient: True
+        body:
+          module: ResNet
+          params:
+            num_outputs: False
+            num_filters: 64
+            num_layers: 50
+        head:
+          module: MLP
+          params:
+            layer_dims: [4096, 256]
+            dropout_prob: 0.0
+            batch_norm: True
+            batch_norm_params:
+              use_running_average: True
+              momentum: 0.9
+              epsilon: 1e-5
+            activation_name: "relu"
+            dtype: "float32"
+
+loss:
+  name: cosine_similarity
+  params: {}
+
+optimizers:
+  branches:
+    0:
+      name: lars
+      params:
+        momentum: 0.9
+        trust_coefficient: 1e-3
+        weight_decay: 1.5e-6
+        weight_decay_mask: True
+        trust_ratio_mask: True
+
+schedulers:
+  branches:
+    0:
+      learning_rate:
+        name: byol_lr_schedule
+        params:
+          # lr = 0.2 * batchsize/256
+          base_learning_rate: 0.2
+          warmup_steps: 1000
+          batch_size: 4096
+          # TODO: epochs * train_images_per_epoch // batch_size
+          total_steps: 100000
+  post_process:
+    0:
+      tau:
+        name: byol_ema_schedule
+        params:
+          # TODO: why is this max_steps and total_steps above (inherit this weirdness from DM implementation)
+          base_ema: .996
+          max_steps: 100000
+
+post_process:
+  funcs:
+    0:
+      name: ema
+      params:
+        online_branch_name: branch_0
+        target_branch_name: branch_1
+        remove_from_online: [pred]
+
+meter:
+  name: SSLMeter
+
+pipelines:
+  # TODO: random resize crop
+  flatten: False
+  branches:
+    0:
+      augmentations:
+        RandomFlip:
+          params:
+            prob: 1.0
+        ColorTransform:
+          params:
+            prob: 1.0
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.2
+            hue: 0.1
+            color_jitter_prob: 0.8
+            to_grayscale_prob: 0.2
+            shuffle: True
+        GaussianBlur:
+          params:
+            prob: 0.1
+        Solarize:
+          params:
+            prob: 0.2
+            threshold: 0.5
+        Clip:
+          params:
+            prob: 1.0
+            x_min: 0
+            x_max: 1
+    1:
+      augmentations:
+        RandomFlip:
+          params:
+            prob: 1.0
+        ColorTransform:
+          params:
+            prob: 1.0
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.2
+            hue: 0.1
+            color_jitter_prob: 0.8
+            to_grayscale_prob: 0.2
+            shuffle: True
+        GaussianBlur:
+          params:
+            prob: 1.0
+        Clip:
+          params:
+            prob: 1.0
+            x_min: 0
+            x_max: 1
+
+data:
+  name: Base
+  params:
+    dataset_name: "imagenet"
+    batch_size: 4096
+    data_dtype_str: "float32"
+    dataset_configs:
+      # decode_and_random_crop
+      # reshape
+      # random flip (left/right)
+      data_augmentations: "default"
