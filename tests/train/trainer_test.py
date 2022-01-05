@@ -7,6 +7,7 @@ from ssljax.train.task import Task
 
 
 class TestTrainer:
+    """
     def test_cpu(self, basecpuconfig):
         task = Task(basecpuconfig)
         trainer = task.trainer
@@ -29,5 +30,13 @@ class TestTrainer:
             "tests/train/conf",
         )
         task = Task(byolconfig)
+        trainer = task.trainer
+        trainer.train()
+
+    """
+    @pytest.mark.gpu
+    def test_train_dino_vit(self, dinovitconfig):
+        # TODO: download imagenet
+        task = Task(dinovitconfig)
         trainer = task.trainer
         trainer.train()

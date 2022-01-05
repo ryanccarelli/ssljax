@@ -3,7 +3,7 @@ import logging
 import jax.numpy as jnp
 from optax import (constant_schedule, cosine_decay_schedule,
                    cosine_onecycle_schedule, exponential_decay,
-                   linear_onecycle_schedule, piecewise_constant_schedule,
+                   linear_schedule, linear_onecycle_schedule, piecewise_constant_schedule,
                    piecewise_interpolate_schedule, polynomial_schedule)
 from ssljax.core import register
 
@@ -30,12 +30,13 @@ schedulers = {
     "piecewise_constant": piecewise_constant_schedule,
     "piecewise_interpolate": piecewise_interpolate_schedule,
     "polynomial": polynomial_schedule,
+    "linear": linear_schedule,
 }
 
 for name, func in schedulers.items():
     register(Scheduler, name)(func)
 
-
+# TODO: use Optax https://github.com/deepmind/optax/blob/master/optax/_src/schedule.py#L394#L423
 @register(Scheduler, "byol_lr_schedule")
 def byol_lr_schedule(
     batch_size: int,

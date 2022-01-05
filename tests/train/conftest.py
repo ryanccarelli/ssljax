@@ -33,3 +33,10 @@ def byolconfig():
     initialize(config_path="../train/conf")
     cfg = compose(config_name="byol_test.yaml")
     return cfg
+
+@pytest.fixture
+def dinovitconfig():
+    hydra.core.global_hydra.GlobalHydra.instance().clear()
+    initialize(config_path="../train/conf")
+    cfg = compose(config_name="dino_vit_test.yaml")
+    return cfg

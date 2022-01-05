@@ -2,20 +2,19 @@ env:
   seed: 1337
   numpy_seed: 1337
   jax_seed: 1337
-  epochs: 2
+  epochs: 800
   accum_steps: 1
   save_checkpoint:
     params:
       ckpt_dir: "outs/checkpoints/"
       keep: 1
       overwrite: True
-      keep_every_n_steps: 300
+      keep_every_n_steps: 100
   restore_checkpoint:
     params: {}
   half_precision: False
   dynamic_scale: False
   dynamic_scale_params: {}
-  input_shape: (32,32,3)
 
 trainer:
   name: SSLTrainer
@@ -25,9 +24,71 @@ model:
   branches:
     0:
       name: Branch
-      pipelines: ["0", "1"]
+      pipelines: ["0"]
       stages:
         stop_gradient: False
+        # ViT-S/16, batch 1024, 16GPU
+        body:
+          module: ViT
+          params:
+            num_classes: 20
+            # mlp_dim
+            # Ti 768
+            # S 1536
+            # B 3072
+            # L 4096
+            # H 5120
+            mlp_dim: 1024
+            # num_layers
+            # Ti 12
+            # S 12
+            # B 12
+            # L 24
+            # H 32
+            num_layers: 6
+            # num_heads
+            # Ti 3
+            # S 6
+            # B 12
+            # L 16
+            # H 16
+            num_heads: 8
+            # patches
+            # 16 for B/16 (in general after /)
+            patches: 16
+            # hidden_size
+            # Ti 192
+            # S 384
+            # B 768
+            # L 1024
+            # H 1280
+            hidden_size: 384
+            representation_size: None
+            dropout_rate: 0.1
+            attention_dropout_rate: 0.
+            stochastic_depth: None
+            classifier: "token"
+            dtype: "float32"
+        head:
+          module: DINOMLP
+          params:
+            layer_dims: [2048, 2048, 2048]
+            dropout_prob: 0.0
+            batch_norm: False
+            batch_norm_params: {}
+            activation_name: "gelu"
+            dtype: "float32"
+        proj:
+          module: DINOProj
+          params:
+            out_dim: 10
+            dtype: "float32"
+
+    1:
+      name: Branch
+      pipelines: ["1"]
+      stages:
+        stop_gradient: True
         body:
           module: ViT
           params:
@@ -69,95 +130,23 @@ model:
             stochastic_depth: None
             classifier: "token"
             dtype: "float32"
-        proj:
-          module: MLP
+        head:
+          module: DINOMLP
           params:
-            layer_dims: [4096, 4096, 256]
+            layer_dims: [2048, 2048, 2048]
             dropout_prob: 0.0
-            # TODO: SyncBN? Paper first says follows SIMCLR
-            # then later says follows BYOL in appendix A
-            batch_norm: True
-            batch_norm_params:
-              use_running_average: True
-              momentum: 0.9
-              epsilon: 1e-5
-            activation_name: "relu"
-        pred:
-          module: MLP
-          params:
-            layer_dims: [4096, 256]
-            dropout_prob: 0.0
-            # TODO: SyncBN? Paper first says follows SIMCLR
-            # then later says follows BYOL in appendix A
-            batch_norm: True
-            batch_norm_params:
-                decay_rate: 0.9
-                epsilon: 1e-5
-            activation_name: "relu"
-
-    1:
-      name: Branch
-      pipelines: ["0", "1"]
-      stages:
-        stop_gradient: True
-        body:
-          module: ViT
-          params:
-            num_classes:
-            # mlp_dim
-            # Ti 768
-            # S 1536
-            # B 3072
-            # L 4096
-            # H 5120
-            mlp_dim: 3072
-            # num_layers
-            # Ti 12
-            # S 12
-            # B 12
-            # L 24
-            # H 32
-            num_layers: 12
-            # num_heads
-            # Ti 3
-            # S 6
-            # B 12
-            # L 16
-            # H 16
-            num_heads: 12
-            # patches
-            # 16 for B/16 (in general after /)
-            patches: 16
-            # hidden_size
-            # Ti 192
-            # S 384
-            # B 768
-            # L 1024
-            # H 1280
-            hidden_size: 768
-            representation_size: None
-            dropout_rate: 0.1
-            attention_dropout_rate: 0.
-            stochastic_depth: None
-            classifier: "token"
-            # TODO: convert str to jnp type
+            batch_norm: False
+            batch_norm_params: {}
+            activation_name: "gelu"
             dtype: "float32"
         proj:
-          module: MLP
+          module: DINOProj
           params:
-            layer_dims: [4096, 4096, 256]
-            dropout_prob: 0.0
-            batch_norm: True
-            # TODO: SyncBN? Paper first says follows SIMCLR
-            # then later says follows BYOL in appendix A
-            batch_norm_params:
-              use_running_average: True
-              momentum: 0.9
-              epsilon: 1e-5
-            activation_name: "relu"
+            out_dim: 10
+            dtype: "float32"
 
 loss:
-  name: infonce_loss
+  name: dino_loss
   params: {}
 
 optimizers:
@@ -165,28 +154,49 @@ optimizers:
     0:
       name: adamw
       params:
-        weight_decay: 1e-6
+        # learning_rate scheduled
+        # weight_decay scheduled
+        b1: 0.9
+        b2: 0.999
 
 schedulers:
   branches:
     0:
       learning_rate:
-        name: BYOLlr
+        name: byol_lr_schedule
         params:
-          base_learning_rate: 0.6
-          warmup_steps: 10000
-          batch_size: 4096
+          # lr = base_learning_rate * batchsize/256
+          base_learning_rate: 0.0005
+          batch_size: 1024
+          # warmup steps is first 10 epochs
+          # images * epochs / batchsize
+          # 1281167 * 10 / 1024
+          warmup_steps: 12500
           # epochs * train_images_per_epoch // batch_size
-          # TODO: for now this is a random number
-          total_steps: 100000
+          total_steps: 1000912
+      weight_decay:
+        name: cosine_decay
+        params:
+          init_value: 0.04
+          decay_steps:
+          alpha: 0.4
   post_process:
     0:
       tau:
-        name: BYOLema
+        name: byol_ema_schedule
         params:
-          base_ema: 0.99
-          # TODO: why is this max_steps and total_steps above (inherit this weirdness from DM implementation)
+          base_ema: .996
           max_steps: 100000
+  loss:
+    0:
+      # linear warmup for tau_t from 0.04 -> 0.07 over 30 epochs
+      tau_t:
+        name: linear
+        params:
+          init_value: 0.4
+          end_value: 0.7
+          # 1281157 * 30 / 1024
+          transition_steps: 37535
 
 post_process:
   funcs:
@@ -202,17 +212,14 @@ meter:
 
 pipelines:
   flatten: False
-  pre:
-    augmentations:
-      # TODO: this needs to be RandomResizedCrop
-      RandomCrop:
-        params:
-          prop: 1.0
-          height: 224
-          width: 224
   branches:
     0:
       augmentations:
+        RandomResizedCrop:
+          params:
+            224
+            global_crops_scale
+            BICUBIC
         RandomFlip:
           params:
             prob: 1.0
@@ -238,8 +245,15 @@ pipelines:
             prob: 1.0
             x_min: 0
             x_max: 1
+        Normalize:
+          params: {}
     1:
       augmentations:
+        RandomResizedCrop:
+          params:
+            224
+            global_crops_scale
+            BICUBIC
         RandomFlip:
           params:
             prob: 1.0
@@ -261,11 +275,79 @@ pipelines:
             prob: 1.0
             x_min: 0
             x_max: 1
+        Normalize:
+          params: {}
+    2:
+      augmentations:
+        RandomResizedCrop:
+          params:
+            96
+            local_crops_scale
+            BICUBIC
+        RandomFlip:
+          params:
+            prob: 1.0
+        ColorTransform:
+          params:
+            prob: 1.0
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.2
+            hue: 0.1
+            color_jitter_prob: 0.8
+            to_grayscale_prob: 0.2
+            shuffle: True
+        GaussianBlur:
+          params:
+            prob: 1.0
+        Clip:
+          params:
+            prob: 1.0
+            x_min: 0
+            x_max: 1
+        Normalize:
+          params: {}
+    # TODO: could add more small crops for perf at memory cost
+    3:
+      augmentations:
+        RandomResizedCrop:
+          params:
+            96
+            local_crops_scale
+            BICUBIC
+        RandomFlip:
+          params:
+            prob: 1.0
+        ColorTransform:
+          params:
+            prob: 1.0
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.2
+            hue: 0.1
+            color_jitter_prob: 0.8
+            to_grayscale_prob: 0.2
+            shuffle: True
+        GaussianBlur:
+          params:
+            prob: 1.0
+        Clip:
+          params:
+            prob: 1.0
+            x_min: 0
+            x_max: 1
+        Normalize:
+          params: {}
 
 data:
   name: Base
   params:
-    dataset_name: "mnist"
-    batch_size: 4096
+    dataset_name: "imagenet"
+    batch_size: 1024
     data_dtype_str: "float32"
-    dataset_configs: {}
+    dataset_configs:
+      data_augmentations: None
+      # decode_and_random_crop
+      # reshape
+      # random flip (left/right)
+      # data_augmentations: "default"

@@ -24,7 +24,8 @@ from ssljax.losses.loss import Loss
 
 @register(Loss, "cosine_similarity")
 def cosine_similarity(
-    outs: Mapping[str, Mapping[str, jnp.ndarray]], reduction: Optional[Text] = "mean"
+    outs: Mapping[str, Mapping[str, jnp.ndarray]],
+    reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
     """
     Cosine similarity regression loss.
@@ -55,7 +56,8 @@ def cosine_similarity(
 
 @register(Loss, "cross_entropy")
 def cross_entropy(
-    outs: Mapping[str, Mapping[str, jnp.ndarray]], reduction: Optional[Text] = "mean",
+    outs: Mapping[str, Mapping[str, jnp.ndarray]],
+    reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
     """
     Computes softmax cross entropy given logits and one-hot class labels.
@@ -71,6 +73,7 @@ def cross_entropy(
     Raises:
         ValueError: If the type of `reduction` is unsupported.
     """
+
     assert all(
         isinstance(x, jnp.ndarray) for x in tree_leaves(outs)
     ), "loss functions act on jnp.arrays"
@@ -87,7 +90,9 @@ def cross_entropy(
 
 
 def l2_normalize(
-    x: jnp.ndarray, axis: Optional[int] = None, epsilon: float = 1e-12,
+    x: jnp.ndarray, 
+    axis: Optional[int] = None, 
+    epsilon: float = 1e-12,
 ) -> jnp.ndarray:
     """
     l2 normalize a tensor on an axis with numerical stability.
@@ -95,6 +100,7 @@ def l2_normalize(
     Args:
         x (jnp.ndarray):
     """
+
     assert isinstance(x, jnp.ndarray), "loss functions act on jnp.arrays"
     assert isinstance(axis, int), "axis must be int"
     square_sum = jnp.sum(jnp.square(x), axis=axis, keepdims=True)
