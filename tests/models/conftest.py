@@ -7,7 +7,7 @@ from omegaconf import OmegaConf
 @pytest.fixture
 def multi_resolution_data_list():
     # these are data shapes for a standard dino configuration
-    data = [jnp.ones((94, 94, 3)) for x in range(8) if x < 6 else jnp.ones((224, 224, 3))]
+    data = [jnp.ones((94, 94, 3)) if x < 6 else jnp.ones((224, 224, 3)) for x in range(8)]
     return data
 
 @pytest.fixture
@@ -24,16 +24,15 @@ def minimal_resnet():
 @pytest.fixture
 def minimal_vit():
     vit_config = {
+        "patch_size": 16,
         "num_classes": 20,
         "mlp_dim": 1024,
         "num_layers": 8,
         "num_heads": 8,
-        "patches": 16,
         "hidden_size": 384,
-        "representation_size": None
-        "dropout_rate": 0.1
-        "attention_dropout_rate": 0.
-        "stochastic_depth": None
+        "representation_size": None,
+        "dropout_rate": 0.1,
+        "attention_dropout_rate": 0.,
         "classifier": "token",
         "dtype": "float32",
     }
