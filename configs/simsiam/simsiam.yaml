@@ -1,0 +1,147 @@
+env:
+  seed: 1337
+  numpy_seed: 1337
+  jax_seed: 1337
+  epochs: 800
+  save_checkpoint:
+    params:
+      ckpt_dir: "outs/checkpoints/"
+      keep: 1
+      overwrite: True
+      keep_every_n_steps: 10
+  restore_checkpoint:
+    params: {}
+  half_precision: False
+  dynamic_scale: False
+  dynamic_scale_params: {}
+
+trainer:
+  name: SSLTrainer
+
+model:
+  name: SSLModel
+  branches:
+    0:
+      name: Branch
+      pipelines: ["0", "1"]
+      stages:
+        stop_gradient: False
+        body:
+          module: ResNet
+          params:
+            num_outputs: False
+            num_filters: 64
+            num_layers: 50
+        head:
+          module: MLP
+          params:
+            layer_dims: [2048, 2048, 2048]
+            layer_bias: False
+            dropout_prob: 0.0
+            batch_norm: True
+            batch_norm_params:
+              use_running_average: True
+              momentum: 0.9
+              epsilon: 1e-5
+            batch_norm_final_layer: True
+            batch_norm_params:
+              use_running_average: True
+              momentum: 0.9
+              epsilon: 1e-5
+              # same as affine=False in https://github.com/facebookresearch/simsiam/blob/a7bc1772896d0dad0806c51f0bb6f3b16d290468/simsiam/builder.py#L35
+              use_bias: False
+            activation_name: "relu"
+            dtype: "float32"
+
+loss:
+  name: simsiam_loss
+  params: {}
+
+optimizers:
+  branches:
+    0:
+      name: sgdw
+      params:
+        momentum: 0.9
+        weight_decay: 0.0001
+
+schedulers:
+  branches:
+    0:
+      learning_rate:
+        name: BYOLlr
+        params:
+          # lr = 0.2 * batchsize/256
+          base_learning_rate: 0.2
+          # cosine decay schedule with no warmup
+          warmup_steps: 0
+          batch_size: 512
+          # ~800 epochs
+          total_steps: 2002000
+
+meter:
+  name: SSLMeter
+
+pipelines:
+  # pre-augmentations should be computed in the dataloader
+  # these typically include decode/centercrop, random crop+resize
+  flatten: False
+  branches:
+    0:
+      augmentations:
+        RandomFlip:
+          params:
+            prob: 1.0
+        ColorTransform:
+          params:
+            prob: 1.0
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.2
+            hue: 0.1
+            color_jitter_prob: 0.8
+            to_grayscale_prob: 0.2
+            shuffle: True
+        GaussianBlur:
+          params:
+            prob: 0.1
+        Solarize:
+          params:
+            prob: 0.2
+            threshold: 0.5
+        Clip:
+          params:
+            prob: 1.0
+            x_min: 0
+            x_max: 1
+    1:
+      augmentations:
+        RandomFlip:
+          params:
+            prob: 1.0
+        ColorTransform:
+          params:
+            prob: 1.0
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.2
+            hue: 0.1
+            color_jitter_prob: 0.8
+            to_grayscale_prob: 0.2
+            shuffle: True
+        GaussianBlur:
+          params:
+            prob: 1.0
+        Clip:
+          params:
+            prob: 1.0
+            x_min: 0
+            x_max: 1
+
+data:
+  name: Base
+  params:
+    dataset_name: "imagenet"
+    batch_size: 512
+    data_dtype_str: "float32"
+    dataset_configs: {}

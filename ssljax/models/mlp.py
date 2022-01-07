@@ -51,17 +51,31 @@ class MLP(Model):
             self.activation = nn.gelu
         else:
             raise KeyError("activation must be in {relu, gelu}")
-        dtypedict = {"float32": jnp.float32, "float16": jnp.float16, "bfloat16": jnp.bfloat16}
+        if "layer_bias" in self.config:
+            self.layer_bias = self.config.layer_bias
+        else:
+            self.layer_bias = True
+        dtypedict = {
+            "float32": jnp.float32,
+            "float16": jnp.float16,
+            "bfloat16": jnp.bfloat16,
+        }
         self.dtype = dtypedict[self.config.dtype]
         layers = []
         for layer in self.config.layer_dims[:-1]:
-            layers.append(nn.Dense(layer, dtype=self.config.dtype))
+            layers.append(nn.Dense(layer, self.layer_bias, dtype=self.config.dtype))
             if self.config.batch_norm:
                 layers.append(nn.BatchNorm(**self.config.batch_norm_params))
             layers.append(self.activation)
             if self.config.dropout_prob:
                 layers.append(nn.Dropout(rate=self.config.dropout_prob))
-        layers.append(nn.Dense(self.config.layer_dims[-1], dtype=self.config.dtype))
+        layers.append(
+            nn.Dense(
+                self.config.layer_dims[-1], self.layer_bias, dtype=self.config.dtype
+            )
+        )
+        if "batch_norm_final_layer" in self.config:
+            layers.append(nn.BatchNorm(**self.config.batch_norm_final_layer_params))
         self.layers = layers
 
     @nn.compact

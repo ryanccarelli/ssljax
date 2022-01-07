@@ -4,6 +4,7 @@ from collections import OrderedDict
 from functools import partial
 from typing import Callable, Dict, List
 
+import jax
 import jax.numpy as jnp
 import jax.random
 from omegaconf import DictConfig
@@ -77,7 +78,8 @@ class Task:
         Returns (Loss): The loss to use for the task.
         """
         return partial(
-            get_from_register(Loss, self.config.loss.name), **self.config.loss.params
+            get_from_register(Loss, self.config.loss.name),
+            **self.config.loss.params,
         )
 
     def _get_optimizers(self) -> List[Optimizer]:
