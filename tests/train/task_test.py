@@ -8,8 +8,8 @@ from ssljax.train.ssltrainer import SSLTrainer
 from ssljax.train.task import Task
 
 
-def test_init(cputestconfig):
-    task = Task(cputestconfig)
+def test_init(basecpuconfig):
+    task = Task(basecpuconfig)
     assert isinstance(task.trainer, SSLTrainer)
     assert issubclass(task.model, SSLModel)
     assert issubclass(task.meter, SSLMeter)

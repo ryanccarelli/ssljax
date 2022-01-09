@@ -2,14 +2,13 @@ env:
   seed: 1337
   numpy_seed: 1337
   jax_seed: 1337
-  epochs: 100
-  accum_steps: 1
+  epochs: 2
   save_checkpoint:
     params:
       ckpt_dir: "outs/checkpoints/"
       keep: 1
       overwrite: True
-      keep_every_n_steps: 300
+      keep_every_n_steps: 10
   restore_checkpoint:
     params: {}
   half_precision: False
@@ -24,52 +23,70 @@ model:
   branches:
     0:
       name: Branch
+      pipelines: ["0"]
       stages:
         stop_gradient: False
         body:
-          module: VIT
+          module: ResNet
           params:
-            config: "ViT-S_16"
+            num_outputs: False
+            num_filters: 64
+            num_layers: 50
         head:
-          module: DINO_MLP
+          module: MLP
           params:
-            layer_dims: [2048, 10]
+            layer_dims: [4096, 256]
+            dropout_prob: 0.0
+            batch_norm: True
+            batch_norm_params:
+              use_running_average: True
+              momentum: 0.9
+              epsilon: 1e-5
+            activation_name: "relu"
+            dtype: "float32"
+        pred:
+          module: MLP
+          params:
+            layer_dims: [4096, 256]
             dropout_prob: 0.0
             batch_norm: False
             batch_norm_params: {}
             activation_name: "relu"
-        proj:
-          module: CenterSoftmax
-          params: {}
+            dtype: "float32"
 
     1:
       name: Branch
+      pipelines: ["1"]
       stages:
         stop_gradient: True
         body:
-          module: VIT
+          module: ResNet
           params:
-            config: "ViT-S_16"
+            num_outputs: False
+            num_filters: 64
+            num_layers: 50
         head:
-          module: DINO_MLP
+          module: MLP
           params:
-            layer_dims: [2048, 10]
+            layer_dims: [4096, 256]
             dropout_prob: 0.0
-            batch_norm: False
-            batch_norm_params: {}
+            batch_norm: True
+            batch_norm_params:
+              use_running_average: True
+              momentum: 0.9
+              epsilon: 1e-5
             activation_name: "relu"
-        proj:
-          module: Softmax
-          params: {}
+            dtype: "float32"
 
-loss: cross_entropy_loss
+loss:
+  name: cosine_similarity
+  params: {}
 
 optimizers:
   branches:
     0:
       name: lars
       params:
-        # TODO: check that this should be momentum (comes from deepmind's \beta)
         momentum: 0.9
         trust_coefficient: 1e-3
         weight_decay: 1.5e-6
@@ -79,15 +96,23 @@ optimizers:
 schedulers:
   branches:
     0:
-      name: BYOL
-      params:
-        # note that learning rate scales w/ number of epochs see deepmind implementation
-        base_learning_rate: 0.45
-        warmup_steps: 1000
-        batch_size: 8
-        # epochs * train_images_per_epoch // batch_size
-        # TODO: for now this is a random number
-        total_steps: 100000
+      learning_rate:
+        name: byol_lr_schedule
+        params:
+          # lr = 0.2 * batchsize/256
+          base_learning_rate: 0.2
+          warmup_steps: 1000
+          batch_size: 4096
+          # TODO: epochs * train_images_per_epoch // batch_size
+          total_steps: 100000
+  post_process:
+    0:
+      tau:
+        name: byol_ema_schedule
+        params:
+          # TODO: why is this max_steps and total_steps above (inherit this weirdness from DM implementation)
+          base_ema: .996
+          max_steps: 100000
 
 post_process:
   funcs:
@@ -96,13 +121,14 @@ post_process:
       params:
         online_branch_name: branch_0
         target_branch_name: branch_1
-        tau: 0.9
-        remove_from_online: [proj_mod]
+        remove_from_online: [pred]
 
 meter:
   name: SSLMeter
 
 pipelines:
+  # TODO: random resize crop
+  flatten: False
   branches:
     0:
       augmentations:
@@ -155,9 +181,14 @@ pipelines:
             x_min: 0
             x_max: 1
 
-dataloader:
-  name: cifar10
+data:
+  name: Base
   params:
-    batch_size: 8
-    flatten: False
-    input_shape: (32,32,3)
+    dataset_name: "imagenet"
+    batch_size: 4096
+    data_dtype_str: "float32"
+    dataset_configs:
+      # decode_and_random_crop
+      # reshape
+      # random flip (left/right)
+      data_augmentations: "default"

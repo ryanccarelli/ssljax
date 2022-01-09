@@ -7,8 +7,8 @@ from ssljax.core import register
 from ssljax.losses.loss import Loss
 
 
-@register(Loss, "moco_loss")
-def moco_infonce_loss(
+@register(Loss, "infonce_loss")
+def infonce_loss(
     outs: Mapping[str, Mapping[str, jnp.ndarray]],
     tau: float = 0.2,
     reduction: Optional[Text] = "mean",
