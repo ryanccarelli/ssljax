@@ -468,3 +468,10 @@ class CenterCrop(Augmentation):
 
     def __repr__(self):
         return "CenterCrop"
+
+@register(Augmentation, "RandomResizedCrop")
+class RandomResizedCrop(Augmentation):
+    """
+    Resize a random crop.
+    Same as https://pytorch.org/vision/main/generated/torchvision.transforms.RandomResizedCrop.html
+    """
