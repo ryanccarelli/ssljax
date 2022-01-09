@@ -99,21 +99,21 @@ model:
             # B 3072
             # L 4096
             # H 5120
-            mlp_dim: 3072
+            mlp_dim: 1024
             # num_layers
             # Ti 12
             # S 12
             # B 12
             # L 24
             # H 32
-            num_layers: 12
+            num_layers: 6
             # num_heads
             # Ti 3
             # S 6
             # B 12
             # L 16
             # H 16
-            num_heads: 12
+            num_heads: 8
             # patches
             # 16 for B/16 (in general after /)
             patches: 16
@@ -123,7 +123,7 @@ model:
             # B 768
             # L 1024
             # H 1280
-            hidden_size: 768
+            hidden_size: 384
             representation_size: None
             dropout_rate: 0.1
             attention_dropout_rate: 0.
