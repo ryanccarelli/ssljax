@@ -22,12 +22,14 @@ from ssljax.core import register
 from ssljax.losses.loss import Loss
 
 
-@register(Loss, "byol_regression_loss")
-def byol_regression_loss(
-    outs: Mapping[str, Mapping[str, jnp.ndarray]], reduction: Optional[Text] = "mean"
+@register(Loss, "cosine_similarity")
+def cosine_similarity(
+    outs: Mapping[str, Mapping[str, jnp.ndarray]],
+    reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
     """
     Cosine similarity regression loss.
+    Adapted from Deepmind implementation in official BYOL repo.
 
     Args:
         outs (Mapping[str, Mapping[str, jnp.ndarray]]): model output
@@ -52,9 +54,10 @@ def byol_regression_loss(
         raise ValueError(f"Incorrect reduction mode {reduction}")
 
 
-@register(Loss, "byol_softmax_cross_entropy_loss")
-def byol_softmax_cross_entropy(
-    outs: Mapping[str, Mapping[str, jnp.ndarray]], reduction: Optional[Text] = "mean",
+@register(Loss, "cross_entropy")
+def cross_entropy(
+    outs: Mapping[str, Mapping[str, jnp.ndarray]],
+    reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
     """
     Computes softmax cross entropy given logits and one-hot class labels.
@@ -70,6 +73,7 @@ def byol_softmax_cross_entropy(
     Raises:
         ValueError: If the type of `reduction` is unsupported.
     """
+
     assert all(
         isinstance(x, jnp.ndarray) for x in tree_leaves(outs)
     ), "loss functions act on jnp.arrays"
@@ -86,7 +90,9 @@ def byol_softmax_cross_entropy(
 
 
 def l2_normalize(
-    x: jnp.ndarray, axis: Optional[int] = None, epsilon: float = 1e-12,
+    x: jnp.ndarray, 
+    axis: Optional[int] = None, 
+    epsilon: float = 1e-12,
 ) -> jnp.ndarray:
     """
     l2 normalize a tensor on an axis with numerical stability.
@@ -94,6 +100,7 @@ def l2_normalize(
     Args:
         x (jnp.ndarray):
     """
+
     assert isinstance(x, jnp.ndarray), "loss functions act on jnp.arrays"
     assert isinstance(axis, int), "axis must be int"
     square_sum = jnp.sum(jnp.square(x), axis=axis, keepdims=True)

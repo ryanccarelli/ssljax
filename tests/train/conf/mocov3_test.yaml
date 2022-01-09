@@ -25,14 +25,13 @@ model:
   branches:
     0:
       name: Branch
-      pipelines: ["0"]
+      pipelines: ["0", "1"]
       stages:
         stop_gradient: False
-        # B/16 on imagenet
         body:
           module: ViT
           params:
-            num_classes:
+            num_classes: 20
             # mlp_dim
             # Ti 768
             # S 1536
@@ -69,33 +68,39 @@ model:
             attention_dropout_rate: 0.
             stochastic_depth: None
             classifier: "token"
-            # TODO: convert str to jnp type
             dtype: "float32"
-        basehead:
-          module: DINOMLP
-          params:
-            layer_dims: [2048, 2048, 256]
-            dropout_prob: 0.0
-            batch_norm: False
-            batch_norm_params: {}
-            activation_name: "gelu"
-            dtype: "float32"
-        dinohead:
-          module: DINOHead
-          params:
-            # TODO: what is K?
-            out_dim: 10
         proj:
-          module: CenterSoftmax
-          params: {}
+          module: MLP
+          params:
+            layer_dims: [4096, 4096, 256]
+            dropout_prob: 0.0
+            # TODO: SyncBN? Paper first says follows SIMCLR
+            # then later says follows BYOL in appendix A
+            batch_norm: True
+            batch_norm_params:
+              use_running_average: True
+              momentum: 0.9
+              epsilon: 1e-5
+            activation_name: "relu"
+        pred:
+          module: MLP
+          params:
+            layer_dims: [4096, 256]
+            dropout_prob: 0.0
+            # TODO: SyncBN? Paper first says follows SIMCLR
+            # then later says follows BYOL in appendix A
+            batch_norm: True
+            batch_norm_params:
+                decay_rate: 0.9
+                epsilon: 1e-5
+            activation_name: "relu"
 
     1:
       name: Branch
-      pipelines: ["1"]
+      pipelines: ["0", "1"]
       stages:
         stop_gradient: True
         body:
-          # from https://github.com/google-research/scenic/blob/main/scenic/projects/baselines/configs/imagenet/imagenet_vit_config.py
           module: ViT
           params:
             num_classes:
@@ -137,38 +142,30 @@ model:
             classifier: "token"
             # TODO: convert str to jnp type
             dtype: "float32"
-        basehead:
-          module: DINOMLP
-          params:
-            layer_dims: [2048, 2048, 256]
-            dropout_prob: 0.0
-            batch_norm: False
-            batch_norm_params: {}
-            activation_name: "gelu"
-        dinohead:
-          module: DINOHead
-          params:
-            # TODO: what is K?
-            out_dim: 10
         proj:
-          module: CenterSoftmax
-          params: {}
+          module: MLP
+          params:
+            layer_dims: [4096, 4096, 256]
+            dropout_prob: 0.0
+            batch_norm: True
+            # TODO: SyncBN? Paper first says follows SIMCLR
+            # then later says follows BYOL in appendix A
+            batch_norm_params:
+              use_running_average: True
+              momentum: 0.9
+              epsilon: 1e-5
+            activation_name: "relu"
 
 loss:
-  name: cross_entropy_loss
+  name: infonce_loss
   params: {}
 
 optimizers:
   branches:
     0:
-      name: lars
+      name: adamw
       params:
-        # TODO: check that this should be momentum (comes from deepmind's \beta)
-        momentum: 0.9
-        trust_coefficient: 1e-3
-        weight_decay: 1.5e-6
-        weight_decay_mask: True
-        trust_ratio_mask: True
+        weight_decay: 1e-6
 
 schedulers:
   branches:
@@ -176,9 +173,8 @@ schedulers:
       learning_rate:
         name: BYOLlr
         params:
-          # note that learning rate scales w/ number of epochs see deepmind implementation
-          base_learning_rate: 0.2
-          warmup_steps: 1000
+          base_learning_rate: 0.6
+          warmup_steps: 10000
           batch_size: 4096
           # epochs * train_images_per_epoch // batch_size
           # TODO: for now this is a random number
@@ -188,8 +184,8 @@ schedulers:
       tau:
         name: BYOLema
         params:
+          base_ema: 0.99
           # TODO: why is this max_steps and total_steps above (inherit this weirdness from DM implementation)
-          base_ema: .996
           max_steps: 100000
 
 post_process:
@@ -199,7 +195,7 @@ post_process:
       params:
         online_branch_name: branch_0
         target_branch_name: branch_1
-        remove_from_online: [proj]
+        remove_from_online: [pred]
 
 meter:
   name: SSLMeter
@@ -208,9 +204,12 @@ pipelines:
   flatten: False
   pre:
     augmentations:
-      RandomFlip:
+      # TODO: this needs to be RandomResizedCrop
+      RandomCrop:
         params:
           prop: 1.0
+          height: 224
+          width: 224
   branches:
     0:
       augmentations:
@@ -266,7 +265,7 @@ pipelines:
 data:
   name: Base
   params:
-    dataset_name: "cifar10"
-    batch_size: 8
+    dataset_name: "mnist"
+    batch_size: 4096
     data_dtype_str: "float32"
     dataset_configs: {}

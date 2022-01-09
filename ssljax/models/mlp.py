@@ -112,42 +112,56 @@ def _truncated_normal(lower, upper, mean=0, stddev=1, dtype=jnp.float_):
 
 
 @register(Model, "DINOMLP")
-class DINOMLP(Model):
+class DINOMLP(MLP):
     """
     DINO implementation of multilayer perceptron.
 
+    Dense layer kernel init is truncated normal.
+    Final dense layer has bias.
+
+    Paper composes 3 layer DINOMLP with GELU, no batchnorm, no dropout
+    with DINOProj
+
     Args:
-        layer_dims(List[int]): list indicating number of neurons in each layer
-        dtype: jnp datatype
-        dropout_prob(float): dropout rate hyperparameteri
-        batch_norm(bool): whether to use batchnorm between layers
-        batch_norm_params(dict): params to be passed to nn.BatchNorm
-        activation_name(str): activation function
+        config (omegaconf.DictConfig): configuration containing
+            layer_dims(List[int]): list indicating number of neurons in each layer
+            dtype: jnp datatype
+            dropout_prob(float): dropout rate hyperparameteri
+            batch_norm(bool): whether to use batchnorm between layers
+            batch_norm_params(dict): params to be passed to nn.BatchNorm
+            activation_name(str): activation function
         kernel_init(Callable[[PRNGKey, Shape, Dtype], Array]): linear layer kernel init function
         bias_init(Callable[[PRNGKey, Shape, Dtype], Array]): linear layer bias init function
     """
 
-    layer_dims: List[int]
-    batch_norm_params: dict
-    dtype: jax._src.numpy.lax_numpy._ScalarMeta = jnp.float32
-    dropout_prob: float = 0.0
-    batch_norm: bool = False
-    activation_name: Callable = "gelu"
+    config: DictConfig
     kernel_init: Callable[[PRNGKey, Shape, Dtype], Array] = _truncated_normal(
         stddev=0.02, lower=-2.0, upper=2.0
     )
     bias_init: Callable[[PRNGKey, Shape, Dtype], Array] = zeros
 
     def setup(self):
+        assert (
+            isinstance(self.config.layer_dims, list) and isinstance(i, int)
+            for i in self.config.layer_dims
+        ), "layer dimensions must be a list of integers"
+        assert self.config.activation_name in [
+            "relu",
+            "gelu",
+        ], "supported activations are {'relu', 'gelu'}"
         if self.activation_name == "relu":
             self.activation = nn.relu
         elif self.activation_name == "gelu":
             self.activation = nn.gelu
         else:
             raise KeyError("activation must be in {relu, gelu}")
+        dtypedict = {"float32": jnp.float32, "float16": jnp.float16, "bfloat16": jnp.bfloat16}
+        self.dtype = dtypedict[self.config.dtype]
         layers = []
         for layer in self.layer_dims[:-1]:
             layers.append(
+                # default kernel is glorot
+                # bias is default, same as MLP
                 nn.Dense(
                     layer,
                     dtype=self.dtype,
@@ -163,18 +177,9 @@ class DINOMLP(Model):
         layers.append(nn.Dense(self.layer_dims[-1], dtype=self.dtype, use_bias=False))
         self.layers = layers
 
-    @nn.compact
-    def __call__(self, x, train=False):
-        for layer in self.layers:
-            if isinstance(layer, flax.linen.stochastic.Dropout):
-                x = layer(x, deterministic=True)
-            else:
-                x = layer(x)
-        return x
 
-
-@register(Model, "DINOHead")
-class DINOHead(Model):
+@register(Model, "DINOProj")
+class DINOProj(Model):
     """
     Adapted from https://github.com/facebookresearch/dino/blob/cb711401860da580817918b9167ed73e3eef3dcf/vision_transformer.py#L257
     Compose with 3 layer GELU MLP, no batchnorm, no dropout for paper-version DINO.
@@ -185,15 +190,16 @@ class DINOHead(Model):
         kernel_init(Callable[[PRNGKey, Shape, Dtype], Array]): linear layer kernel init function
     """
 
-    out_dim: int
-    dtype: jax._src.numpy.lax_numpy._ScalarMeta = jnp.float32
+    config: DictConfig
     kernel_init: Callable[[PRNGKey, Shape, Dtype], Array] = _truncated_normal(
         stddev=0.02, lower=-2.0, upper=2.0
     )
 
     def setup(self):
+        dtypedict = {"float32": jnp.float32, "float16": jnp.float16, "bfloat16": jnp.bfloat16}
+        self.dtype = dtypedict[self.config.dtype]
         self.linear = nn.Dense(
-            dtype=self.dtype, kernel_init=self.kernel_init, use_bias=False
+            self.config.out_dim, dtype=self.dtype, kernel_init=self.kernel_init, use_bias=False
         )
 
     @nn.compact
