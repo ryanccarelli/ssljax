@@ -15,146 +15,147 @@ env:
   half_precision: False
   dynamic_scale: False
   dynamic_scale_params: {}
-  input_shape: (32,32,3)
 
 trainer:
   name: SSLTrainer
+
+modules:
+  body1:
+    name: ViT
+    params:
+      num_classes: 20
+      # mlp_dim
+      # Ti 768
+      # S 1536
+      # B 3072
+      # L 4096
+      # H 5120
+      mlp_dim: 3072
+      # num_layers
+      # Ti 12
+      # S 12
+      # B 12
+      # L 24
+      # H 32
+      num_layers: 12
+      # num_heads
+      # Ti 3
+      # S 6
+      # B 12
+      # L 16
+      # H 16
+      num_heads: 12
+      # patches
+      # 16 for B/16 (in general after /)
+      patches: 16
+      # hidden_size
+      # Ti 192
+      # S 384
+      # B 768
+      # L 1024
+      # H 1280
+      hidden_size: 768
+      representation_size: None
+      dropout_rate: 0.1
+      attention_dropout_rate: 0.
+      stochastic_depth: None
+      classifier: "token"
+      dtype: "float32"
+  proj1:
+    name: MLP
+    params:
+      layer_dims: [4096, 4096, 256]
+      dropout_prob: 0.0
+      # TODO: SyncBN? Paper first says follows SIMCLR
+      # then later says follows BYOL in appendix A
+      batch_norm: True
+      batch_norm_params:
+        use_running_average: True
+        momentum: 0.9
+        epsilon: 1e-5
+      activation_name: "relu"
+  pred1:
+    name: MLP
+    params:
+      layer_dims: [4096, 256]
+      dropout_prob: 0.0
+      # TODO: SyncBN? Paper first says follows SIMCLR
+      # then later says follows BYOL in appendix A
+      batch_norm: True
+      batch_norm_params:
+          decay_rate: 0.9
+          epsilon: 1e-5
+      activation_name: "relu"
+  body2:
+    name: ViT
+    params:
+      num_classes:
+      # mlp_dim
+      # Ti 768
+      # S 1536
+      # B 3072
+      # L 4096
+      # H 5120
+      mlp_dim: 3072
+      # num_layers
+      # Ti 12
+      # S 12
+      # B 12
+      # L 24
+      # H 32
+      num_layers: 12
+      # num_heads
+      # Ti 3
+      # S 6
+      # B 12
+      # L 16
+      # H 16
+      num_heads: 12
+      # patches
+      # 16 for B/16 (in general after /)
+      patches: 16
+      # hidden_size
+      # Ti 192
+      # S 384
+      # B 768
+      # L 1024
+      # H 1280
+      hidden_size: 768
+      representation_size: None
+      dropout_rate: 0.1
+      attention_dropout_rate: 0.
+      stochastic_depth: None
+      classifier: "token"
+      # TODO: convert str to jnp type
+      dtype: "float32"
+  proj2:
+    name: MLP
+    params:
+      layer_dims: [4096, 4096, 256]
+      dropout_prob: 0.0
+      batch_norm: True
+      # TODO: SyncBN? Paper first says follows SIMCLR
+      # then later says follows BYOL in appendix A
+      batch_norm_params:
+        use_running_average: True
+        momentum: 0.9
+        epsilon: 1e-5
+      activation_name: "relu"
 
 model:
   name: SSLModel
   branches:
     0:
-      name: Branch
       pipelines: ["0", "1"]
-      stages:
-        stop_gradient: False
-        body:
-          module: ViT
-          params:
-            num_classes: 20
-            # mlp_dim
-            # Ti 768
-            # S 1536
-            # B 3072
-            # L 4096
-            # H 5120
-            mlp_dim: 3072
-            # num_layers
-            # Ti 12
-            # S 12
-            # B 12
-            # L 24
-            # H 32
-            num_layers: 12
-            # num_heads
-            # Ti 3
-            # S 6
-            # B 12
-            # L 16
-            # H 16
-            num_heads: 12
-            # patches
-            # 16 for B/16 (in general after /)
-            patches: 16
-            # hidden_size
-            # Ti 192
-            # S 384
-            # B 768
-            # L 1024
-            # H 1280
-            hidden_size: 768
-            representation_size: None
-            dropout_rate: 0.1
-            attention_dropout_rate: 0.
-            stochastic_depth: None
-            classifier: "token"
-            dtype: "float32"
-        proj:
-          module: MLP
-          params:
-            layer_dims: [4096, 4096, 256]
-            dropout_prob: 0.0
-            # TODO: SyncBN? Paper first says follows SIMCLR
-            # then later says follows BYOL in appendix A
-            batch_norm: True
-            batch_norm_params:
-              use_running_average: True
-              momentum: 0.9
-              epsilon: 1e-5
-            activation_name: "relu"
-        pred:
-          module: MLP
-          params:
-            layer_dims: [4096, 256]
-            dropout_prob: 0.0
-            # TODO: SyncBN? Paper first says follows SIMCLR
-            # then later says follows BYOL in appendix A
-            batch_norm: True
-            batch_norm_params:
-                decay_rate: 0.9
-                epsilon: 1e-5
-            activation_name: "relu"
-
+      stop_gradient: False
+      body: body1
+      head: head1
+      pred: pred1
     1:
-      name: Branch
       pipelines: ["0", "1"]
-      stages:
-        stop_gradient: True
-        body:
-          module: ViT
-          params:
-            num_classes:
-            # mlp_dim
-            # Ti 768
-            # S 1536
-            # B 3072
-            # L 4096
-            # H 5120
-            mlp_dim: 3072
-            # num_layers
-            # Ti 12
-            # S 12
-            # B 12
-            # L 24
-            # H 32
-            num_layers: 12
-            # num_heads
-            # Ti 3
-            # S 6
-            # B 12
-            # L 16
-            # H 16
-            num_heads: 12
-            # patches
-            # 16 for B/16 (in general after /)
-            patches: 16
-            # hidden_size
-            # Ti 192
-            # S 384
-            # B 768
-            # L 1024
-            # H 1280
-            hidden_size: 768
-            representation_size: None
-            dropout_rate: 0.1
-            attention_dropout_rate: 0.
-            stochastic_depth: None
-            classifier: "token"
-            # TODO: convert str to jnp type
-            dtype: "float32"
-        proj:
-          module: MLP
-          params:
-            layer_dims: [4096, 4096, 256]
-            dropout_prob: 0.0
-            batch_norm: True
-            # TODO: SyncBN? Paper first says follows SIMCLR
-            # then later says follows BYOL in appendix A
-            batch_norm_params:
-              use_running_average: True
-              momentum: 0.9
-              epsilon: 1e-5
-            activation_name: "relu"
+      stop_gradient: True
+      body: body2
+      head: head2
 
 loss:
   name: infonce_loss
@@ -193,9 +194,8 @@ post_process:
     0:
       name: ema
       params:
-        online_branch_name: branch_0
-        target_branch_name: branch_1
-        remove_from_online: [pred]
+        online_branch_name: ["body1", "proj1"]
+        target_branch_name: ["body2", "proj2"]
 
 meter:
   name: SSLMeter
@@ -266,6 +266,6 @@ data:
   name: Base
   params:
     dataset_name: "mnist"
-    batch_size: 4096
+    batch_size: 32
     data_dtype_str: "float32"
     dataset_configs: {}

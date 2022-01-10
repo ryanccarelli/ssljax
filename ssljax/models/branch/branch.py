@@ -19,7 +19,7 @@ class Branch(Model):
     """
 
     stages: dict
-    stop_gradient: bool
+    stop_gradient: bool = False
 
     def __call__(self, x):
         for key, val in self.stages.items():

@@ -300,7 +300,7 @@ class SSLTrainer(Trainer):
         )
 
         # load pretrained modules
-        state = load_pretrained(self.task.config.model.branches, state)
+        state = load_pretrained(self.task.config.modules, state)
 
         # load checkpoint
         if self.task.config.env.restore_checkpoint.params:
@@ -337,10 +337,14 @@ def load_pretrained(config, state):
 
     params = unfreeze(state.params)
 
-    for branch_key, branch in config.items():
-        if "pretrained" in branch:
+    for module_key, module_params in config.items():
+        if "pretrained" in module_params:
+            assert isinstance(module_params.pretrained, str), "pretrained models are paths type str"
+            path = module_params["pretrained"]
+            print(str(Path(__file__).parents[2]) + path)
             replace = restore_checkpoint(
-                str(Path(__file__).parents[2]) + branch["pretrained"], target=None,
+                str(Path(__file__).parents[2]) + path,
+                target=None,
             )
             if "model_state" in replace:
                 while "model_state" in replace:
@@ -350,23 +354,6 @@ def load_pretrained(config, state):
                     replace = replace["params"]
             else:
                 raise Exception("checkpoint file structure not recognized")
-            params["branch_{branch_key}"] = replace
-        for stage_key, stage in branch.items():
-            if stage_key not in ["stop_gradient", "pipelines"]:
-                if "pretrained" in stage:
-                    print(str(Path(__file__).parents[2]) + stage["pretrained"])
-                    replace = restore_checkpoint(
-                        str(Path(__file__).parents[2]) + stage["pretrained"],
-                        target=None,
-                    )
-                    if "model_state" in replace:
-                        while "model_state" in replace:
-                            replace = replace["model_state"]
-                    elif "params" in replace:
-                        while "params" in replace:
-                            replace = replace["params"]
-                    else:
-                        raise Exception("checkpoint file structure not recognized")
-                    params[f"branch_{branch_key}"][stage_key] = replace
+            params[module_key] = replace
     state.replace(params=freeze(params))
     return state

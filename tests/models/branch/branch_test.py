@@ -6,22 +6,25 @@ import pytest
 from chex import assert_rank
 from omegaconf import DictConfig
 # TODO: fix this
+from ssljax.core import get_from_register
+from ssljax.models.model import Model
 from ssljax.models.branch.branch import Branch
 
 
 # how to mock config here?
-#
 @pytest.mark.parametrize("stop_gradient", [True, False])
 class TestBranch:
     def test_setup_call(self, stop_gradient):
         config = DictConfig(
             {
-                "stop_gradient": True,
-                "body": {"module": "MLP", "params": {"layer_dims": [1], "activation_name": "relu", "dtype": "float32"}},
-                "head": {"module": "MLP", "params": {"layer_dims": [1], "activation_name": "relu", "dtype": "float32"}},
+                "body": {"name": "MLP", "params": {"layer_dims": [1], "activation_name": "relu", "dtype": "float32"}},
+                "head": {"name": "MLP", "params": {"layer_dims": [1], "activation_name": "relu", "dtype": "float32"}},
             }
         )
-        branch = Branch(config=config)
+        modules = {}
+        for module_key, module_params in config.items():
+            modules[module_key] = get_from_register(Model, module_params.name)(module_params.params, name=module_key)
+        branch = Branch(stages=modules, stop_gradient=stop_gradient)
         key = jax.random.PRNGKey(0)
         k1, _ = jax.random.split(key)
         x = jnp.ones((20,), jnp.float16)

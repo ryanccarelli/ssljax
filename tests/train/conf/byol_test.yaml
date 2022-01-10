@@ -18,65 +18,67 @@ env:
 trainer:
   name: SSLTrainer
 
+modules:
+  body1:
+    name: ResNet
+    params:
+      num_outputs: False
+      num_filters: 64
+      num_layers: 50
+  head1:
+    name: MLP
+    params:
+      layer_dims: [4096, 256]
+      dropout_prob: 0.0
+      batch_norm: True
+      batch_norm_params:
+        use_running_average: True
+        momentum: 0.9
+        epsilon: 1e-5
+      activation_name: "relu"
+      dtype: "float32"
+  pred1:
+    name: MLP
+    params:
+      layer_dims: [4096, 256]
+      dropout_prob: 0.0
+      batch_norm: False
+      batch_norm_params: {}
+      activation_name: "relu"
+      dtype: "float32"
+  body2:
+    name: ResNet
+    params:
+      num_outputs: False
+      num_filters: 64
+      num_layers: 50
+  head2:
+    name: MLP
+    params:
+      layer_dims: [4096, 256]
+      dropout_prob: 0.0
+      batch_norm: True
+      batch_norm_params:
+        use_running_average: True
+        momentum: 0.9
+        epsilon: 1e-5
+      activation_name: "relu"
+      dtype: "float32"
+
 model:
   name: SSLModel
   branches:
     0:
-      name: Branch
+      stop_gradient: False
       pipelines: ["0"]
-      stages:
-        stop_gradient: False
-        body:
-          module: ResNet
-          params:
-            num_outputs: False
-            num_filters: 64
-            num_layers: 50
-        head:
-          module: MLP
-          params:
-            layer_dims: [4096, 256]
-            dropout_prob: 0.0
-            batch_norm: True
-            batch_norm_params:
-              use_running_average: True
-              momentum: 0.9
-              epsilon: 1e-5
-            activation_name: "relu"
-            dtype: "float32"
-        pred:
-          module: MLP
-          params:
-            layer_dims: [4096, 256]
-            dropout_prob: 0.0
-            batch_norm: False
-            batch_norm_params: {}
-            activation_name: "relu"
-            dtype: "float32"
-
+      body: body1
+      head: head1
+      pred: pred1
     1:
-      name: Branch
+      stop_gradient: True
       pipelines: ["1"]
-      stages:
-        stop_gradient: True
-        body:
-          module: ResNet
-          params:
-            num_outputs: False
-            num_filters: 64
-            num_layers: 50
-        head:
-          module: MLP
-          params:
-            layer_dims: [4096, 256]
-            dropout_prob: 0.0
-            batch_norm: True
-            batch_norm_params:
-              use_running_average: True
-              momentum: 0.9
-              epsilon: 1e-5
-            activation_name: "relu"
-            dtype: "float32"
+      body: body2
+      head: head2
 
 loss:
   name: cosine_similarity
@@ -119,9 +121,8 @@ post_process:
     0:
       name: ema
       params:
-        online_branch_name: branch_0
-        target_branch_name: branch_1
-        remove_from_online: [pred]
+        online_module_names: ["body1", "head1"]
+        target_module_names: ["body2", "head2"]
 
 meter:
   name: SSLMeter

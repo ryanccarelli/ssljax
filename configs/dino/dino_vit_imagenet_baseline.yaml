@@ -19,131 +19,135 @@ env:
 trainer:
   name: SSLTrainer
 
+modules:
+  # ViT-S/16, batch 1024, 16GPU
+  body1:
+    name: ViT
+    params:
+      num_classes: 20
+      # mlp_dim
+      # Ti 768
+      # S 1536
+      # B 3072
+      # L 4096
+      # H 5120
+      mlp_dim: 1024
+      # num_layers
+      # Ti 12
+      # S 12
+      # B 12
+      # L 24
+      # H 32
+      num_layers: 6
+      # num_heads
+      # Ti 3
+      # S 6
+      # B 12
+      # L 16
+      # H 16
+      num_heads: 8
+      # patches
+      # 16 for B/16 (in general after /)
+      patches: 16
+      # hidden_size
+      # Ti 192
+      # S 384
+      # B 768
+      # L 1024
+      # H 1280
+      hidden_size: 384
+      representation_size: None
+      dropout_rate: 0.1
+      attention_dropout_rate: 0.
+      stochastic_depth: None
+      classifier: "token"
+      dtype: "float32"
+  head1:
+    name: DINOMLP
+    params:
+      layer_dims: [2048, 2048, 2048]
+      dropout_prob: 0.0
+      batch_norm: False
+      batch_norm_params: {}
+      activation_name: "gelu"
+      dtype: "float32"
+  proj1:
+    name: DINOProj
+    params:
+      out_dim: 10
+      dtype: "float32"
+  body2:
+    name: ViT
+    params:
+      num_classes: 20
+      # mlp_dim
+      # Ti 768
+      # S 1536
+      # B 3072
+      # L 4096
+      # H 5120
+      mlp_dim: 1024
+      # num_layers
+      # Ti 12
+      # S 12
+      # B 12
+      # L 24
+      # H 32
+      num_layers: 6
+      # num_heads
+      # Ti 3
+      # S 6
+      # B 12
+      # L 16
+      # H 16
+      num_heads: 8
+      # patches
+      # 16 for B/16 (in general after /)
+      patches: 16
+      # hidden_size
+      # Ti 192
+      # S 384
+      # B 768
+      # L 1024
+      # H 1280
+      hidden_size: 384
+      representation_size: None
+      dropout_rate: 0.1
+      attention_dropout_rate: 0.
+      stochastic_depth: None
+      classifier: "token"
+      dtype: "float32"
+  head2:
+    name: DINOMLP
+    params:
+      layer_dims: [2048, 2048, 2048]
+      dropout_prob: 0.0
+      batch_norm: False
+      batch_norm_params: {}
+      activation_name: "gelu"
+      dtype: "float32"
+  proj2:
+    name: DINOProj
+    params:
+      out_dim: 10
+      dtype: "float32"
+
+
 model:
   name: SSLModel
   branches:
     0:
-      name: Branch
+      stop_gradient: False
       pipelines: ["0"]
-      stages:
-        stop_gradient: False
-        # ViT-S/16, batch 1024, 16GPU
-        body:
-          module: ViT
-          params:
-            num_classes: 20
-            # mlp_dim
-            # Ti 768
-            # S 1536
-            # B 3072
-            # L 4096
-            # H 5120
-            mlp_dim: 1024
-            # num_layers
-            # Ti 12
-            # S 12
-            # B 12
-            # L 24
-            # H 32
-            num_layers: 6
-            # num_heads
-            # Ti 3
-            # S 6
-            # B 12
-            # L 16
-            # H 16
-            num_heads: 8
-            # patches
-            # 16 for B/16 (in general after /)
-            patches: 16
-            # hidden_size
-            # Ti 192
-            # S 384
-            # B 768
-            # L 1024
-            # H 1280
-            hidden_size: 384
-            representation_size: None
-            dropout_rate: 0.1
-            attention_dropout_rate: 0.
-            stochastic_depth: None
-            classifier: "token"
-            dtype: "float32"
-        head:
-          module: DINOMLP
-          params:
-            layer_dims: [2048, 2048, 2048]
-            dropout_prob: 0.0
-            batch_norm: False
-            batch_norm_params: {}
-            activation_name: "gelu"
-            dtype: "float32"
-        proj:
-          module: DINOProj
-          params:
-            out_dim: 10
-            dtype: "float32"
-
+      body: body1
+      head: head1
+      proj: proj1
     1:
-      name: Branch
+      stop_gradient: True
       pipelines: ["1"]
-      stages:
-        stop_gradient: True
-        body:
-          module: ViT
-          params:
-            num_classes: 20
-            # mlp_dim
-            # Ti 768
-            # S 1536
-            # B 3072
-            # L 4096
-            # H 5120
-            mlp_dim: 1024
-            # num_layers
-            # Ti 12
-            # S 12
-            # B 12
-            # L 24
-            # H 32
-            num_layers: 6
-            # num_heads
-            # Ti 3
-            # S 6
-            # B 12
-            # L 16
-            # H 16
-            num_heads: 8
-            # patches
-            # 16 for B/16 (in general after /)
-            patches: 16
-            # hidden_size
-            # Ti 192
-            # S 384
-            # B 768
-            # L 1024
-            # H 1280
-            hidden_size: 384
-            representation_size: None
-            dropout_rate: 0.1
-            attention_dropout_rate: 0.
-            stochastic_depth: None
-            classifier: "token"
-            dtype: "float32"
-        head:
-          module: DINOMLP
-          params:
-            layer_dims: [2048, 2048, 2048]
-            dropout_prob: 0.0
-            batch_norm: False
-            batch_norm_params: {}
-            activation_name: "gelu"
-            dtype: "float32"
-        proj:
-          module: DINOProj
-          params:
-            out_dim: 10
-            dtype: "float32"
+      body: body2
+      head: head2
+      proj: proj2
 
 loss:
   name: dino_loss
@@ -203,9 +207,8 @@ post_process:
     0:
       name: ema
       params:
-        online_branch_name: branch_0
-        target_branch_name: branch_1
-        remove_from_online: [pred]
+        online_module_names: ["body1", "head1"]
+        target_module_names: ["body2", "head2"]
 
 meter:
   name: SSLMeter
