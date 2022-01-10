@@ -27,13 +27,19 @@ class SSLModel(Model):
     config: DictConfig
 
     def setup(self):
-        branch = {}
-        pipelines = {}
-        for idx, branch_params in self.config.model.branches.items():
-            b = Branch(branch_params.stages)
-            branch[str(idx)] = b
-            pipelines[str(idx)] = branch_params.pipelines
-        self.branch = branch
+        modules, branches, pipelines = {}, {}, {}
+        for module_key, module_params in self.config.modules.items():
+            module = get_from_register(Model, module_params.name)(module_params.params, name=module_key)
+            modules[module_key] = module
+        for branch_key, branch_params in self.config.model.branches.items():
+            stop_gradient = branch_params.stop_gradient
+            pipelines[str(branch_key)] = branch_params.pipelines
+            stages = {key: modules[val] for key, val in branch_params.items() if key not in ["stop_gradient", "pipelines"]}
+            branch = Branch(stages=stages, stop_gradient=stop_gradient)
+            # add back pipelines or init fails
+            branch_params.pipelines = pipelines[str(branch_key)]
+            branches[str(branch_key)] = branch
+        self.branches = branches
         self.pipelines = pipelines
 
     def __call__(self, x):
@@ -45,7 +51,7 @@ class SSLModel(Model):
                 raw data mapped through a different augmentation.Pipeline
         """
         outs = {}
-        for key, val in self.branch.items():
+        for key, val in self.branches.items():
             add = {}
             for pipeline in self.pipelines[key]:
                 add[pipeline] = val(x[pipeline])
@@ -65,11 +71,4 @@ class SSLModel(Model):
             TODO
         """
         # overwrite call?
-        raise NotImplementedError
-
-    def is_frozen(self):
-        """
-        Returns:
-            bool: true if any module is frozen
-        """
         raise NotImplementedError

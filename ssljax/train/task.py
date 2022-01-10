@@ -69,7 +69,7 @@ class Task:
 
         Returns (Model): The model to use for this task.
         """
-        return get_from_register(Model, self.config.model.name)
+        return get_from_register(Model, self.config.model.name)(self.config)
 
     def _get_loss(self) -> Loss:
         """

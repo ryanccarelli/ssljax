@@ -12,6 +12,7 @@ class TestTrainer:
         trainer = task.trainer
         trainer.train()
 
+    """
     def test_dynamic_scaling(self, dynamicscalingconfig):
         task = Task(dynamicscalingconfig)
         trainer = task.trainer
@@ -32,7 +33,6 @@ class TestTrainer:
         trainer = task.trainer
         trainer.train()
 
-    """
     @pytest.mark.gpu
     def test_train_dino_vit(self, dinovitconfig):
         # TODO: download imagenet

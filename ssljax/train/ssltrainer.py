@@ -243,7 +243,8 @@ class SSLTrainer(Trainer):
         else:
             model_dtype = jnp.float32
 
-        self.model = self.task.model(config=self.task.config)
+        # TODO: remove
+        self.model = self.task.model
 
         # .meta_data["input_shape"] is (-1, H, W, C)
         data_shape = self.task.data.meta_data["input_shape"][1:]
@@ -350,8 +351,8 @@ def load_pretrained(config, state):
             else:
                 raise Exception("checkpoint file structure not recognized")
             params["branch_{branch_key}"] = replace
-        for stage_key, stage in branch["stages"].items():
-            if stage_key != "stop_gradient":
+        for stage_key, stage in branch.items():
+            if stage_key not in ["stop_gradient", "pipelines"]:
                 if "pretrained" in stage:
                     print(str(Path(__file__).parents[2]) + stage["pretrained"])
                     replace = restore_checkpoint(
