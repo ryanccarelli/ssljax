@@ -14,30 +14,29 @@ class Branch(Model):
     This class is used by ``ssljax.core.utils.register``.
 
     Args:
-        config (omegaconf.DictConfig): config file at config.model.branches.i where i is branch index
+        stages (dict): dictionary containing modules indexed by name
+        stop_gradient (bool): whether gradients will propagate through this branch
+        intermediate (list): a list of the names of stages that should return their output
+
+    Returns:
+        outs: Mapping[str, jnp.ndarray]
     """
 
-    config: DictConfig
-
-    def setup(self):
-        self.stop_gradient = self.config["stop_gradient"]
-        stages = []
-        for stage_name, stage_params in self.config.items():
-            if stage_name != "stop_gradient":
-                stages.append(
-                    get_from_register(Model, stage_params.module)(
-                        stage_params.params, name=stage_name,
-                    )
-                )
-
-        self.stages = stages
+    stages: dict
+    stop_gradient: bool = False
+    intermediate: list or None = None
 
     def __call__(self, x):
-        for stage in self.stages:
-            x = stage(x)
+        outs = {}
+        for key, val in self.stages.items():
+            finalkey = key
+            x = val(x)
+            if self.intermediate and (key in self.intermediate):
+                outs[key] = x
         if self.stop_gradient:
             x = jax.lax.stop_gradient(x)
-        return x
+        outs[finalkey] = x
+        return outs
 
 
 # lol

@@ -22,12 +22,14 @@ from ssljax.core import register
 from ssljax.losses.loss import Loss
 
 
-@register(Loss, "byol_regression_loss")
-def byol_regression_loss(
-    outs: Mapping[str, Mapping[str, jnp.ndarray]], reduction: Optional[Text] = "mean"
+@register(Loss, "cosine_similarity")
+def cosine_similarity(
+    outs: Mapping[str, Mapping[str, Mapping[str, jnp.ndarray]]],
+    reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
     """
     Cosine similarity regression loss.
+    Adapted from Deepmind implementation in official BYOL repo.
 
     Args:
         outs (Mapping[str, Mapping[str, jnp.ndarray]]): model output
@@ -37,9 +39,10 @@ def byol_regression_loss(
         isinstance(x, jnp.ndarray) for x in tree_leaves(outs)
     ), "loss functions act on jnp.arrays"
     # outs["i"]["j"] indicates output of branch i applied to pipeline j
+    # TODO: specify dict key "pred" and "head" in arguments?
     normed_x, normed_y = (
-        l2_normalize(outs["0"]["0"], axis=-1),
-        l2_normalize(outs["1"]["1"], axis=-1),
+        l2_normalize(outs["0"]["0"]["pred"], axis=-1),
+        l2_normalize(outs["1"]["1"]["head"], axis=-1),
     )
     loss = jnp.sum((normed_x - normed_y) ** 2, axis=-1)
     if reduction == "sum":
@@ -52,9 +55,10 @@ def byol_regression_loss(
         raise ValueError(f"Incorrect reduction mode {reduction}")
 
 
-@register(Loss, "byol_softmax_cross_entropy_loss")
-def byol_softmax_cross_entropy(
-    outs: Mapping[str, Mapping[str, jnp.ndarray]], reduction: Optional[Text] = "mean",
+@register(Loss, "cross_entropy")
+def cross_entropy(
+    outs: Mapping[str, Mapping[str, Mapping[str, jnp.ndarray]]],
+    reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
     """
     Computes softmax cross entropy given logits and one-hot class labels.
@@ -70,11 +74,12 @@ def byol_softmax_cross_entropy(
     Raises:
         ValueError: If the type of `reduction` is unsupported.
     """
+
     assert all(
         isinstance(x, jnp.ndarray) for x in tree_leaves(outs)
     ), "loss functions act on jnp.arrays"
     # outs["i"]["j"] indicates output of branch i applied to pipeline j
-    loss = -jnp.sum(outs["1"]["1"] * jax.nn.log_softmax(outs["0"]["0"]), axis=-1)
+    loss = -jnp.sum(outs["1"]["1"]["pred"] * jax.nn.log_softmax(outs["0"]["0"]["pred"]), axis=-1)
     if reduction == "sum":
         return jnp.sum(loss)
     elif reduction == "mean":
@@ -86,7 +91,9 @@ def byol_softmax_cross_entropy(
 
 
 def l2_normalize(
-    x: jnp.ndarray, axis: Optional[int] = None, epsilon: float = 1e-12,
+    x: jnp.ndarray,
+    axis: Optional[int] = None,
+    epsilon: float = 1e-12,
 ) -> jnp.ndarray:
     """
     l2 normalize a tensor on an axis with numerical stability.
@@ -94,6 +101,7 @@ def l2_normalize(
     Args:
         x (jnp.ndarray):
     """
+
     assert isinstance(x, jnp.ndarray), "loss functions act on jnp.arrays"
     assert isinstance(axis, int), "axis must be int"
     square_sum = jnp.sum(jnp.square(x), axis=axis, keepdims=True)

@@ -4,6 +4,7 @@ from collections import OrderedDict
 from functools import partial
 from typing import Callable, Dict, List
 
+import jax
 import jax.numpy as jnp
 import jax.random
 from omegaconf import DictConfig
@@ -40,14 +41,16 @@ class Task:
 
     def __init__(self, config: DictConfig):
         super().__init__()
+        # for internal use
         self.config = config
         self.rng = prepare_environment(self.config)
+        self.schedulers = self._get_schedulers()
+        # for external use
+        # NOTE: schedulers must be declared before the components they schedule
+        # for now before optimizers and post_process_funcs
         self.trainer = self._get_trainer()
         self.model = self._get_model()
         self.loss = self._get_loss()
-        # NOTE: schedulers must be declared before the components they schedule
-        # for now before optimizers and post_process_funcs
-        self.schedulers = self._get_schedulers()
         self.optimizers = self._get_optimizers()
         self.meter = self._get_meter()
         self.pre_pipelines = self._get_pre_pipelines()
@@ -68,7 +71,7 @@ class Task:
 
         Returns (Model): The model to use for this task.
         """
-        return get_from_register(Model, self.config.model.name)
+        return get_from_register(Model, self.config.model.name)(self.config)
 
     def _get_loss(self) -> Loss:
         """
@@ -77,7 +80,8 @@ class Task:
         Returns (Loss): The loss to use for the task.
         """
         return partial(
-            get_from_register(Loss, self.config.loss.name), **self.config.loss.params
+            get_from_register(Loss, self.config.loss.name),
+            **self.config.loss.params,
         )
 
     def _get_optimizers(self) -> List[Optimizer]:

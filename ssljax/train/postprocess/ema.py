@@ -14,43 +14,34 @@ ScalarOrSchedule = Union[float, base.Schedule]
 
 
 @register(PostProcess, "ema")
-def ema_builder(online_branch_name, target_branch_name, tau, remove_from_online):
+def ema_builder(online_module_names, target_module_names, tau):
     """
-    Constructs exponential moving average function. Target branch parameters are
-    updated as a moving average of Online branch parameters.
+    Constructs exponential moving average function. Target module parameters are
+    updated as a moving average of Online module parameters.
 
     Args:
-        online_branch_name (str): index of online branch in state.params
-        target_branch_name (str): index of target branch in state.params
-        remove_from_online (list): modules in online branch that will not be updated
+        online_module_names (list[str]): indexes of online modules in state.params
+        target_branch_names (list[str]): indexes of target modules in state.params
         tau (ScalarOrSchedule): ema decay rate schedule
     """
-
-    def remove_key_fn(path, value):
-        for key in remove_from_online:
-            if key in path:
-                return False
-        return True
 
     def ema(params, global_step, tau=tau):
         tau = tau(global_step)
 
-        def ema_update(online_branch, target_branch):
+        def ema_update(online_module, target_module):
             # target_branch_sum = jax.tree_map(summ, target_branch, online_branch)
             return jax.tree_map(
                 lambda x, y: tau * x + (1 - tau) * y,
-                online_branch,
-                target_branch,
+                online_module,
+                target_module,
             )
 
-        model_params_filter = ModelParamFilter(remove_key_fn)
-        online_filtered_params = model_params_filter.update(
-            lambda x: x, params[online_branch_name]
-        )
-        updated_target_params = ema_update(
-            online_filtered_params, params[target_branch_name]
-        )
-        params[target_branch_name] = updated_target_params
+        for online_module_name, target_module_name in zip(online_module_names, target_module_names):
+            updated_target_params = ema_update(
+                params[online_module_name], params[target_module_name]
+            )
+            params[target_module_name] = updated_target_params
+
         return params
 
     return ema
