@@ -16,7 +16,7 @@ class Branch(Model):
     Args:
         stages (dict): dictionary containing modules indexed by name
         stop_gradient (bool): whether gradients will propagate through this branch
-        intermediate (list): if dict
+        intermediate (list): a list of the names of stages that should return their output
 
     Returns:
         outs: Mapping[str, jnp.ndarray]
