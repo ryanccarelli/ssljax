@@ -32,7 +32,6 @@ setuptools.setup(
         "tensorboardX",
         "tensorboard",
         "parameterized",
-        "dmvr @ git+https://github.com/deepmind/dmvr.git",
         "scenic @ git+https://github.com/google-research/scenic.git",
     ],
     extras_require={"jax": ["jax>=0.1.71", "jaxlib>=0.1.49",]},
