@@ -32,6 +32,8 @@ class MLP(Model):
             batch_norm(bool): whether to use batchnorm between layers
             batch_norm_params(dict): params to be passed to nn.BatchNorm
             activation_name(str): activation function
+            batch_norm_final_layer(bool): whether to use batchnorm after the final layer
+            batch_norm_final_layer_params(dict): params to be passed to nn.BatchNorm
     """
 
     config: DictConfig
