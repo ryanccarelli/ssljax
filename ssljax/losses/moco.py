@@ -9,7 +9,7 @@ from ssljax.losses.loss import Loss
 
 @register(Loss, "infonce_loss")
 def infonce_loss(
-    outs: Mapping[str, Mapping[str, jnp.ndarray]],
+    outs: Mapping[str, Mapping[str, Mapping[str, jnp.ndarray]]],
     tau: float = 0.2,
     reduction: Optional[Text] = "mean",
 ) -> jnp.ndarray:
@@ -42,8 +42,9 @@ def infonce_loss(
     ), "loss functions act on jnp.arrays"
 
     # outs["i"]["j"] indicates output of branch i applied to pipeline j
-    loss = _contrastive_loss(outs["0"]["0"], outs["1"]["1"], tau) + _contrastive_loss(
-        outs["0"]["1"], outs["1"]["0"], tau
+    # TODO: move module key to arguments
+    loss = _contrastive_loss(outs["0"]["0"]["pred"], outs["1"]["1"]["head"], tau) + _contrastive_loss(
+        outs["0"]["1"]["pred"], outs["1"]["0"]["head"], tau
     )
     if reduction == "sum":
         return jnp.sum(loss)

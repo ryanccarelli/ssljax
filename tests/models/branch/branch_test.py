@@ -30,4 +30,8 @@ class TestBranch:
         x = jnp.ones((20,), jnp.float16)
         params = branch.init(k1, x)
         out = branch.apply(params, x)
-        assert_rank(out, 1)
+        assert isinstance(out, dict)
+        assert all([isinstance(key, str) for key in out.keys()])
+        assert all([isinstance(val, jnp.ndarray) for val in out.values()])
+        for val in out.values():
+            assert_rank(val, 1)

@@ -15,8 +15,9 @@ def dino_loss(
     """
     Compute sharpened loss over views.
     """
-    teacher_out = outs["0"]["0"]
-    student_out = outs["1"]["1"]
+
+    teacher_out = outs["0"]["0"]["proj"]
+    student_out = outs["1"]["1"]["proj"]
 
     student_out = student_out/tau_s
     teacher_out = nn.softmax(teacher_out/tau_t)
@@ -28,7 +29,7 @@ def dino_loss(
             if v == iq:
                 # skip case where student and teacher same view
                 continue
-            loss = jnp.sum(-q * nn.log_softmax(student_out[v], dim=-1), dim=-1)
+            loss = jnp.sum(-q * nn.log_softmax(student_out[v], axis=-1), axis=-1)
             total_loss += loss.mean()
             n_loss_terms += 1
     total_loss /= n_loss_terms

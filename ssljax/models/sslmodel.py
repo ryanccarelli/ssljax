@@ -34,11 +34,10 @@ class SSLModel(Model):
 
         for branch_key, branch_params in self.config.model.branches.items():
             stop_gradient = branch_params.stop_gradient
+            intermediate = branch_params.intermediate if "intermediate" in branch_params else None
             pipelines[str(branch_key)] = branch_params.pipelines
-            stages = {key: modules[val] for key, val in branch_params.items() if key not in ["stop_gradient", "pipelines"]}
-            branches[str(branch_key)] = Branch(stages=stages, stop_gradient=stop_gradient)
-            # add back pipelines or init fails
-            branch_params.pipelines = pipelines[str(branch_key)]
+            stages = {key: modules[val] for key, val in branch_params.items() if key not in ["stop_gradient", "pipelines", "intermediate"]}
+            branches[str(branch_key)] = Branch(stages=stages, stop_gradient=stop_gradient, intermediate=intermediate)
 
         self.branches = branches
         self.pipelines = pipelines

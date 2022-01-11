@@ -7,7 +7,6 @@ from ssljax.train.task import Task
 
 
 class TestTrainer:
-    """
     def test_cpu(self, basecpuconfig):
         task = Task(basecpuconfig)
         trainer = task.trainer
@@ -39,3 +38,4 @@ class TestTrainer:
         task = Task(dinovitconfig)
         trainer = task.trainer
         trainer.train()
+    """

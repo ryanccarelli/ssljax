@@ -25,7 +25,6 @@ class TestSSLModel:
 
         # assert params correctly index branches
         # internals of branches tested in branch_test.py
-        assert all(x in params["params"] for x in ["branch_0", "branch_1"])
         assert all(isinstance(x, jnp.ndarray) for x in tree_leaves(params))
 
         # assert that outs has the correct structure
@@ -55,9 +54,9 @@ class MockSSLModel(SSLModel):
     config: DictConfig
 
     def setup(self):
-        self.branch = {
-            "0": LinearBranch(config=OmegaConf.create()),
-            "1": LinearBranch(config=OmegaConf.create()),
+        self.branches = {
+            "0": LinearBranch(stages={}),
+            "1": LinearBranch(stages={}),
         }
         self.pipelines = {"0": ["0"], "1": ["1"]}
 

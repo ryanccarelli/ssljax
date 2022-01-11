@@ -16,17 +16,27 @@ class Branch(Model):
     Args:
         stages (dict): dictionary containing modules indexed by name
         stop_gradient (bool): whether gradients will propagate through this branch
+        intermediate (list): if dict
+
+    Returns:
+        outs: Mapping[str, jnp.ndarray]
     """
 
     stages: dict
     stop_gradient: bool = False
+    intermediate: list or None = None
 
     def __call__(self, x):
+        outs = {}
         for key, val in self.stages.items():
+            finalkey = key
             x = val(x)
+            if self.intermediate and (key in self.intermediate):
+                outs[key] = x
         if self.stop_gradient:
             x = jax.lax.stop_gradient(x)
-        return x
+        outs[finalkey] = x
+        return outs
 
 
 # lol

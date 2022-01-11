@@ -58,15 +58,16 @@ modules:
         epsilon: 1e-5
      dtype: "float32"
 
-
 model:
   name: SSLModel
   branches:
     0:
       stop_gradient: False
       pipelines: ["0", "1"]
+      intermediate: ["head"]
       body: body1
       head: head1
+      pred: pred1
 
 
 loss:

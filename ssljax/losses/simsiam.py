@@ -16,29 +16,14 @@ def simsiam_loss(
     """
     SimSiam loss.
     """
-    # TODO: pass this from config file
-    predconfig = {
-        "layer_dims": [512, 2048],
-        "activation_name": "relu",
-        "dropout_prob": 0.0,
-        "batch_norm": True,
-        "batch_norm_params": {
-            "use_running_average": True,
-            "momentum": 0.1,
-            "epsilon": 1e-5,
-        },
-        "dtype": "float32",
-    }
 
-    mlp = MLP(OmegaConf.create(predconfig))
+    view1 = outs[0][0]["head"]
+    view2 = outs[0][1]["head"]
 
-    view1 = outs[0][0]
-    view2 = outs[0][1]
+    pred1 = outs[0][0]["pred"]
+    pred2 = outs[0][1]["pred"]
 
-    pred1 = mlp(view1)
-    pred2 = mlp(view2)
-
-    # gt uses nn.CosineSimilarity(dim=1)
+    # ground truth uses torch.nn.CosineSimilarity(dim=1)
     loss = (
         -(
             cosinesimilarity(pred1, stop_gradient(view2)).mean()
