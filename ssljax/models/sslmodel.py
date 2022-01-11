@@ -33,7 +33,7 @@ class SSLModel(Model):
             modules[module_key] = get_from_register(Model, module_params.name)(module_params.params, name=module_key)
 
         for branch_key, branch_params in self.config.model.branches.items():
-            stop_gradient = branch_params.stop_gradient
+            stop_gradient = branch_params.stop_gradient if "stop_gradient" in branch_params else False
             intermediate = branch_params.intermediate if "intermediate" in branch_params else None
             pipelines[str(branch_key)] = branch_params.pipelines
             stages = {key: modules[val] for key, val in branch_params.items() if key not in ["stop_gradient", "pipelines", "intermediate"]}
