@@ -41,14 +41,16 @@ class Task:
 
     def __init__(self, config: DictConfig):
         super().__init__()
+        # for internal use
         self.config = config
         self.rng = prepare_environment(self.config)
+        self.schedulers = self._get_schedulers()
+        # for external use
+        # NOTE: schedulers must be declared before the components they schedule
+        # for now before optimizers and post_process_funcs
         self.trainer = self._get_trainer()
         self.model = self._get_model()
         self.loss = self._get_loss()
-        # NOTE: schedulers must be declared before the components they schedule
-        # for now before optimizers and post_process_funcs
-        self.schedulers = self._get_schedulers()
         self.optimizers = self._get_optimizers()
         self.meter = self._get_meter()
         self.pre_pipelines = self._get_pre_pipelines()
