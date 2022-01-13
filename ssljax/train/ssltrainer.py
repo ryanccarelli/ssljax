@@ -114,7 +114,7 @@ class SSLTrainer(Trainer):
             state, loss = p_step(state, batch, rng_step)
 
             end_time = time.time()
-            logger.info("Step time: ", end_time - start_time)
+            logger.info(f"Step time: {end_time - start_time}")
 
             # Sync batch stats across multiple devices
             if "batch_stats" in state.mutable_states.keys():
