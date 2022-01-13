@@ -71,7 +71,7 @@ class SSLTrainer(Trainer):
 
         from jax.lib import xla_bridge
 
-        print("xla bridge device", xla_bridge.get_backend().platform)
+        logger.debug("xla bridge device", xla_bridge.get_backend().platform)
 
         key, self.rng = random.split(self.rng)
         state, p_step = self.initialize()
@@ -114,7 +114,7 @@ class SSLTrainer(Trainer):
             state, loss = p_step(state, batch, rng_step)
 
             end_time = time.time()
-            print("Step time: ", end_time - start_time)
+            logger.info("Step time: ", end_time - start_time)
 
             # Sync batch stats across multiple devices
             if "batch_stats" in state.mutable_states.keys():
@@ -146,7 +146,6 @@ class SSLTrainer(Trainer):
         """
 
         state.replace(global_step = state.global_step + 1)
-        print(state.global_step)
         rng_pre, rng = jax.random.split(rng)
         if self.task.pre_pipelines:
             batch = self.task.pre_pipelines(batch, rng_pre)
@@ -341,7 +340,7 @@ def load_pretrained(config, state):
         if "pretrained" in module_params:
             assert isinstance(module_params.pretrained, str), "pretrained models are paths type str"
             path = module_params["pretrained"]
-            print(str(Path(__file__).parents[2]) + path)
+
             replace = restore_checkpoint(
                 str(Path(__file__).parents[2]) + path,
                 target=None,
@@ -355,5 +354,6 @@ def load_pretrained(config, state):
             else:
                 raise Exception("checkpoint file structure not recognized")
             params[module_key] = replace
+            logger.info(f"{module_key} loaded from: " + str(Path(__file__).parents[2]) + path)
     state.replace(params=freeze(params))
     return state
