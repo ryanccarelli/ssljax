@@ -62,8 +62,7 @@ class Task:
         """
         Initialize the trainer.
         """
-        trainer = get_from_register(Trainer, self.config.trainer.name)
-        return trainer(rng=self.rng, task=self)
+        return get_from_register(Trainer, self.config.trainer.name)(rng=self.rng, task=self)
 
     def _get_model(self) -> Model:
         """
