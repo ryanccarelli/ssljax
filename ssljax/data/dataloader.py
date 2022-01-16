@@ -116,7 +116,7 @@ def get_identity():
     return _identity
 
 
-@ScenicRegistry.register("identity", "function")
+@ScenicRegistry.register("random_resized_crop", "function")
 @utils.InKeyOutKey()
 @utils.BatchedImagePreprocessing()
 def get_random_resized_crops(
