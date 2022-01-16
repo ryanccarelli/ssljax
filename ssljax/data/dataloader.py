@@ -6,6 +6,8 @@ import jax.numpy as jnp
 import jax.random
 import numpy as np
 import omegaconf
+from scenic.dataset_lib.big_transfer import utils
+from scenic.dataset_lib.big_transfer.registry import Registry as ScenicRegistry
 from scenic.dataset_lib.datasets import get_dataset
 from ssljax.core import register
 from torch.utils import data
@@ -98,3 +100,15 @@ def scenic(
         dataset_service_address=dataset_service_address,
     )
     return dataset
+
+
+@ScenicRegistry.register("identity", "function")
+@utils.InKeyOutKey()
+@utils.BatchedImagePreprocessing()
+def get_identity():
+    """Passthrough function for scenic bit preprocessing"""
+
+    def _identity(image):
+        return image
+
+    return _identity
