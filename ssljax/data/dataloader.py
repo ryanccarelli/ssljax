@@ -1,11 +1,13 @@
 import logging
-from typing import Optional
+from typing import Optional, Tuple
 
+import cv2
 import jax
 import jax.numpy as jnp
 import jax.random
 import numpy as np
 import omegaconf
+import tensorflow as tf
 from scenic.dataset_lib.big_transfer import utils
 from scenic.dataset_lib.big_transfer.registry import Registry as ScenicRegistry
 from scenic.dataset_lib.datasets import get_dataset
@@ -112,3 +114,79 @@ def get_identity():
         return image
 
     return _identity
+
+
+@ScenicRegistry.register("identity", "function")
+@utils.InKeyOutKey()
+@utils.BatchedImagePreprocessing()
+def get_random_resized_crops(
+    height: float,
+    width: float,
+    prob: float = 1.0,
+    scale: Tuple[float] = (0.08, 1.0),
+    ratio: Tuple[float] = (0.75, 1.3333333333333333),
+    interpolation: str = "bilinear",
+):
+    def _random_resized_crops(image):
+        coords = _get_coords(image)
+        # TODO: random crop?
+        boxes = [
+            coords["h_start"],
+            coords["w_start"],
+            coords["h_start"] + coords["crop_height"],
+            coords["w_start"] + coords["crop_width"],
+        ]
+        # TODO: multiple times? return tf.stack([copies])
+        image = tf.image.crop_and_resize(
+            image, boxes=boxes, crop_size=(height, width), method=interpolation
+        )
+        return image
+
+    def _get_coords(image):
+        area = image.shape[0] * image.shape[1]
+
+        for _attempt in range(10):
+            target_area = tf.random.uniform(minval=scale[0], maxval=scale[1]) * area
+            log_ratio = (tf.math.log(ratio[0]), tf.math.log(ratio[0]))
+            # TODO: shape?
+            aspect_ratio = tf.math.exp(
+                tf.random.uniform(minval=log_ratio[0], maxval=log_ratio[1])
+            )
+            w = int(tf.math.round(tf.math.sqrt(target_area * aspect_ratio)).item())
+            h = int(tf.math.round(tf.math.sqrt(target_area / aspect_ratio)).item())
+
+            if 0 < w <= x.shape[1] and 0 < h <= x.shape[0]:
+                i = tf.random.uniform(
+                    minval=0, maxval=(image.shape[0] - h), dtype=tf.dtypes.int64
+                )
+                j = tf.random.uniform(
+                    minval=0, maxval=(image.shape[1] - w), dtype=tf.dtypes.int64
+                )
+                return {
+                    "crop_height": h,
+                    "crop_width": w,
+                    "h_start": i * 1.0 / (image.shape[0] - h + 1e-10),
+                    "w_start": j * 1.0 / (image.shape[1] - w + 1e-10),
+                }
+
+        # fallback to central crop
+        in_ratio = image.shape[1] / image.shape[0]
+        if in_ratio < min(ratio):
+            w = image.shape[1]
+            h = int(round(w / min(ratio)))
+        elif in_ratio > max(ratio):
+            h = image.shape[0]
+            w = int(round(h * max(ratio)))
+        else:
+            w = image.shape[1]
+            h = image.shape[0]
+        i = (image.shape[0] - h) // 2
+        j = (image.shape[1] - w) // 2
+        return {
+            "crop_height": h,
+            "crop_width": w,
+            "h_start": i * 1.0 / (image.shape[0] - h + 1e-10),
+            "w_start": j * 1.0 / (image.shape[1] - w + 1e-10),
+        }
+
+    return _random_resized_crops
