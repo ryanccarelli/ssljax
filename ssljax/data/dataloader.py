@@ -119,74 +119,46 @@ def get_identity():
 @ScenicRegistry.register("random_resized_crop", "function")
 @utils.InKeyOutKey()
 @utils.BatchedImagePreprocessing()
-def get_random_resized_crops(
+def get_random_resized_crop(
     height: float,
     width: float,
     prob: float = 1.0,
-    scale: Tuple[float] = (0.08, 1.0),
-    ratio: Tuple[float] = (0.75, 1.3333333333333333),
-    interpolation: str = "bilinear",
 ):
-    def _random_resized_crops(image):
-        coords = _get_coords(image)
-        # TODO: random crop?
-        boxes = [
-            coords["h_start"],
-            coords["w_start"],
-            coords["h_start"] + coords["crop_height"],
-            coords["w_start"] + coords["crop_width"],
-        ]
-        # TODO: multiple times? return tf.stack([copies])
-        image = tf.image.crop_and_resize(
-            image, boxes=boxes, crop_size=(height, width), method=interpolation
+    def _random_resized_crop(image, p=1.0):
+        """Randomly crop and resize an image.
+        Args:
+            image: `Tensor` representing an image of arbitrary size.
+            height: Height of output image.
+            width: Width of output image.
+            p: Probability of applying this transformation.
+        Returns:
+            A preprocessed image `Tensor`.
+        """
+        def _transform(image):  # pylint: disable=missing-docstring
+            image = _crop_and_resize(image, height, width)
+            return image
+        return random_apply(_transform, p=p, x=image)
+
+    def _crop_and_resize(image, height, width):
+        """Make a random crop and resize it to height `height` and width `width`.
+        Args:
+            image: Tensor representing the image.
+            height: Desired image height.
+            width: Desired image width.
+        Returns:
+            A `height` x `width` x channels Tensor holding a random crop of `image`.
+        """
+        bbox = tf.constant([0.0, 0.0, 1.0, 1.0], dtype=tf.float32, shape=[1, 1, 4])
+        aspect_ratio = width / height
+        image = distorted_bounding_box_crop(
+            image,
+            bbox,
+            min_object_covered=0.1,
+            aspect_ratio_range=(3. / 4 * aspect_ratio, 4. / 3. * aspect_ratio),
+            area_range=(0.08, 1.0),
+            max_attempts=100,
+            scope=None,
         )
-        return image
-
-    def _get_coords(image):
-        area = image.shape[0] * image.shape[1]
-
-        for _attempt in range(10):
-            target_area = tf.random.uniform(minval=scale[0], maxval=scale[1]) * area
-            log_ratio = (tf.math.log(ratio[0]), tf.math.log(ratio[0]))
-            # TODO: shape?
-            aspect_ratio = tf.math.exp(
-                tf.random.uniform(minval=log_ratio[0], maxval=log_ratio[1])
-            )
-            w = int(tf.math.round(tf.math.sqrt(target_area * aspect_ratio)).item())
-            h = int(tf.math.round(tf.math.sqrt(target_area / aspect_ratio)).item())
-
-            if 0 < w <= x.shape[1] and 0 < h <= x.shape[0]:
-                i = tf.random.uniform(
-                    minval=0, maxval=(image.shape[0] - h), dtype=tf.dtypes.int64
-                )
-                j = tf.random.uniform(
-                    minval=0, maxval=(image.shape[1] - w), dtype=tf.dtypes.int64
-                )
-                return {
-                    "crop_height": h,
-                    "crop_width": w,
-                    "h_start": i * 1.0 / (image.shape[0] - h + 1e-10),
-                    "w_start": j * 1.0 / (image.shape[1] - w + 1e-10),
-                }
-
-        # fallback to central crop
-        in_ratio = image.shape[1] / image.shape[0]
-        if in_ratio < min(ratio):
-            w = image.shape[1]
-            h = int(round(w / min(ratio)))
-        elif in_ratio > max(ratio):
-            h = image.shape[0]
-            w = int(round(h * max(ratio)))
-        else:
-            w = image.shape[1]
-            h = image.shape[0]
-        i = (image.shape[0] - h) // 2
-        j = (image.shape[1] - w) // 2
-        return {
-            "crop_height": h,
-            "crop_width": w,
-            "h_start": i * 1.0 / (image.shape[0] - h + 1e-10),
-            "w_start": j * 1.0 / (image.shape[1] - w + 1e-10),
-        }
+        return tf.image.resize([image], [height, width], method=tf.image.ResizeMethod.BILINEAR)[0]
 
     return _random_resized_crops
