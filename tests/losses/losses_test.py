@@ -4,6 +4,7 @@ from chex import assert_rank
 from ssljax.losses.byol import cosine_similarity, cross_entropy
 from ssljax.losses.moco import infonce_loss
 from ssljax.losses.dino import dino_loss
+from ssljax.losses.barlow_twins import barlow_twins_loss
 
 
 class TestLosses:
@@ -28,5 +29,15 @@ class TestLosses:
             "1": {"0": {"head": jnp.ones((10, 10)), "pred": jnp.ones((10, 10)), "proj": jnp.ones((10, 10))}, "1": {"head":jnp.ones((10, 10)), "pred": jnp.ones((10, 10)), "proj": jnp.ones((10, 10))}},
         }
         loss = dino_loss(outs, tau_t=0.4)
+        # reduction transforms rank 1 -> 0
+        assert_rank(loss, 0)
+
+
+    def test_barlow_twins(self):
+        outs = {
+            "0": {"0": {"head": jnp.ones((10, 10)), "pred": jnp.ones((10, 10)), "proj": jnp.ones((10, 10))}, "1": {"head":jnp.ones((10, 10)), "pred": jnp.ones((10, 10)), "proj": jnp.ones((10, 10))}},
+            "1": {"0": {"head": jnp.ones((10, 10)), "pred": jnp.ones((10, 10)), "proj": jnp.ones((10, 10))}, "1": {"head":jnp.ones((10, 10)), "pred": jnp.ones((10, 10)), "proj": jnp.ones((10, 10))}},
+        }
+        loss = barlow_twins_loss(outs, batch_size=256, lambd=0.0051)
         # reduction transforms rank 1 -> 0
         assert_rank(loss, 0)
