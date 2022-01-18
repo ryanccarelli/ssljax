@@ -29,15 +29,29 @@ class SSLModel(Model):
     def setup(self):
         modules, branches, pipelines = {}, {}, {}
 
-        for module_key, module_params in self.config.modules.items():
-            modules[module_key] = get_from_register(Model, module_params.name)(module_params.params, name=module_key)
+        for module_key, module_params in self.config.module.items():
+            modules[module_key] = get_from_register(Model, module_params.name)(
+                module_params.params, name=module_key
+            )
 
-        for branch_key, branch_params in self.config.model.branches.items():
-            stop_gradient = branch_params.stop_gradient if "stop_gradient" in branch_params else False
-            intermediate = branch_params.intermediate if "intermediate" in branch_params else None
+        for branch_key, branch_params in self.config.model.branch.items():
+            stop_gradient = (
+                branch_params.stop_gradient
+                if "stop_gradient" in branch_params
+                else False
+            )
+            intermediate = (
+                branch_params.intermediate if "intermediate" in branch_params else None
+            )
             pipelines[str(branch_key)] = branch_params.pipelines
-            stages = {key: modules[val] for key, val in branch_params.items() if key not in ["stop_gradient", "pipelines", "intermediate"]}
-            branches[str(branch_key)] = Branch(stages=stages, stop_gradient=stop_gradient, intermediate=intermediate)
+            stages = {
+                key: modules[val]
+                for key, val in branch_params.items()
+                if key not in ["stop_gradient", "pipelines", "intermediate"]
+            }
+            branches[str(branch_key)] = Branch(
+                stages=stages, stop_gradient=stop_gradient, intermediate=intermediate
+            )
 
         self.branches = branches
         self.pipelines = pipelines

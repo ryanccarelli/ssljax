@@ -18,7 +18,7 @@ env:
 trainer:
   name: SSLTrainer
 
-modules:
+module:
   body1:
     name: ResNet
     params:
@@ -67,7 +67,7 @@ modules:
 
 model:
   name: SSLModel
-  branches:
+  branch:
     0:
       stop_gradient: False
       pipelines: ["0"]
@@ -84,8 +84,8 @@ loss:
   name: cosine_similarity
   params: {}
 
-optimizers:
-  branches:
+optimizer:
+  branch:
     0:
       name: lars
       params:
@@ -95,8 +95,8 @@ optimizers:
         weight_decay_mask: True
         trust_ratio_mask: True
 
-schedulers:
-  branches:
+scheduler:
+  optimizer:
     0:
       learning_rate:
         name: byol_lr_schedule
@@ -126,11 +126,12 @@ post_process:
 
 meter:
   name: SSLMeter
+  params: {}
 
-pipelines:
+pipeline:
   # TODO: random resize crop
   flatten: False
-  branches:
+  branch:
     0:
       augmentations:
         RandomFlip:
