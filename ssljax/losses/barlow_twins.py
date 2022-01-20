@@ -1,10 +1,11 @@
 from typing import Mapping, Optional, Text
+
 import jax
 import jax.numpy as jnp
 from jax.tree_util import tree_leaves
-
 from ssljax.core import register
 from ssljax.losses.loss import Loss
+
 
 @register(Loss, "barlow_twins")
 def barlow_twins_loss(
@@ -36,7 +37,9 @@ def barlow_twins_loss(
     c = outs["0"]["0"]["pred"].T @ outs["1"]["1"]["pred"]
     c = jax.lax.div(c, float(batch_size))
 
-    # TODO: all_reduce?
+    # TODO: we have some discussion about whether this introduces
+    # redundant sync and computation of loss on every device
+    c = jax.lax.psum(c, axis_name="batch")
     on_diag = jnp.sum(jnp.power(jnp.add(jnp.diag(c), 1), 2))
     off_diag = jnp.sum(jnp.power(off_diagonal(c), 2))
 
@@ -50,6 +53,6 @@ def off_diagonal(x):
     n, m = x.shape
     assert n == m
     flat = jnp.reshape(x, [-1])[:-1]
-    off_diagonals = jnp.reshape(flat, (n-1, n+1))[:, 1:]
+    off_diagonals = jnp.reshape(flat, (n - 1, n + 1))[:, 1:]
     off_diag = jnp.reshape(off_diagonals, [-1])
     return off_diag
