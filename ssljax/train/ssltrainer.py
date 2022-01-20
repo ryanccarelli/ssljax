@@ -13,6 +13,9 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 from clu import metric_writers, periodic_actions
+from scenic.common_lib import debug_utils
+from scenic.train_lib import train_utils
+from flax import jax_utils
 from flax import jax_utils
 from flax.core import freeze, unfreeze
 from flax.training import checkpoints
@@ -74,65 +77,89 @@ class SSLTrainer(Trainer):
 
         logger.debug("xla bridge device", xla_bridge.get_backend().platform)
 
+        lead_host = jax.process_index() == 0
+
         key, self.rng = random.split(self.rng)
-        state, p_step = self.initialize()
+        state, p_step, num_trainable_params, gflops = self.initialize()
 
         state = jax_utils.replicate(state)
         total_steps = self.task.config.env.epochs * (
             self.task.data.meta_data.get("num_train_examples", 0)
             // self.task.config.data.params.batch_size
         )
-        writer = # write here
+        # setup hooks and writer
+        train_metrics = []
+        writer = None  # TODO:
         report_progress = periodic_actions.ReportProgress(
             num_train_steps=total_steps, writer=writer
         )
-
-        for epoch in tqdm(range(self.task.config.env.epochs)):
-            state = self.epoch(state, p_step)
-            save_state = jax.device_get(jax.tree_map(lambda x: x[0], state))
-            checkpoints.save_checkpoint(
-                target=save_state,
-                step=int(jax_utils.unreplicate(state.step)),
-                prefix="checkpoint_",
-                **self.task.config.env.save_checkpoint.params,
-            )
-
-    def epoch(self, state, p_step):
-        """
-        Train over one iteration of data.
-
-        Args:
-            state (flax.training.train_state.TrainState): model state
-            p_step: pmapped step function
-        """
-
-        # get training steps
+        hooks = [report_progress]
+        if self.task.config.env.xprof and lead_host:
+            # TODO: refactor TBDIR -> WORKDIR and accept path in config
+            hooks.append(periodic_actions.Profile(num_profile_steps=5, logdir=TBDIR))
+        if start_step == 0:
+            step0_log = {"num_trainable_params": num_trainable_params}
+            if gflops:
+                step0_log["gflops"] = gflops
+            writer.write_scalars(1, step0_log)
         steps_per_epoch = (
             self.task.data.meta_data.get("num_train_examples", 0)
             // self.task.config.data.params.batch_size
         )
-        for step in range(steps_per_epoch):
-            data = next(self.task.data.train_iter)
-            data = data["inputs"]
-            if self.task.config.pipelines.flatten:
-                # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
-                data = data.reshape(*data.shape[:-3], -1)
-            batch = jax.device_put(data)
+        total_steps = steps_per_epoch * self.task.config.env.epochs
 
-            self.rng, rng_step = jax.random.split(self.rng)
-            rng_step = jax_utils.replicate(rng_step)
+        chrono = train_utils.Chrono(
+            first_step=state.global_step,
+            total_steps=total_steps,
+            steps_per_epoch=steps_per_epoch,
+            global_bs=self.task.config.env.batch_size,
+            accum_train_time=int(jax_utils.unreplicate(train_state.accum_train_time))
+        )
 
-            start_time = time.time()
-            state, loss = p_step(state, batch, rng_step)
+        for step in range(total_steps):
+            with jax.profiler.StepTraceAnnotation("train", step_num = step):
+                data = next(self.task.data.train_iter)
+                data = data["inputs"]
+                if self.task.config.pipelines.flatten:
+                    # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
+                    data = data.reshape(*data.shape[:-3], -1)
 
-            end_time = time.time()
-            logger.info(f"Step time: {end_time - start_time}")
+                self.rng, rng_step = jax.random.split(self.rng)
+                rng_step = jax_utils.replicate(rng_step)
 
-            # Sync batch stats across multiple devices
-            if "batch_stats" in state.mutable_states.keys():
-                state = sync_batch_stats(state)
-            writer.add_scalar("loss", np.array(loss).mean())
-        return state
+                start_time = time.time()
+                # TODO: refactor so p_step returns metrics
+                state, loss, metrics = p_step(state, batch, rng_step), None
+
+                end_time = time.time()
+                logger.info(f"Step time: {end_time - start_time}")
+
+                # Sync batch stats across multiple devices
+                if "batch_stats" in state.mutable_states.keys():
+                    state = sync_batch_stats(state)
+                writer.add_scalar("loss", np.array(loss).mean())
+                train_metrics.append(metrics)
+            for h in hooks:
+                h(step)
+            chrono.pause()
+            if (step % self.task.config.log_train_steps == 1) or (step == total_steps):
+                if lead_host:
+                    chrono.tick(step, writer=writer)
+                train_summary = train_utils.log_train_summary(step=step, train_metrics=jax.tree_map(train_utils.unreplicate_and_get, train_metrics), writer=writer)
+                train_metrics = []
+                if (step % self.task.config.log_eval_steps == 1) or (step == total_steps):
+                    with report_progress.timed("eval"):
+                        eval_metrics = []
+                        # populate and eval
+                        pass
+
+        save_state = jax.device_get(jax.tree_map(lambda x: x[0], state))
+        checkpoints.save_checkpoint(
+            target=save_state,
+            step=int(jax_utils.unreplicate(state.step)),
+            prefix="checkpoint_",
+            **self.task.config.env.save_checkpoint.params,
+        )
 
     def step(
         self,
@@ -273,6 +300,8 @@ class SSLTrainer(Trainer):
 
         params = self.model.init(self.rng, init_shape)
 
+        del init_data
+
         opt_collect = []
         prefix_branch = lambda x: "branch_" + str(x)
         for opt_idx, opt in self.task.optimizers.items():
@@ -312,6 +341,20 @@ class SSLTrainer(Trainer):
         # load pretrained modules
         state = load_pretrained(self.task.config.modules, state)
 
+        # count num params and gflops
+        num_trainable_params = debug_utils.log_param_shapes(params["params"])
+
+        if self.task.config.env.count_flops:
+            variables = {"params": params["params"], **state}
+            flops = debug_utils.compute_flops(
+                flax_moddel_apply_fn = functools.partial(self.model.apply, variables, train=False, debug=False, rngs={"params":self.rng}),
+                input_spec = [(data_shape, model_dtype)],
+                fuse_multiply_add = True,
+            )
+            gflops = flops / (10**9)
+        else:
+            gflops = None
+
         # load checkpoint
         if self.task.config.env.restore_checkpoint.params:
             state = checkpoints.restore_checkpoint(
@@ -332,7 +375,7 @@ class SSLTrainer(Trainer):
             donate_argnums=(0, 1),
         )
 
-        return state, p_step
+        return state, p_step, num_trainable_params, gflops
 
 
 def load_pretrained(config, state):

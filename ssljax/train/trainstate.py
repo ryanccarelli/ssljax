@@ -10,4 +10,5 @@ class TrainState(TrainState):
     """
 
     mutable_states: Any
-    global_step: int
+    global_step: Optional[int] = 0
+    accum_train_time: Optional[int] = 0

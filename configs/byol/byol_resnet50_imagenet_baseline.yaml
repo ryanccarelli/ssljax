@@ -14,6 +14,7 @@ env:
   half_precision: False
   dynamic_scale: False
   dynamic_scale_params: {}
+  log_steps: 5
 
 trainer:
   name: SSLTrainer
