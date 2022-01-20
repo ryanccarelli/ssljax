@@ -12,6 +12,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+from clu import metric_writers, periodic_actions
 from flax import jax_utils
 from flax.core import freeze, unfreeze
 from flax.training import checkpoints
@@ -77,6 +78,14 @@ class SSLTrainer(Trainer):
         state, p_step = self.initialize()
 
         state = jax_utils.replicate(state)
+        total_steps = self.task.config.env.epochs * (
+            self.task.data.meta_data.get("num_train_examples", 0)
+            // self.task.config.data.params.batch_size
+        )
+        writer = # write here
+        report_progress = periodic_actions.ReportProgress(
+            num_train_steps=total_steps, writer=writer
+        )
 
         for epoch in tqdm(range(self.task.config.env.epochs)):
             state = self.epoch(state, p_step)
@@ -98,7 +107,10 @@ class SSLTrainer(Trainer):
         """
 
         # get training steps
-        steps_per_epoch = self.task.data.meta_data.get("num_train_examples", 0) // self.task.config.data.params.batch_size
+        steps_per_epoch = (
+            self.task.data.meta_data.get("num_train_examples", 0)
+            // self.task.config.data.params.batch_size
+        )
         for step in range(steps_per_epoch):
             data = next(self.task.data.train_iter)
             data = data["inputs"]
@@ -145,7 +157,7 @@ class SSLTrainer(Trainer):
             dynamic_scale_params (dict): params passed to dynamic scale optimizer
         """
 
-        state.replace(global_step = state.global_step + 1)
+        state.replace(global_step=state.global_step + 1)
         rng_pre, rng = jax.random.split(rng)
         if self.task.pre_pipelines:
             batch = self.task.pre_pipelines(batch, rng_pre)
@@ -169,7 +181,6 @@ class SSLTrainer(Trainer):
             )
         else:
             grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-
 
         state_params = {"params": state.params}
         for mutable_key in mutable_keys:
@@ -338,12 +349,13 @@ def load_pretrained(config, state):
 
     for module_key, module_params in config.items():
         if "pretrained" in module_params:
-            assert isinstance(module_params.pretrained, str), "pretrained models are paths type str"
+            assert isinstance(
+                module_params.pretrained, str
+            ), "pretrained models are paths type str"
             path = module_params["pretrained"]
 
             replace = restore_checkpoint(
-                str(Path(__file__).parents[2]) + path,
-                target=None,
+                str(Path(__file__).parents[2]) + path, target=None,
             )
             if "model_state" in replace:
                 while "model_state" in replace:
@@ -354,6 +366,8 @@ def load_pretrained(config, state):
             else:
                 raise Exception("checkpoint file structure not recognized")
             params[module_key] = replace
-            logger.info(f"{module_key} loaded from: " + str(Path(__file__).parents[2]) + path)
+            logger.info(
+                f"{module_key} loaded from: " + str(Path(__file__).parents[2]) + path
+            )
     state.replace(params=freeze(params))
     return state
