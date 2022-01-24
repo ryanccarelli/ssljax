@@ -183,13 +183,14 @@ pipelines:
             x_max: 1
 
 data:
-  name: Base
-  params:
-    dataset_name: "imagenet"
-    batch_size: 4096
-    data_dtype_str: "float32"
-    dataset_configs:
-      # decode_and_random_crop
-      # reshape
-      # random flip (left/right)
-      data_augmentations: "default"
+  pretraining:
+    name: Base
+    params:
+      dataset_name: "imagenet"
+      batch_size: 4096
+      data_dtype_str: "float32"
+      dataset_configs:
+        # decode_and_random_crop
+        # reshape
+        # random flip (left/right)
+        data_augmentations: "default"

@@ -5,6 +5,7 @@ from omegaconf import DictConfig, OmegaConf
 from ssljax.data.dataloader import ScenicData, scenic
 
 
+"""
 # TODO: test dataloader arguments
 @pytest.mark.parametrize("batch_size", [10, 20])
 def test_dataloader(batch_size):
@@ -43,6 +44,7 @@ def test_bit(batch_size):
     print(data.shape)
     assert isinstance(data["inputs"], np.ndarray)
 
+"""
 @pytest.mark.parametrize("batch_size", [10, 20])
 def test_random_resized_crop(batch_size):
     rng = jax.random.PRNGKey(0)

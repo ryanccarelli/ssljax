@@ -343,14 +343,15 @@ pipelines:
           params: {}
 
 data:
-  name: Base
-  params:
-    dataset_name: "imagenet"
-    batch_size: 1024
-    data_dtype_str: "float32"
-    dataset_configs:
-      data_augmentations: None
-      # decode_and_random_crop
-      # reshape
-      # random flip (left/right)
-      # data_augmentations: "default"
+  pretraining:
+    name: Base
+    params:
+      dataset_name: "imagenet"
+      batch_size: 1024
+      data_dtype_str: "float32"
+      dataset_configs:
+        data_augmentations: None
+        # decode_and_random_crop
+        # reshape
+        # random flip (left/right)
+        # data_augmentations: "default"
