@@ -167,17 +167,17 @@ class Task:
 
     def _get_post_process_list(self) -> List[Callable]:
         post_process_list = []
-
-        for (
-            post_process_idx,
-            post_process_params,
-        ) in self.config.post_process.funcs.items():
-            schedulers = {}
-            for key, val in self.schedulers["post_process"][post_process_idx].items():
-                schedulers[key] = get_from_register(Scheduler, val.name)(**val.params)
-            post_process = get_from_register(PostProcess, post_process_params.name)(
-                **schedulers,
-                **post_process_params.params,
-            )
-            post_process_list.append(post_process)
+        if "post_process" in self.config:
+            for (
+                post_process_idx,
+                post_process_params,
+            ) in self.config.post_process.funcs.items():
+                schedulers = {}
+                for key, val in self.schedulers["post_process"][post_process_idx].items():
+                    schedulers[key] = get_from_register(Scheduler, val.name)(**val.params)
+                post_process = get_from_register(PostProcess, post_process_params.name)(
+                    **schedulers,
+                    **post_process_params.params,
+                )
+                post_process_list.append(post_process)
         return post_process_list
