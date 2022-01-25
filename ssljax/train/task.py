@@ -135,8 +135,6 @@ class Task:
         Returns (Meter): The metrics to use for the task.
         """
         schedule = self.schedulers["meter"] if "meter" in self.schedulers else {}
-        print(schedule)
-        print(self.config.meter.params.keys())
         return get_from_register(Meter, self.config.meter.name)(
             **self.config.meter.params, **schedule,
         )
