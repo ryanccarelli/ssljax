@@ -83,8 +83,8 @@ def test_random_resized_crops(batch_size):
                     "pp_train": (
                         "decode"
                         "|value_range(-1, 1)"
+                        "|random_resized_crops(height_large=224., width_large=224., height_small=94., width_small=94., n_small=6, n_large=2)"
                         "|onehot(1000, key='label', key_result='labels')"
-                        "|random_resized_crops(height_large=224., width_large=224., height_small=224., width_small=224., n_small=6, n_large=2)"
                         "|keep('image', 'labels')"
                     ),
                     "pp_eval": (
