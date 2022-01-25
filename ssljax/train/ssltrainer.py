@@ -103,7 +103,7 @@ class SSLTrainer(Trainer):
         for step in range(steps_per_epoch):
             data = next(self.task.data["pretraining"].train_iter)
             data = data["inputs"]
-            if self.task.config.pipelines.flatten:
+            if self.task.config.pipeline.flatten:
                 # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
                 data = data.reshape(*data.shape[:-3], -1)
             batch = jax.device_put(data)
@@ -152,7 +152,7 @@ class SSLTrainer(Trainer):
         batch = list(
             map(
                 lambda rng, pipeline: pipeline(batch, rng),
-                postpiperngs,
+                piperng,
                 list(self.task.pipelines.values()),
             )
         )
@@ -187,7 +187,7 @@ class SSLTrainer(Trainer):
             jax.lax.pmean(grad, axis_name="batch"),
         )
 
-        if self.task.config.env.max_grad_norm:
+        if "max_grad_norm" in self.task.config.env and self.task.config.env.max_grad_norm:
             grad = clip_grads(grad, self.config.max_grad_norm)
 
 
@@ -255,12 +255,12 @@ class SSLTrainer(Trainer):
 
         init_data = jnp.ones(data_shape, model_dtype,)
 
-        if self.task.config.pipelines.flatten:
+        if self.task.config.pipeline.flatten:
             # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
             init_data = init_data.reshape(*init_data.shape[:-3], -1)
 
         init_shape = {}
-        for branch, _ in self.task.config.pipelines.branches.items():
+        for branch, _ in self.task.config.pipeline.branch.items():
             init_shape[str(branch)] = init_data.copy()
 
         params = self.model.init(self.rng, init_shape)
@@ -302,7 +302,7 @@ class SSLTrainer(Trainer):
         )
 
         # load pretrained modules
-        state = load_pretrained(self.task.config.modules, state)
+        state = load_pretrained(self.task.config.module, state)
 
         # load checkpoint
         if self.task.config.env.restore_checkpoint.params:

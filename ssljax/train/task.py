@@ -62,7 +62,7 @@ class Task:
         Returns (Scheduler): The scheduler to use for the task.
         """
         schedulers = {}
-        for component in self.config.schedulers:
+        for component in self.config.scheduler:
             component_schedulers = {}
             for scheduler_key, scheduler_params in self.config.scheduler[
                 component
@@ -113,7 +113,7 @@ class Task:
         """
 
         schedule = (
-            self.schedulers["optimizer"] if "optimizers" in self.schedulers else {}
+            self.schedulers["branch"] if "branch" in self.schedulers else {}
         )
         optimizers = OrderedDict()
         for optimizer_key, optimizer_params in self.config.optimizer.branch.items():
@@ -135,8 +135,10 @@ class Task:
         Returns (Meter): The metrics to use for the task.
         """
         schedule = self.schedulers["meter"] if "meter" in self.schedulers else {}
+        print(schedule)
+        print(self.config.meter.params.keys())
         return get_from_register(Meter, self.config.meter.name)(
-            **self.config.meter.params ** schedule,
+            **self.config.meter.params, **schedule,
         )
 
     def _get_post_process(self) -> Mapping[str, Callable]:
@@ -168,7 +170,7 @@ class Task:
         Returns (Pipeline): The post-augmentation pipeline to use for this task.
         """
         pipelines = OrderedDict()
-        for pipeline_idx, pipeline_params in self.config.pipelines.branch.items():
+        for pipeline_idx, pipeline_params in self.config.pipeline.branch.items():
             pipelines[pipeline_idx] = Pipeline(pipeline_params.augmentations)
 
         return pipelines

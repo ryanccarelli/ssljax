@@ -15,5 +15,5 @@ class SSLMeter(Meter):
          values calculated (by the Metric values in this Dict).
     """
 
-    def __init__(self, metrics: Dict[str, Metric]):
-        super().__init__(self, metrics)
+    def __init__(self):
+        super().__init__(self)
