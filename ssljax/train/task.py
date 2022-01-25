@@ -2,19 +2,20 @@
 import logging
 from collections import OrderedDict
 from functools import partial
-from typing import Callable, Dict, List
+from typing import Callable, List, Mapping
 
 import jax
 import jax.numpy as jnp
 import jax.random
 from omegaconf import DictConfig
+from scenic.dataset_lib.dataset_utils import Dataset
 from ssljax.augment.pipeline.pipeline import Pipeline
-from ssljax.core import get_from_register, prepare_environment, print_registry
+from ssljax.core import get_from_register, prepare_environment
 from ssljax.data import ScenicData
 from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
-from ssljax.train import Meter, Scheduler, SSLTrainer, Trainer
+from ssljax.train import Meter, Scheduler, Trainer
 from ssljax.train.postprocess import PostProcess
 
 logger = logging.getLogger(__name__)
@@ -41,28 +42,46 @@ class Task:
 
     def __init__(self, config: DictConfig):
         super().__init__()
-        # for internal use
         self.config = config
         self.rng = prepare_environment(self.config)
+        # get_schedulers first
         self.schedulers = self._get_schedulers()
-        # for external use
-        # NOTE: schedulers must be declared before the components they schedule
-        # for now before optimizers and post_process_funcs
         self.trainer = self._get_trainer()
         self.model = self._get_model()
         self.loss = self._get_loss()
         self.optimizers = self._get_optimizers()
         self.meter = self._get_meter()
-        self.pre_pipelines = self._get_pre_pipelines()
-        self.post_pipelines = self._get_post_pipelines()
+        self.pipelines = self._get_pipelines()
         self.data = self._get_data()
-        self.post_process_funcs = self._get_post_process_list()
+        self.post_process_funcs = self._get_post_process()
+
+    def _get_schedulers(self) -> Mapping[str, Callable]:
+        """
+        Initialize the scheduler.
+
+        Returns (Scheduler): The scheduler to use for the task.
+        """
+        schedulers = {}
+        for component in self.config.schedulers:
+            component_schedulers = {}
+            for scheduler_key, scheduler_params in self.config.scheduler[
+                component
+            ].items():
+                component_schedulers[scheduler_key] = scheduler_params
+            schedulers[component] = component_schedulers
+
+        return schedulers
 
     def _get_trainer(self) -> Trainer:
         """
         Initialize the trainer.
         """
-        return get_from_register(Trainer, self.config.trainer.name)(rng=self.rng, task=self)
+        schedule = self.schedulers["trainer"] if "trainer" in self.schedulers else {}
+        return get_from_register(Trainer, self.config.trainer.name)(
+            rng=self.rng,
+            task=self,
+            **schedule,
+        )
 
     def _get_model(self) -> Model:
         """
@@ -70,30 +89,36 @@ class Task:
 
         Returns (Model): The model to use for this task.
         """
-        return get_from_register(Model, self.config.model.name)(self.config)
+        schedule = self.schedulers["model"] if "model" in self.schedulers else {}
+        return get_from_register(Model, self.config.model.name)(self.config, **schedule)
 
-    def _get_loss(self) -> Loss:
+    def _get_loss(self) -> Callable:
         """
         Initialize the loss function.
 
         Returns (Loss): The loss to use for the task.
         """
+        schedule = self.schedulers["loss"] if "loss" in self.schedulers else {}
         return partial(
             get_from_register(Loss, self.config.loss.name),
             **self.config.loss.params,
+            **schedule,
         )
 
-    def _get_optimizers(self) -> List[Optimizer]:
+    def _get_optimizers(self) -> List[Callable]:
         """
         Initialize the optimizer.
 
         Returns (Optimizer): The optimizers to use for the task.
         """
 
+        schedule = (
+            self.schedulers["optimizer"] if "optimizers" in self.schedulers else {}
+        )
         optimizers = OrderedDict()
-        for optimizer_key, optimizer_params in self.config.optimizers.branches.items():
+        for optimizer_key, optimizer_params in self.config.optimizer.branch.items():
             schedulers = {}
-            for key, val in self.schedulers["branches"][optimizer_key].items():
+            for key, val in schedule[optimizer_key].items():
                 schedulers[key] = get_from_register(Scheduler, val.name)(**val.params)
             optimizer = get_from_register(Optimizer, optimizer_params.name)(
                 **schedulers,
@@ -103,57 +128,52 @@ class Task:
 
         return optimizers
 
-    def _get_schedulers(self) -> Dict[str, Scheduler]:
-        """
-        Initialize the scheduler.
-
-        Returns (Scheduler): The scheduler to use for the task.
-        """
-        schedulers = {"branches": {}, "post_process": {}}
-        for scheduler_key, scheduler_params in self.config.schedulers.branches.items():
-            schedulers["branches"][scheduler_key] = scheduler_params
-
-        if "post_process" in self.config.schedulers:
-            for (
-                scheduler_key,
-                scheduler_params,
-            ) in self.config.schedulers.post_process.items():
-                schedulers["post_process"][scheduler_key] = scheduler_params
-
-        return schedulers
-
-    def _get_meter(self) -> Meter:
+    def _get_meter(self) -> Callable:
         """
         Initialize the metrics.
 
         Returns (Meter): The metrics to use for the task.
         """
-        return get_from_register(Meter, self.config.meter.name)
+        schedule = self.schedulers["meter"] if "meter" in self.schedulers else {}
+        return get_from_register(Meter, self.config.meter.name)(
+            **self.config.meter.params ** schedule,
+        )
 
-    def _get_pre_pipelines(self) -> Pipeline or None:
-        """
-        Initialize the pre-augmentations.
+    def _get_post_process(self) -> Mapping[str, Callable]:
+        schedule = (
+            self.schedulers["post_process"] if "post_process" in self.schedulers else {}
+        )
+        post_process_dict = OrderedDict()
+        for (
+            post_process_idx,
+            post_process_params,
+        ) in self.config.post_process.funcs.items():
+            schedulers = {}
+            if post_process_idx in schedule:
+                for key, val in schedule[post_process_idx].items():
+                    schedulers[key] = get_from_register(Scheduler, val.name)(
+                        **val.params
+                    )
+            post_process = get_from_register(PostProcess, post_process_params.name)(
+                **schedulers,
+                **post_process_params.params,
+            )
+            post_process_dict[post_process_idx] = post_process
+        return post_process_dict
 
-        Returns (Pipeline): The pre-augmentation pipeline to use for this task.
-        """
-        if "pre" in self.config.pipelines:
-            return Pipeline(self.config.pipelines.pre.augmentations)
-        else:
-            return None
-
-    def _get_post_pipelines(self) -> List[Pipeline]:
+    def _get_pipelines(self) -> Mapping[str, Callable]:
         """
         Initialize the post-augmentations.
 
         Returns (Pipeline): The post-augmentation pipeline to use for this task.
         """
-        pipelines = []
-        for pipeline_idx, pipeline_params in self.config.pipelines.branches.items():
-            pipelines.append(Pipeline(pipeline_params.augmentations))
+        pipelines = OrderedDict()
+        for pipeline_idx, pipeline_params in self.config.pipelines.branch.items():
+            pipelines[pipeline_idx] = Pipeline(pipeline_params.augmentations)
 
         return pipelines
 
-    def _get_data(self):
+    def _get_data(self) -> Dataset:
         """
         Initialize the dataloader. This must be implemented by child tasks.
 
@@ -167,20 +187,3 @@ class Task:
                 data_rng=data_rng,
             )
         return data
-
-    def _get_post_process_list(self) -> List[Callable]:
-        post_process_list = []
-
-        for (
-            post_process_idx,
-            post_process_params,
-        ) in self.config.post_process.funcs.items():
-            schedulers = {}
-            for key, val in self.schedulers["post_process"][post_process_idx].items():
-                schedulers[key] = get_from_register(Scheduler, val.name)(**val.params)
-            post_process = get_from_register(PostProcess, post_process_params.name)(
-                **schedulers,
-                **post_process_params.params,
-            )
-            post_process_list.append(post_process)
-        return post_process_list

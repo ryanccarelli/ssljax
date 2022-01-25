@@ -10,6 +10,7 @@ import flax
 import flax.optim as optim
 import jax
 import jax.numpy as jnp
+from jax.experimental.optimizers import clip_grads
 import numpy as np
 import optax
 from flax import jax_utils
@@ -146,15 +147,13 @@ class SSLTrainer(Trainer):
         """
 
         state.replace(global_step = state.global_step + 1)
-        rng_pre, rng = jax.random.split(rng)
-        if self.task.pre_pipelines:
-            batch = self.task.pre_pipelines(batch, rng_pre)
-        postpiperngs = jax.random.split(rng, len(self.task.post_pipelines))
+        piperng, rng = jax.random.split(rng)
+        piperng = jax.random.split(rng, len(self.task.pipelines))
         batch = list(
             map(
                 lambda rng, pipeline: pipeline(batch, rng),
                 postpiperngs,
-                self.task.post_pipelines,
+                list(self.task.pipelines.values()),
             )
         )
         # batch stores views indexed by the pipeline that produced them
@@ -188,6 +187,10 @@ class SSLTrainer(Trainer):
             jax.lax.pmean(grad, axis_name="batch"),
         )
 
+        if self.task.config.env.max_grad_norm:
+            grad = clip_grads(grad, self.config.max_grad_norm)
+
+
         if "mutable_states" in aux:
             state = state.apply_gradients(
                 grads=grad["params"], **{"mutable_states": aux["mutable_states"]},
@@ -195,7 +198,7 @@ class SSLTrainer(Trainer):
         else:
             state = state.apply_gradients(grads=grad["params"],)
 
-        for idx, fun in enumerate(self.task.post_process_funcs):
+        for idx, fun in self.task.post_process_funcs.items():
             state = state.replace(params=fun(state.params, state.step))
 
         return state, loss

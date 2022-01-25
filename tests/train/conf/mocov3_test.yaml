@@ -19,7 +19,7 @@ env:
 trainer:
   name: SSLTrainer
 
-modules:
+module:
   body1:
     name: ViT
     params:
@@ -144,7 +144,7 @@ modules:
 
 model:
   name: SSLModel
-  branches:
+  branch:
     0:
       pipelines: ["0", "1"]
       stop_gradient: False
@@ -161,15 +161,15 @@ loss:
   name: infonce_loss
   params: {}
 
-optimizers:
-  branches:
+optimizer:
+  branch:
     0:
       name: adamw
       params:
         weight_decay: 1e-6
 
-schedulers:
-  branches:
+scheduler:
+  branch:
     0:
       learning_rate:
         name: BYOLlr
@@ -199,8 +199,9 @@ post_process:
 
 meter:
   name: SSLMeter
+  params: {}
 
-pipelines:
+pipeline:
   flatten: False
   pre:
     augmentations:
@@ -210,7 +211,7 @@ pipelines:
           prop: 1.0
           height: 224
           width: 224
-  branches:
+  branch:
     0:
       augmentations:
         RandomFlip:
