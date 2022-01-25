@@ -10,6 +10,7 @@ import flax
 import flax.optim as optim
 import jax
 import jax.numpy as jnp
+from jax.experimental.optimizers import clip_grads
 import numpy as np
 import optax
 from flax import jax_utils
@@ -185,6 +186,10 @@ class SSLTrainer(Trainer):
             jax.lax.pmean(loss, axis_name="batch"),
             jax.lax.pmean(grad, axis_name="batch"),
         )
+
+        if self.task.config.env.max_grad_norm:
+            grad = clip_grads(grad, self.config.max_grad_norm)
+
 
         if "mutable_states" in aux:
             state = state.apply_gradients(
