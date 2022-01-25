@@ -45,17 +45,17 @@ class Task:
         self.config = config
         self.rng = prepare_environment(self.config)
         # get_schedulers first
-        self.schedulers = self._get_schedulers()
+        self.scheduler = self._get_scheduler()
         self.trainer = self._get_trainer()
         self.model = self._get_model()
         self.loss = self._get_loss()
-        self.optimizers = self._get_optimizers()
+        self.optimizer = self._get_optimizer()
         self.meter = self._get_meter()
-        self.pipelines = self._get_pipelines()
+        self.pipeline = self._get_pipeline()
         self.data = self._get_data()
-        self.post_process_funcs = self._get_post_process()
+        self.post_process = self._get_post_process()
 
-    def _get_schedulers(self) -> Mapping[str, Callable]:
+    def _get_scheduler(self) -> Mapping[str, Callable]:
         """
         Initialize the scheduler.
 
@@ -76,7 +76,7 @@ class Task:
         """
         Initialize the trainer.
         """
-        schedule = self.schedulers["trainer"] if "trainer" in self.schedulers else {}
+        schedule = self.scheduler["trainer"] if "trainer" in self.scheduler else {}
         return get_from_register(Trainer, self.config.trainer.name)(
             rng=self.rng,
             task=self,
@@ -89,7 +89,7 @@ class Task:
 
         Returns (Model): The model to use for this task.
         """
-        schedule = self.schedulers["model"] if "model" in self.schedulers else {}
+        schedule = self.scheduler["model"] if "model" in self.scheduler else {}
         return get_from_register(Model, self.config.model.name)(self.config, **schedule)
 
     def _get_loss(self) -> Callable:
@@ -98,14 +98,14 @@ class Task:
 
         Returns (Loss): The loss to use for the task.
         """
-        schedule = self.schedulers["loss"] if "loss" in self.schedulers else {}
+        schedule = self.scheduler["loss"] if "loss" in self.scheduler else {}
         return partial(
             get_from_register(Loss, self.config.loss.name),
             **self.config.loss.params,
             **schedule,
         )
 
-    def _get_optimizers(self) -> List[Callable]:
+    def _get_optimizer(self) -> List[Callable]:
         """
         Initialize the optimizer.
 
@@ -113,7 +113,7 @@ class Task:
         """
 
         schedule = (
-            self.schedulers["branch"] if "branch" in self.schedulers else {}
+            self.scheduler["branch"] if "branch" in self.scheduler else {}
         )
         optimizers = OrderedDict()
         for optimizer_key, optimizer_params in self.config.optimizer.branch.items():
@@ -134,14 +134,14 @@ class Task:
 
         Returns (Meter): The metrics to use for the task.
         """
-        schedule = self.schedulers["meter"] if "meter" in self.schedulers else {}
+        schedule = self.scheduler["meter"] if "meter" in self.scheduler else {}
         return get_from_register(Meter, self.config.meter.name)(
             **self.config.meter.params, **schedule,
         )
 
     def _get_post_process(self) -> Mapping[str, Callable]:
         schedule = (
-            self.schedulers["post_process"] if "post_process" in self.schedulers else {}
+            self.scheduler["post_process"] if "post_process" in self.scheduler else {}
         )
         post_process_dict = OrderedDict()
         for (
@@ -161,7 +161,7 @@ class Task:
             post_process_dict[post_process_idx] = post_process
         return post_process_dict
 
-    def _get_pipelines(self) -> Mapping[str, Callable]:
+    def _get_pipeline(self) -> Mapping[str, Callable]:
         """
         Initialize the post-augmentations.
 

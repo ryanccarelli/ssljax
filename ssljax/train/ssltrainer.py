@@ -148,12 +148,12 @@ class SSLTrainer(Trainer):
 
         state.replace(global_step = state.global_step + 1)
         piperng, rng = jax.random.split(rng)
-        piperng = jax.random.split(rng, len(self.task.pipelines))
+        piperng = jax.random.split(rng, len(self.task.pipeline))
         batch = list(
             map(
                 lambda rng, pipeline: pipeline(batch, rng),
                 piperng,
-                list(self.task.pipelines.values()),
+                list(self.task.pipeline.values()),
             )
         )
         # batch stores views indexed by the pipeline that produced them
@@ -198,7 +198,7 @@ class SSLTrainer(Trainer):
         else:
             state = state.apply_gradients(grads=grad["params"],)
 
-        for idx, fun in self.task.post_process_funcs.items():
+        for idx, fun in self.task.post_process.items():
             state = state.replace(params=fun(state.params, state.step))
 
         return state, loss
@@ -267,7 +267,7 @@ class SSLTrainer(Trainer):
 
         opt_collect = []
         prefix_branch = lambda x: "branch_" + str(x)
-        for opt_idx, opt in self.task.optimizers.items():
+        for opt_idx, opt in self.task.optimizer.items():
             opt_collect.append(
                 optax.masked(
                     opt,

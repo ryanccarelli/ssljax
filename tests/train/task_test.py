@@ -10,10 +10,10 @@ from ssljax.train.task import Task
 
 def test_init(basecpuconfig):
     task = Task(basecpuconfig)
-    assert isinstance(task.schedulers, dict)
+    assert isinstance(task.scheduler, dict)
     assert isinstance(task.trainer, SSLTrainer)
     assert isinstance(task.model, SSLModel)
-    assert isinstance(task.optimizers, dict)
-    assert isinstance(task.post_process_funcs, dict)
-    assert isinstance(task.pipelines, dict)
+    assert isinstance(task.optimizer, dict)
+    assert isinstance(task.post_process, dict)
+    assert isinstance(task.pipeline, dict)
     assert isinstance(task.data, dict)
