@@ -16,3 +16,6 @@ class TestPipeline:
         rng = jax.random.PRNGKey(0)
         outs = pipe(x=image, rng=rng)
         assert jnp.equal(outs, image).all()
+        outs2 = pipe(x=[image, image], rng=rng)
+        assert isinstance(outs2, list)
+        assert jnp.equal(outs2[0], image).all()

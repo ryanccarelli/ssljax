@@ -99,9 +99,9 @@ class SSLTrainer(Trainer):
         """
 
         # get training steps
-        steps_per_epoch = self.task.data.meta_data.get("num_train_examples", 0) // self.task.config.data.params.batch_size
+        steps_per_epoch = self.task.data["pretraining"].meta_data.get("num_train_examples", 0) // self.task.config.data["pretraining"].params.batch_size
         for step in range(steps_per_epoch):
-            data = next(self.task.data.train_iter)
+            data = next(self.task.data["pretraining"].train_iter)
             data = data["inputs"]
             if self.task.config.pipelines.flatten:
                 # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
@@ -249,7 +249,7 @@ class SSLTrainer(Trainer):
         self.model = self.task.model
 
         # .meta_data["input_shape"] is (-1, H, W, C)
-        data_shape = self.task.data.meta_data["input_shape"][1:]
+        data_shape = self.task.data["pretraining"].meta_data["input_shape"][1:]
         # add batch dimension
         data_shape = (1,) + data_shape
 

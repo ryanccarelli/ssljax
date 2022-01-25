@@ -179,8 +179,11 @@ class Task:
 
         Returns (Dataloader): The dataloader to use for the task.
         """
-        _, data_rng = jax.random.split(self.rng)
-        return get_from_register(ScenicData, self.config.data.name)(
-            config=self.config.data.params,
-            data_rng=data_rng,
-        )
+        data = {}
+        for data_idx, data_params in self.config.data.items():
+            _, data_rng = jax.random.split(self.rng)
+            data[data_idx] = get_from_register(ScenicData, data_params.name)(
+                config=data_params.params,
+                data_rng=data_rng,
+            )
+        return data

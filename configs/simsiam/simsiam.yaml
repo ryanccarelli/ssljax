@@ -156,9 +156,10 @@ pipeline:
             x_max: 1
 
 data:
-  name: Base
-  params:
-    dataset_name: "imagenet"
-    batch_size: 512
-    data_dtype_str: "float32"
-    dataset_configs: {}
+  pretraining:
+    name: Base
+    params:
+      dataset_name: "imagenet"
+      batch_size: 512
+      data_dtype_str: "float32"
+      dataset_configs: {}
