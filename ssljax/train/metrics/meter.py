@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class Meter:
-    def __init__(self, metrics):
+    def __init__(self, metrics=None):
         self._metrics = metrics
         self._batches_seen = 0
 

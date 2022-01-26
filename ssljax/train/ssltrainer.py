@@ -10,6 +10,7 @@ import flax
 import flax.optim as optim
 import jax
 import jax.numpy as jnp
+from jax.experimental.optimizers import clip_grads
 import numpy as np
 import optax
 from flax import jax_utils
@@ -98,11 +99,12 @@ class SSLTrainer(Trainer):
         """
 
         # get training steps
-        steps_per_epoch = self.task.data.meta_data.get("num_train_examples", 0) // self.task.config.data.pretraining.params.batch_size
+        steps_per_epoch = self.task.data["pretraining"].meta_data.get("num_train_examples", 0) // self.task.config.data.pretraining.params.batch_size
+
         for step in range(steps_per_epoch):
-            data = next(self.task.data.train_iter)
+            data = next(self.task.data["pretraining"].train_iter)
             data = data["inputs"]
-            if self.task.config.pipelines.flatten:
+            if self.task.config.pipeline.flatten:
                 # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
                 data = data.reshape(*data.shape[:-3], -1)
             batch = jax.device_put(data)
@@ -146,15 +148,13 @@ class SSLTrainer(Trainer):
         """
 
         state.replace(global_step = state.global_step + 1)
-        rng_pre, rng = jax.random.split(rng)
-        if self.task.pre_pipelines:
-            batch = self.task.pre_pipelines(batch, rng_pre)
-        postpiperngs = jax.random.split(rng, len(self.task.post_pipelines))
+        piperng, rng = jax.random.split(rng)
+        piperng = jax.random.split(rng, len(self.task.pipeline))
         batch = list(
             map(
                 lambda rng, pipeline: pipeline(batch, rng),
-                postpiperngs,
-                self.task.post_pipelines,
+                piperng,
+                list(self.task.pipeline.values()),
             )
         )
         # batch stores views indexed by the pipeline that produced them
@@ -189,6 +189,10 @@ class SSLTrainer(Trainer):
             jax.lax.pmean(grad, axis_name="batch"),
         )
 
+        if "max_grad_norm" in self.task.config.env and self.task.config.env.max_grad_norm:
+            grad = clip_grads(grad, self.config.max_grad_norm)
+
+
         if "mutable_states" in aux:
             state = state.apply_gradients(
                 grads=grad["params"], **{"mutable_states": aux["mutable_states"]},
@@ -196,7 +200,7 @@ class SSLTrainer(Trainer):
         else:
             state = state.apply_gradients(grads=grad["params"],)
 
-        for idx, fun in enumerate(self.task.post_process_funcs):
+        for idx, fun in self.task.post_process.items():
             state = state.replace(params=fun(state.params, state.step))
 
         return state, loss
@@ -247,25 +251,25 @@ class SSLTrainer(Trainer):
         self.model = self.task.model
 
         # .meta_data["input_shape"] is (-1, H, W, C)
-        data_shape = self.task.data.meta_data["input_shape"][1:]
+        data_shape = self.task.data["pretraining"].meta_data["input_shape"][1:]
         # add batch dimension
         data_shape = (1,) + data_shape
 
         init_data = jnp.ones(data_shape, model_dtype,)
 
-        if self.task.config.pipelines.flatten:
+        if self.task.config.pipeline.flatten:
             # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
             init_data = init_data.reshape(*init_data.shape[:-3], -1)
 
         init_shape = {}
-        for branch, _ in self.task.config.pipelines.branches.items():
+        for branch, _ in self.task.config.pipeline.branch.items():
             init_shape[str(branch)] = init_data.copy()
 
         params = self.model.init(self.rng, init_shape)
 
         opt_collect = []
         prefix_branch = lambda x: "branch_" + str(x)
-        for opt_idx, opt in self.task.optimizers.items():
+        for opt_idx, opt in self.task.optimizer.items():
             opt_collect.append(
                 optax.masked(
                     opt,
@@ -300,7 +304,7 @@ class SSLTrainer(Trainer):
         )
 
         # load pretrained modules
-        state = load_pretrained(self.task.config.modules, state)
+        state = load_pretrained(self.task.config.module, state)
 
         # load checkpoint
         if self.task.config.env.restore_checkpoint.params:

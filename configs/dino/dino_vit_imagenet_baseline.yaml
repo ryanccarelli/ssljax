@@ -19,7 +19,7 @@ env:
 trainer:
   name: SSLTrainer
 
-modules:
+module:
   # ViT-S/16, batch 1024, 16GPU
   body1:
     name: ViT
@@ -135,7 +135,7 @@ modules:
 
 model:
   name: SSLModel
-  branches:
+  branch:
     0:
       stop_gradient: False
       pipelines: ["0"]
@@ -153,8 +153,8 @@ loss:
   name: dino_loss
   params: {}
 
-optimizers:
-  branches:
+optimizer:
+  branch:
     0:
       name: adamw
       params:
@@ -163,8 +163,8 @@ optimizers:
         b1: 0.9
         b2: 0.999
 
-schedulers:
-  branches:
+scheduler:
+  branch:
     0:
       learning_rate:
         name: byol_lr_schedule
@@ -212,10 +212,11 @@ post_process:
 
 meter:
   name: SSLMeter
+  params: {}
 
-pipelines:
+pipeline:
   flatten: False
-  branches:
+  branch:
     0:
       augmentations:
         RandomResizedCrop:
@@ -343,7 +344,7 @@ pipelines:
           params: {}
 
 data:
-  pretraining: 
+  pretraining:
     name: Base
     params:
       dataset_name: "imagenet"
