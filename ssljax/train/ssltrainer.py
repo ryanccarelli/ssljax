@@ -99,7 +99,8 @@ class SSLTrainer(Trainer):
         """
 
         # get training steps
-        steps_per_epoch = self.task.data["pretraining"].meta_data.get("num_train_examples", 0) // self.task.config.data["pretraining"].params.batch_size
+        steps_per_epoch = self.task.data["pretraining"].meta_data.get("num_train_examples", 0) // self.task.config.data.pretraining.params.batch_size
+
         for step in range(steps_per_epoch):
             data = next(self.task.data["pretraining"].train_iter)
             data = data["inputs"]
@@ -158,6 +159,7 @@ class SSLTrainer(Trainer):
         )
         # batch stores views indexed by the pipeline that produced them
         batch = {str(idx): val for idx, val in enumerate(batch)}
+        print("data shapes are: ", [val.shape for _, val in batch.items()])
 
         if dynamic_scale:
             # optim.DynamicScale returns a DynamicScaleResult object

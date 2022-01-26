@@ -40,3 +40,10 @@ def dinovitconfig():
     initialize(config_path="../train/conf")
     cfg = compose(config_name="dino_vit_test.yaml")
     return cfg
+
+@pytest.fixture
+def barlowtwinsconfig():
+    hydra.core.global_hydra.GlobalHydra.instance().clear()
+    initialize(config_path="../train/conf")
+    cfg = compose(config_name="barlow_twins_test.yaml")
+    return cfg
