@@ -160,8 +160,8 @@ class Task:
         Returns (Dataloader): The dataloader to use for the task.
         """
         _, data_rng = jax.random.split(self.rng)
-        return get_from_register(ScenicData, self.config.data.name)(
-            config=self.config.data.params,
+        return get_from_register(ScenicData, self.config.data.pretraining.name)(
+            config=self.config.data.pretraining.params,
             data_rng=data_rng,
         )
 

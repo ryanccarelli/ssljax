@@ -32,9 +32,7 @@ def barlow_twins_loss(
     # outs["i"]["j"] indicates output of branch i applied to pipeline j
     # NOTE: to reproduce, output of pred must be batchnormed
     # TODO: extra dimensions! (batch_size, 1, 1, mlp_out_dim)
-    pred0 = jnp.squeeze(outs["0"]["0"]["pred"])
-    pred1 = jnp.squeeze(outs["1"]["1"]["pred"])
-    c = pred0.T @ pred1
+    c = outs["0"]["0"]["pred"].T @ outs["1"]["1"]["pred"]
     c = jax.lax.div(c, float(batch_size))
 
     # we had some discussion about whether this introduces

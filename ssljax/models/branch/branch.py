@@ -36,6 +36,7 @@ class Branch(Model):
         if self.stop_gradient:
             x = jax.lax.stop_gradient(x)
         outs[finalkey] = x
+
         return outs
 
 

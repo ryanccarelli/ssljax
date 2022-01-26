@@ -7,7 +7,6 @@ from ssljax.train.task import Task
 
 
 class TestTrainer:
-    """
     def test_train_cpu(self, basecpuconfig):
         task = Task(basecpuconfig)
         trainer = task.trainer
@@ -32,7 +31,6 @@ class TestTrainer:
         task = Task(byolconfig)
         trainer = task.trainer
         trainer.train()
-    """
 
     @pytest.mark.gpu
     def test_train_barlow_twins(self, barlowtwinsconfig):

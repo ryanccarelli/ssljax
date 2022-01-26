@@ -147,9 +147,10 @@ pipelines:
             prob: 1.0
 
 data:
-  name: Base
-  params:
-    dataset_name: "mnist"
-    batch_size: 32
-    data_dtype_str: "float32"
-    dataset_configs: {}
+  pretraining:
+    name: Base
+    params:
+      dataset_name: "mnist"
+      batch_size: 32
+      data_dtype_str: "float32"
+      dataset_configs: {}
