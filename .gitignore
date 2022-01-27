@@ -135,3 +135,5 @@ dmypy.json
 #checkpoints and outputs
 tests/train/outs/tensorboard/
 tests/train/conf/
+conf/
+outs/

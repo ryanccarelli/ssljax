@@ -47,6 +47,8 @@ class MLP(Model):
             "relu",
             "gelu",
         ], "supported activations are {'relu', 'gelu'}"
+        assert ("batch_norm_final_layer" in self.config or not (len(self.config.layer_dims) == 1 and (self.config.batch_norm or self.config.dropout_prob))), \
+            "Single layer mlp does not permit batch norm or dropout"
         if self.config.activation_name == "relu":
             self.activation = nn.relu
         elif self.config.activation_name == "gelu":
@@ -99,15 +101,15 @@ def _truncated_normal(lower, upper, mean=0, stddev=1, dtype=jnp.float_):
         dtype = dtypes.canonicalize_dtype(dtype)
         key_tn, key = jax.random.split(key)
         return (
-            truncated_normal(
-                key=key_tn,
-                lower=lower / stddev,
-                upper=upper / stddev,
-                shape=shape,
-                dtype=dtype,
-            )
-            * stddev
-            + mean
+                truncated_normal(
+                    key=key_tn,
+                    lower=lower / stddev,
+                    upper=upper / stddev,
+                    shape=shape,
+                    dtype=dtype,
+                )
+                * stddev
+                + mean
         )
 
     return init

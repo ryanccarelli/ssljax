@@ -22,7 +22,7 @@ modules:
   body1:
     name: MLP
     params:
-      layer_dims: [1]
+      layer_dims: [1,1]
       dropout_prob: 0.0
       batch_norm: True
       batch_norm_params:
@@ -52,10 +52,13 @@ modules:
   body2:
     name: MLP
     params:
-      layer_dims: [1]
+      layer_dims: [1,1]
       dropout_prob: 0.0
-      batch_norm: False
-      batch_norm_params: {}
+      batch_norm: True
+      batch_norm_params:
+        use_running_average: True
+        momentum: 0.9
+        epsilon: 1e-5
       activation_name: "relu"
       dtype: "float32"
   head2:

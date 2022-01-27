@@ -20,7 +20,7 @@ from jax import random
 from omegaconf import DictConfig
 from ssljax.core import flattened_traversal, register
 from ssljax.train.trainer import Trainer
-from ssljax.train.trainstate import TrainState
+from ssljax.train.ssltrainstate import TrainState
 from tensorboardX import GlobalSummaryWriter
 from tqdm import tqdm
 
@@ -282,6 +282,8 @@ class SSLTrainer(Trainer):
         mutable_states = {}
         for mutable_key in mutable_keys:
             mutable_states[mutable_key] = params[mutable_key].unfreeze()
+
+        print("Mutable keys: ", mutable_states)
 
         state_params = {
             "apply_fn": self.model.apply,
