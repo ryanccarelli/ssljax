@@ -3,6 +3,7 @@ import jax.numpy as jnp
 from ssljax.augment.augmentation.augmentation import Augmentation
 from ssljax.core import get_from_register
 from omegaconf import DictConfig
+from functools import partial
 
 
 class Pipeline(Augmentation):
@@ -35,8 +36,12 @@ class Pipeline(Augmentation):
         return out
 
     def __call__(self, x, rng):
+        if not isinstance(x, list):
+            x = [x]
         for aug in self.pipeline:
             rng, _ = jax.random.split(rng)
-            x = aug(x, rng)
-        x = jax.lax.stop_gradient(x)
-        return x
+            aug = partial(aug, rng=rng)
+            x = list(map(aug, x))
+        x = list(map(lambda v: jax.lax.stop_gradient(v), x))
+
+        return x[0] if len(x) == 1 else x

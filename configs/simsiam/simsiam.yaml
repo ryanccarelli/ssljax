@@ -18,7 +18,7 @@ env:
 trainer:
   name: SSLTrainer
 
-modules:
+module:
   body1:
     name: ResNet
     params:
@@ -60,7 +60,7 @@ modules:
 
 model:
   name: SSLModel
-  branches:
+  branch:
     0:
       stop_gradient: False
       pipelines: ["0", "1"]
@@ -69,21 +69,20 @@ model:
       head: head1
       pred: pred1
 
-
 loss:
   name: simsiam_loss
   params: {}
 
-optimizers:
-  branches:
+optimizer:
+  branch:
     0:
       name: sgdw
       params:
         momentum: 0.9
         weight_decay: 0.0001
 
-schedulers:
-  branches:
+scheduler:
+  branch:
     0:
       learning_rate:
         name: BYOLlr
@@ -98,12 +97,13 @@ schedulers:
 
 meter:
   name: SSLMeter
+  params: {}
 
-pipelines:
+pipeline:
   # pre-augmentations should be computed in the dataloader
   # these typically include decode/centercrop, random crop+resize
   flatten: False
-  branches:
+  branch:
     0:
       augmentations:
         RandomFlip:
@@ -156,9 +156,10 @@ pipelines:
             x_max: 1
 
 data:
-  name: Base
-  params:
-    dataset_name: "imagenet"
-    batch_size: 512
-    data_dtype_str: "float32"
-    dataset_configs: {}
+  pretraining:
+    name: Base
+    params:
+      dataset_name: "imagenet"
+      batch_size: 512
+      data_dtype_str: "float32"
+      dataset_configs: {}
