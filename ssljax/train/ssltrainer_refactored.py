@@ -1,6 +1,6 @@
 import logging
 
-from ssljax.train.ssltrainstate2 import SSLTrainState
+from ssljax.train.ssltrainstate_refactored import SSLTrainState
 
 logger = logging.getLogger(__name__)
 
