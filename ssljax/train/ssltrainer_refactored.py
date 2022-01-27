@@ -35,26 +35,20 @@ def train_step(
         rng (jnp.ndarray): PRNG key
         mutable_keys (List[str]): parameters that are mutable
         loss_fn: loss
-        dynamic_scale (bool): whether to apply dynamic scaling
-        dynamic_scale_params (dict): params passed to dynamic scale optimizer
+        model_fn: model
     """
 
     new_rng, rng = jax.random.split(train_state.rng)
 
-    if train_state.task.pre_pipelines:
-        pre_pipeline_rng, rng = jax.random.split(rng, 2)
-        pre_pipeline_rng = bind_rng_to_host_device(pre_pipeline_rng, "device", "device")
-        batch = train_state.task.pre_pipelines(batch, pre_pipeline_rng)
+    pipeline_rng, rng = jax.random.split(rng, 2)
+    pipeline_rng = bind_rng_to_host_device(pipeline_rng, "device", "device")
 
-    post_pipeline_rng, rng = jax.random.split(rng, 2)
-    post_pipeline_rng = bind_rng_to_host_device(post_pipeline_rng, "device", "device")
-
-    post_pipeline_rng = jax.random.split(post_pipeline_rng, len(train_state.task.post_pipelines))
+    pipeline_rng = jax.random.split(pipeline_rng, len(train_state.task.pipeline))
     batch = list(
         map(
             lambda rng, pipeline: pipeline(batch, rng),
-            post_pipeline_rng,
-            train_state.task.post_pipelines,
+            pipeline_rng,
+            train_state.task.pipeline,
         )
     )
     # batch stores views indexed by the pipeline that produced them
@@ -72,10 +66,9 @@ def train_step(
         loss = loss_fn(outs)
         return loss, new_state
 
-
-    if config.env.dynamic_scale:
+    if train_state.task.config.env.dynamic_scale:
         # optim.DynamicScale returns a DynamicScaleResult object
-        grad_fn = optim.DynamicScale(**config.env.dynamic_scale_params).value_and_grad(
+        grad_fn = optim.DynamicScale(**train_state.task.config.env.dynamic_scale_params).value_and_grad(
                 train_loss, has_aux=True
             )
         dyn_scale, is_fin, loss_and_aux, grad = grad_fn(train_state.params, batch)
@@ -94,7 +87,7 @@ def train_step(
         grads=grad["params"], **{"mutable_states": aux},
     )
 
-    for idx, fun in enumerate(train_state.task.post_process_funcs):
+    for idx, fun in enumerate(train_state.task.post_process):
         state = train_state.replace(params=fun(state.params, state.step))
 
     return train_state, loss
