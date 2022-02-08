@@ -3,6 +3,8 @@ import logging
 from collections import OrderedDict
 from functools import partial
 from typing import Callable, Dict, List
+from ssljax.core.pytrees import inc_exc_filter, flattened_traversal_with_filter
+import optax
 
 import jax
 import jax.numpy as jnp
@@ -83,6 +85,7 @@ class Task:
             **self.config.loss.params,
         )
 
+
     def _get_optimizers(self) -> List[Optimizer]:
         """
         Initialize the optimizer.
@@ -90,15 +93,34 @@ class Task:
         Returns (Optimizer): The optimizers to use for the task.
         """
 
+        def _get_inc_exclude_filters(optimizer_dict):
+            filters ={"inc_filters": [], "exc_filters": []}
+            if "inc_filters" in optimizer_dict:
+                filters["inc_filters"] = optimizer_dict["inc_filters"]
+            if "exc_filters" in optimizer_dict.params:
+                filters["exc_filters"] = optimizer_dict["exc_filters"]
+            return filters
+
+        print("schedulers111", self.schedulers)
         optimizers = OrderedDict()
-        for optimizer_key, optimizer_params in self.config.optimizers.branches.items():
-            schedulers = {}
-            for key, val in self.schedulers["branches"][optimizer_key].items():
-                schedulers[key] = get_from_register(Scheduler, val.name)(**val.params)
-            optimizer = get_from_register(Optimizer, optimizer_params.name)(
-                **schedulers,
-                **optimizer_params.params,
-            )
+        for optimizer_key, optimizer_params in self.config.optimizers.items():
+            print("opt key params", optimizer_key, optimizer_params)
+            schedulers_for_opt = {}
+            print("optimizer_key vs shceulders", optimizer_key, self.schedulers.keys())
+            if optimizer_key in self.schedulers["opt_schedulers"]:
+                for key, val in self.schedulers["opt_schedulers"][optimizer_key].items():
+                    print("kv", key, val)
+                    schedulers_for_opt[key] = get_from_register(Scheduler, val.name)(**val.params)
+            filters = _get_inc_exclude_filters(optimizer_params)
+            mask_fn = partial(inc_exc_filter, **filters)
+            print("schedulers for opt", schedulers_for_opt)
+            optimizer = optax.masked(
+                get_from_register(Optimizer, optimizer_params.name)(
+                    **schedulers_for_opt,
+                    **optimizer_params.params,
+                ),
+                mask=flattened_traversal_with_filter(mask_fn))
+
             optimizers[optimizer_key] = optimizer
 
         return optimizers
@@ -109,9 +131,12 @@ class Task:
 
         Returns (Scheduler): The scheduler to use for the task.
         """
-        schedulers = {"branches": {}, "post_process": {}}
-        for scheduler_key, scheduler_params in self.config.schedulers.branches.items():
-            schedulers["branches"][scheduler_key] = scheduler_params
+
+
+        schedulers = {"opt_schedulers": {}, "post_process": {}}
+        if "opt_schedulers" in self.config.schedulers:
+            for scheduler_key, scheduler_params in self.config.schedulers.opt_schedulers.items():
+                schedulers["opt_schedulers"][scheduler_key] = scheduler_params
 
         if "post_process" in self.config.schedulers:
             for (
@@ -120,6 +145,7 @@ class Task:
             ) in self.config.schedulers.post_process.items():
                 schedulers["post_process"][scheduler_key] = scheduler_params
 
+        print("schedulers123", schedulers)
         return schedulers
 
     def _get_meter(self) -> Meter:

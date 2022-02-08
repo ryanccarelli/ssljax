@@ -85,7 +85,6 @@ loss:
   params: {}
 
 optimizers:
-  branches:
     0:
       name: lars
       params:
@@ -94,9 +93,10 @@ optimizers:
         weight_decay: 1.5e-6
         weight_decay_mask: True
         trust_ratio_mask: True
+      inc_filters: ["head1*", "body1*", "pred1*"]
 
 schedulers:
-  branches:
+  opt_schedulers:
     0:
       learning_rate:
         name: byol_lr_schedule

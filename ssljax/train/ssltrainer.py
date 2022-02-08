@@ -262,19 +262,8 @@ class SSLTrainer(Trainer):
 
         params = self.model.init(self.rng, init_shape)
 
-        opt_collect = []
-        prefix_branch = lambda x: "branch_" + str(x)
-        for opt_idx, opt in self.task.optimizers.items():
-            opt_collect.append(
-                optax.masked(
-                    opt,
-                    mask=flattened_traversal(
-                        lambda path, _: path.split("/")[0] == prefix_branch(opt_idx)
-                    ),
-                )
-            )
 
-        multi_tx = optax.chain(*opt_collect)
+        multi_tx = optax.chain(*self.task.optimizers.values())
 
         mutable_keys = list(params.keys())
         mutable_keys.remove("params")

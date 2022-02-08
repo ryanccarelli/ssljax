@@ -89,13 +89,13 @@ loss:
   params: {}
 
 optimizers:
-  branches:
     0:
       name: sgd
       params: {}
+      inc_filters: ["head1*", "body1*", "pred1*"]
 
 schedulers:
-  branches:
+  opt_schedulers:
     0:
       learning_rate:
         name: cosine_decay
