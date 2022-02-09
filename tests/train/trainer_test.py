@@ -8,19 +8,15 @@ from ssljax.train.task import Task
 
 class TestTrainer:
     def test_cpu(self, basecpuconfig):
-        task = Task(basecpuconfig)
-        trainer = task.trainer
-        trainer.train()
+        os.system("python ssljax/main.py --config='../train/conf/base_cpu_test.yaml'")
 
     def test_dynamic_scaling(self, dynamicscalingconfig):
-        task = Task(dynamicscalingconfig)
-        trainer = task.trainer
-        trainer.train()
+        os.system(
+            "python ssljax/main.py --config='../train/conf/dynamic_scaling_test.yaml'"
+        )
 
     def test_train_cpu_pretrained(self, pretrainedconfig):
-        task = Task(pretrainedconfig)
-        trainer = task.trainer
-        trainer.train()
+        os.system("python ssljax/main.py --config='../train/conf/pretrained_test.yaml'")
 
     @pytest.mark.gpu
     def test_train_byol(self, byolconfig):
@@ -28,14 +24,14 @@ class TestTrainer:
             "https://storage.googleapis.com/scenic-bucket/baselines/ResNet50_ImageNet1k",
             "tests/train/conf",
         )
-        task = Task(byolconfig)
-        trainer = task.trainer
-        trainer.train()
+        os.system("python ssljax/main.py --config='../train/conf/byol_test.yaml'")
+
     """
     @pytest.mark.gpu
     def test_train_dino_vit(self, dinovitconfig):
-        # TODO: download imagenet
-        task = Task(dinovitconfig)
-        trainer = task.trainer
-        trainer.train()
+        download_from_url(
+            "https://storage.googleapis.com/scenic-bucket/baselines/ResNet50_ImageNet1k",
+            "tests/train/conf",
+        )
+        os.system("python ssljax/main.py --config='../train/conf/dino_vit_test.yaml'")
     """

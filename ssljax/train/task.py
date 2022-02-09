@@ -7,6 +7,7 @@ from typing import Callable, List, Mapping
 import jax
 import jax.numpy as jnp
 import jax.random
+from clu import metric_writers
 from omegaconf import DictConfig
 from scenic.dataset_lib.dataset_utils import Dataset
 from ssljax.augment.pipeline.pipeline import Pipeline
@@ -15,7 +16,7 @@ from ssljax.data import ScenicData
 from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
-from ssljax.train import Meter, Scheduler, Trainer
+from ssljax.train import Scheduler, Trainer, Writer
 from ssljax.train.postprocess import PostProcess
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class Task:
         - loss
         - optimizer
         - scheduler
-        - meter
+        - writer
         - pipeline
         - dataloader
         - post-processing
@@ -50,7 +51,7 @@ class Task:
         self.model = self._get_model()
         self.loss = self._get_loss()
         self.optimizer = self._get_optimizer()
-        self.meter = self._get_meter()
+        self.writer = self._get_writer()
         self.pipeline = self._get_pipeline()
         self.data = self._get_data()
         self.post_process = self._get_post_process()
@@ -112,9 +113,7 @@ class Task:
         Returns (Optimizer): The optimizers to use for the task.
         """
 
-        schedule = (
-            self.scheduler["branch"] if "branch" in self.scheduler else {}
-        )
+        schedule = self.scheduler["branch"] if "branch" in self.scheduler else {}
         optimizers = OrderedDict()
         for optimizer_key, optimizer_params in self.config.optimizer.branch.items():
             schedulers = {}
@@ -128,15 +127,18 @@ class Task:
 
         return optimizers
 
-    def _get_meter(self) -> Callable:
+    def _get_writer(self) -> Callable:
         """
         Initialize the metrics.
 
         Returns (Meter): The metrics to use for the task.
         """
-        schedule = self.scheduler["meter"] if "meter" in self.scheduler else {}
-        return get_from_register(Meter, self.config.meter.name)(
-            **self.config.meter.params, **schedule,
+        writer = metric_writers.create_default_writer(
+            self.config.workdir, just_logging=jax.process_index() > 0, asynchronous=True
+        )
+        return get_from_register(Writer, self.config.metrics.writer.name)(
+            **self.config.metrics.writer.params,
+            **schedule,
         )
 
     def _get_post_process(self) -> Mapping[str, Callable]:
