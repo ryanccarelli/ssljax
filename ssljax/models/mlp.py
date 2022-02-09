@@ -76,7 +76,7 @@ class MLP(Model):
                 self.config.layer_dims[-1], self.layer_bias, dtype=self.config.dtype
             )
         )
-        if "batch_norm_final_layer" in self.config:
+        if "batch_norm_final_layer" in self.config and self.config["batch_norm_final_layer"]:
             layers.append(nn.BatchNorm(**self.config.batch_norm_final_layer_params))
         self.layers = layers
 

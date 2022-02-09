@@ -18,7 +18,7 @@ env:
 trainer:
   name: SSLTrainer
 
-modules:
+module:
   body1:
     name: MLP
     params:
@@ -70,7 +70,7 @@ modules:
 
 model:
   name: SSLModel
-  branches:
+  branch:
     0:
       stop_gradient: False
       pipelines: ["0"]
@@ -87,14 +87,14 @@ loss:
   name: cosine_similarity
   params: {}
 
-optimizers:
-  branches:
+optimizer:
+  branch:
     0:
       name: sgd
       params: {}
 
-schedulers:
-  branches:
+scheduler:
+  branch:
     0:
       learning_rate:
         name: cosine_decay
@@ -124,15 +124,16 @@ post_process:
 
 meter:
   name: SSLMeter
+  params: {}
 
-pipelines:
+pipeline:
   flatten: True
   pre:
     augmentations:
       Identity:
         params:
           prob: 1.0
-  branches:
+  branch:
     0:
       augmentations:
         Identity:
@@ -145,9 +146,10 @@ pipelines:
             prob: 1.0
 
 data:
-  name: Base
-  params:
-    dataset_name: "mnist"
-    batch_size: 32
-    data_dtype_str: "float32"
-    dataset_configs: {}
+  pretraining:
+    name: Base
+    params:
+      dataset_name: "mnist"
+      batch_size: 32
+      data_dtype_str: "float32"
+      dataset_configs: {}

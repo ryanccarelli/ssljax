@@ -46,6 +46,7 @@ class ResNet(Model):
 
     @nn.compact
     def __call__(self, x):
+        print("resnet in shape is: ", x.shape)
         x = self.model(x)
         # this is directly from https://github.com/google-research/scenic/blob/c2140913a9a3fb7b7c54d50c6db7df0e6cf92ba1/scenic/projects/baselines/resnet.py#L126
         if self.config.num_outputs:
@@ -53,7 +54,9 @@ class ResNet(Model):
         else:
             # no +1 here since len starts at 1 while enumerate starts at 0 when
             # dict is build in scenic
-            return x[f"stage_{self.num_blocks}"]
+            # squeeze since intermediate representation maintains extra dims
+            # i.e. input of shape (128, 32, 32, 3) returns (128, 1, 1, 2048)
+            return jnp.squeeze(x[f"stage_{self.num_blocks}"])
 
 
 @register(Model, "BitResNet")
