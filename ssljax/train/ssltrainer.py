@@ -1,364 +1,335 @@
+import functools
 import logging
-
-logger = logging.getLogger(__name__)
-
-import time
-from functools import partial
 from pathlib import Path
 
 import flax
 import flax.optim as optim
 import jax
 import jax.numpy as jnp
-from jax.experimental.optimizers import clip_grads
-import numpy as np
-import optax
-from flax import jax_utils
-from flax.core import freeze, unfreeze
-from flax.training import checkpoints
-from flax.training.checkpoints import restore_checkpoint
-from jax import random
-from omegaconf import DictConfig
-from ssljax.core import flattened_traversal, register
-from ssljax.train.trainer import Trainer
-from ssljax.train.ssltrainstate import TrainState
-from tensorboardX import GlobalSummaryWriter
-from tqdm import tqdm
+from clu import metric_writers, periodic_actions, platform
+from scenic.common_lib import debug_utils
+from scenic.train_lib import optimizers, train_utils
+from ssljax.train import Task, Trainer
+from ssljax.train.ssltrainstate_refactored import SSLTrainState
+from ssljax.train.utils import bind_rng_to_host_device, register
 
-CHECKPOINTSDIR = Path("outs/checkpoints/")
-CHECKPOINTSDIR.mkdir(parents=True, exist_ok=True)
-TBDIR = Path("outs/tensorboard/")
-TBDIR.mkdir(parents=True, exist_ok=True)
-
-writer = GlobalSummaryWriter(TBDIR)
-
-from jax import lax
-
-# TODO. Move to utils
-cross_replica_mean = jax.pmap(lambda x: lax.pmean(x, "x"), "x",)
-
-
-def sync_batch_stats(state):
-    """Sync the batch statistics across replicas."""
-    # Each device has its own version of the running average batch statistics and
-    # we sync them before evaluation.
-    new_mutable_states = state.mutable_states.unfreeze()
-    new_mutable_states["batch_stats"] = cross_replica_mean(
-        state.mutable_states["batch_stats"]
-    )
-    state.replace(mutable_states=new_mutable_states)
-    return state
-
+logger = logging.getLogger(__name__)
 
 @register(Trainer, "SSLTrainer")
-class SSLTrainer(Trainer):
+def train(
+    *,
+    rng: jnp.ndarray,
+    task: Task,
+):
     """
-    Implements self-supervised training and inference.
+    Main self-supervised training loop, executes a Task.
 
     Args:
-        rng (jnp.DeviceArray): A Jax PRNG key.
-        task (ssljax.train.task.Task): A task object.
+        rng (jnp.array): An instance of jax.random.PRNGKey
+        task (Task): A task that specifies the loop
+    """
+    lead_host = jax.process_index() == 0
+
+    # setup cli workdir
+    WORKDIR = Path(task.env.workdir) if "workdir" in task.env else Path("outs/")
+    platform.work_unit().create_artifact(
+        platform.ArtifactType.DIRECTORY, WORKDIR, "Workdir"
+    )
+
+    batch_size = (
+        (task.config.batch_size // jax.device_count())
+        if "batch_size" in task.config.env
+        else None
+    )
+
+    # initialize model
+    input_spec = [
+        (
+            task.dataset.meta_data["input_shape"],
+            task.dataset.meta_data.get("input_dtype", jnp.float32),
+        )
+    ]
+    dummy_input = []
+    for spec in input_spec:
+        if spec is not None:
+            in_st = debug_utils.input_spec_to_jax_shape_dtype_struct(
+                spec, batch_size=batch_size
+            )
+            dummy_input.append(jnp.ones(in_st.shape, in_st.dtype))
+        else:
+            dummy_input.append(None)
+
+    # create parameters in host RAM
+    @functools.partial(jax.jit, backend="cpu")
+    def _initialize_model(rngs):
+        """Initialization function to be jitted."""
+        init_model_state, init_params = task.model.init(
+            rngs, *dummy_input, train=False, debug=False
+        ).pop("params")
+        # Set bias in the head to low value, such that loss is small initially.
+        if task.config.get("init_head_bias", None) is not None:
+            init_params = flax.core.unfreeze(init_params)
+            init_params["output_projection"] = optimizers.tree_map_with_names(
+                lambda p: jnp.full_like(p, task.config.init_head_bias),
+                init_params["output_projection"],
+                match_name_fn=lambda name: "bias" in name,
+            )
+            init_params = flax.core.freeze(init_params)
+        return init_params, init_model_state
+
+    init_rngs = rng
+    if not isinstance(init_rngs, dict):
+        init_rngs = {"params": rng}
+
+    init_params, init_model_state = _initialize_model(init_rngs)
+
+    # pop out params rng
+    # TODO: why?
+    init_rngs.pop("params")
+
+    # Count number of trainable parameters:
+    num_trainable_params = debug_utils.log_param_shapes(init_params)
+
+    # Count gflops:
+    if task.config.count_flops:
+        variables = {"params": init_params, **init_model_state}
+        flops = debug_utils.compute_flops(
+            flax_model_apply_fn=functools.partial(
+                task.model.apply, variables, train=False, debug=False, rngs=rngs
+            ),
+            input_spec=input_spec,
+            fuse_multiply_add=task.config.fuse_multiply_add,
+        )
+        gflops = flops / (10 ** 9)
+    else:
+        gflops = None
+
+    # TODO (Pika): init optimizer here, this time we should jit backend="cpu"
+    optimizer = None
+    rng, train_state_rng = jax.random.split(rng)
+
+    train_state = SSLTrainState(
+        params=init_params,
+        mutable_states=TODO,
+        opt_state=init_model_state,
+        global_step=TODO,
+        optimizer=optimizer,
+        task=task,
+        rng=train_state_rng,
+    )
+    start_step = train_state.global_step
+    if task.config.checkpoint:
+        train_state, start_step = train_utils.restore_checkpoint(WORKDIR, train_state)
+
+    train_state = jax_utils.replicate(train_state)
+    del init_params
+
+    # training steps
+    steps_per_epoch = (
+        task.data.meta_data.get("num_train_examples", 0) // batch_size
+    )
+    total_steps = steps_per_epoch * task.config.env.epochs
+
+    train_step_pmapped = jax.pmap(
+        functools.partial(
+            train_step,
+            loss_fn=task.loss,
+            model_fn=task.model,
+            pipeline_fn=task.pipeline,
+            post_process_fn=task.post_process,
+            config=task.config,
+        ),
+        axis_name="device",
+        donate_argnums=(0, 1),
+    )
+
+    # TODO: dict of  eval steps to iterate?
+    eval_step_pmapped = jax.pmap(
+        functools.partial(
+            eval_step,
+
+
+    log_eval_steps = task.config.env.log_eval_steps or steps_per_epoch
+    if not log_eval_steps:
+        raise ValueError("'log_eval_steps' should be specified in task.config.env")
+    checkpoint_steps = task.config.env.checkpoint_steps or log_eval_steps
+    log_summary_steps = task.config.env.log_summary_steps or log_eval_steps
+
+    total_eval_steps = int(
+        np.ceil(task.data.meta_data["num_eval_examples"] / batch_size)
+    )
+    steps_per_eval = task.config.env.steps_per_eval or total_eval_steps
+
+    train_metrics, extra_training_logs = [], []
+    train_summary, eval_summary = None, None
+
+    chrono = train_utils.Chrono(
+        first_step=train_state.global_step,
+        total_steps=total_steps,
+        steps_per_epoch=steps_per_epoch,
+        global_bs=batch_size,
+        accum_train_time=int(jax_utils.unreplicate(train_state.accum_train_time)),
+    )
+
+    report_progress = periodic_actions.ReportProgress(
+        num_train_steps=total_steps, writer=task.writer
+    )
+    hooks = [report_progress]
+    if task.config.env.xprof and lead_host:
+        # TODO: refactor TBDIR -> WORKDIR and accept path in config
+        hooks.append(periodic_actions.Profile(num_profile_steps=5, logdir=TBDIR))
+    if start_step == 0:
+        step0_log = {"num_trainable_params": num_trainable_params}
+        if gflops:
+            step0_log["gflops"] = gflops
+        task.writer.write_scalars(1, step0_log)
+    steps_per_epoch = (
+        task.data.meta_data.get("num_train_examples", 0)
+        // batch_size
+    )
+
+    for step in range(total_steps):
+        with jax.profiler.StepTraceAnnotation("train", step_num=step):
+            # inner loop here
+            train_batch = next(task.data.train_iter)
+            if task.config.pipelines.flatten:
+                train_batch = jnp.ravel(train_batch)
+                # batch = batch.reshape(*batch.shape[:-3], -1)
+            # notice p_step refactor to return metrics
+            train_state, loss, metrics = train_step_pmapped(
+                train_state,
+                train_batch,
+            )
+            train_metrics.append(metrics)
+            # TODO: track learning rate
+            extra_training_logs.append({"learning_rate": None})
+        for h in hooks:
+            h(step)
+        chrono.pause()
+        if (log_summary_steps == 1) or (step == total_steps):
+            if lead_host:
+                chrono.tick(step, writer=task.writer)
+            train_summary = train_utils.log_train_summary(
+                step=step,
+                train_metrics=jax.tree_map(
+                    train_utils.unreplicate_and_get, train_metrics
+                ),
+                writer=task.writer,
+            )
+            train_metrics, extra_training_logs = [], []
+            if (step % task.config.log_eval_steps == 1) or (step == total_steps):
+                with report_progress.timed("eval"):
+                    eval_metrics = []
+                    # populate and eval
+                    train_state = train_utils.sync_model_state_across_replicas(
+                        train_state
+                    )
+                for _ in range(steps_per_eval):
+                    eval_batch = next(task.data.valid_iter)
+                    if task.config.pipelines.flatten:
+                        eval_batch = jnp.ravel(eval_batch)
+                        # eval_batch = batch.reshape(*eval_batch.shape[:-3], -1)
+                    e_metrics, _ = eval_step_pmapped(train_state, eval_batch)
+                    eval_metrics.append(train_utils.unreplicate_and_get(e_metrics))
+                eval_summary = train_utils.log_eval_summary(
+                    step=step, eval_metrics=eval_metrics, writer=task.writer
+                )
+            task.writer.flush()
+            del eval_metrics
+        if (
+            (step % checkpoint_steps == 0 and step > 0) or (step == total_steps)
+        ) and task.config.checkpoint:
+            with report_progress.timed("checkpoint"):
+                train_state = train_utils.sync_model_state_across_replicas(train_state)
+                if lead_host:
+                    train_state.replace(accum_train_time=chrono.accum_train_time)
+                    train_utils.save_checkpoint(WORKDIR, train_state)
+        chrono.resume()
+
+    jax.random.normal(jax.random.PRNGKey(0), ()).block_until_ready()
+    return train_state, train_summary, eval_summary
+
+
+def train_step(
+    train_state: SSLTrainState,
+    batch,
+    loss_fn,
+    model_fn,
+    pipeline_fn,
+    post_process_fn,
+    config,
+):
+    """
+    Compute and apply gradient.
+
+    Args:
+        state (flax.training.train_state.TrainState): model state
+        batch (jnp.ndarray): a single data batch
+        rng (jnp.ndarray): PRNG key
+        mutable_keys (List[str]): parameters that are mutable
+        loss_fn: loss
+        model_fn: model
     """
 
-    def __init__(self, rng, task):
-        self.task = task
-        self.rng = rng
-        self.bn = None
+    # TODO: why do we split here?
+    new_rng, rng = jax.random.split(train_state.rng)
 
-    def train(self):
-        """
-        Train model.
-        """
+    pipeline_rng, rng = jax.random.split(rng, 2)
+    pipeline_rng = bind_rng_to_host_device(pipeline_rng, "device", "device")
 
-        from jax.lib import xla_bridge
-
-        logger.debug("xla bridge device", xla_bridge.get_backend().platform)
-
-        key, self.rng = random.split(self.rng)
-        state, p_step = self.initialize()
-
-        state = jax_utils.replicate(state)
-
-        for epoch in tqdm(range(self.task.config.env.epochs)):
-            state = self.epoch(state, p_step)
-            save_state = jax.device_get(jax.tree_map(lambda x: x[0], state))
-            checkpoints.save_checkpoint(
-                target=save_state,
-                step=int(jax_utils.unreplicate(state.step)),
-                prefix="checkpoint_",
-                **self.task.config.env.save_checkpoint.params,
-            )
-
-    def epoch(self, state, p_step):
-        """
-        Train over one iteration of data.
-
-        Args:
-            state (flax.training.train_state.TrainState): model state
-            p_step: pmapped step function
-        """
-
-        # get training steps
-        steps_per_epoch = self.task.data["pretraining"].meta_data.get("num_train_examples", 0) // self.task.config.data["pretraining"].params.batch_size
-        for step in range(steps_per_epoch):
-            data = next(self.task.data["pretraining"].train_iter)
-            data = data["inputs"]
-            if self.task.config.pipeline.flatten:
-                # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
-                data = data.reshape(*data.shape[:-3], -1)
-            batch = jax.device_put(data)
-
-            self.rng, rng_step = jax.random.split(self.rng)
-            rng_step = jax_utils.replicate(rng_step)
-
-            start_time = time.time()
-            state, loss = p_step(state, batch, rng_step)
-
-            end_time = time.time()
-            logger.info(f"Step time: {end_time - start_time}")
-
-            # Sync batch stats across multiple devices
-            if "batch_stats" in state.mutable_states.keys():
-                state = sync_batch_stats(state)
-            writer.add_scalar("loss", np.array(loss).mean())
-        return state
-
-    def step(
-        self,
-        state,
-        batch,
-        rng,
-        mutable_keys,
-        loss_fn,
-        dynamic_scale,
-        dynamic_scale_params,
-    ):
-        """
-        Compute and apply gradient.
-
-        Args:
-            state (flax.training.train_state.TrainState): model state
-            batch (jnp.ndarray): a single data batch
-            rng (jnp.ndarray): PRNG key
-            mutable_keys (List[str]): parameters that are mutable
-            loss_fn: loss
-            dynamic_scale (bool): whether to apply dynamic scaling
-            dynamic_scale_params (dict): params passed to dynamic scale optimizer
-        """
-
-        state.replace(global_step = state.global_step + 1)
-        piperng, rng = jax.random.split(rng)
-        piperng = jax.random.split(rng, len(self.task.pipeline))
-        batch = list(
-            map(
-                lambda rng, pipeline: pipeline(batch, rng),
-                piperng,
-                list(self.task.pipeline.values()),
-            )
+    pipeline_rng = jax.random.split(pipeline_rng, len(pipeline_fn))
+    batch = list(
+        map(
+            lambda rng, pipeline: pipeline(batch, new_rng),
+            pipeline_rng,
+            pipeline_fn,
         )
-        # batch stores views indexed by the pipeline that produced them
-        batch = {str(idx): val for idx, val in enumerate(batch)}
+    )
+    # batch stores views indexed by the pipeline that produced them
+    # TODO: why str(idx) instead of name passed in config?
+    # instead zip with pipeline
+    batch = {str(idx): val for idx, val in enumerate(batch)}
 
-        if dynamic_scale:
-            # optim.DynamicScale returns a DynamicScaleResult object
-            grad_fn = jax.jit(
-                optim.DynamicScale(**dynamic_scale_params).value_and_grad(
-                    loss_fn, has_aux=True
-                )
-            )
-        else:
-            grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-
-
-        state_params = {"params": state.params}
-        for mutable_key in mutable_keys:
-            if (val := getattr(state, mutable_key, None)) is not None:
-                state_params[mutable_key] = val
-
-        if dynamic_scale:
-            dyn_scale, is_fin, loss_and_aux, grad = grad_fn(state_params, batch)
-        else:
-            loss_and_aux, grad = grad_fn(state_params, batch)
-
-        (loss, aux) = loss_and_aux
-
-        loss, grad = (
-            jax.lax.pmean(loss, axis_name="batch"),
-            jax.lax.pmean(grad, axis_name="batch"),
-        )
-
-        if "max_grad_norm" in self.task.config.env and self.task.config.env.max_grad_norm:
-            grad = clip_grads(grad, self.config.max_grad_norm)
-
-
-        if "mutable_states" in aux:
-            state = state.apply_gradients(
-                grads=grad["params"], **{"mutable_states": aux["mutable_states"]},
-            )
-        else:
-            state = state.apply_gradients(grads=grad["params"],)
-
-        for idx, fun in self.task.post_process.items():
-            state = state.replace(params=fun(state.params, state.step))
-
-        return state, loss
-
-    def loss(self, params, batch, model_fn, mutable_keys=None):
+    def train_loss(params):
         """
         Apply loss function. Passed to opt.value_and_grad.
         """
         # loss must return a single float (since we grad loss)
         # but here we have also new_state
         # but we need new_state to manage mutable batch_params
-        aux = {}
-        if mutable_keys:
-            outs, new_state = model_fn.apply(params, batch, mutable=mutable_keys)
-            loss = self.task.loss(outs)
-            loss = jnp.mean(loss)
-            aux["mutable_states"] = new_state
-            return loss, aux
-        else:
-            outs = self.model.apply(params, batch)
-            loss = self.task.loss(outs)
-            return loss, aux
-
-    def eval(self):
-        raise NotImplementedError
-
-    def evalstep(self):
-        raise NotImplementedError
-
-    def initialize(self):
-        """
-        Initialize platform, devices, numerical precision, model, train state.
-        """
-        # setup devices
-        platform = jax.local_devices()[0].platform
-        # set model_dtype
-        model_dtype = jnp.float32
-        # TODO: cast different parts of model to different precisions
-        if self.task.config.env.half_precision:
-            if platform == "tpu":
-                model_dtype = jnp.bfloat16
-            else:
-                model_dtype = jnp.float16
-        else:
-            model_dtype = jnp.float32
-
-        # TODO: remove
-        self.model = self.task.model
-
-        # .meta_data["input_shape"] is (-1, H, W, C)
-        data_shape = self.task.data["pretraining"].meta_data["input_shape"][1:]
-        # add batch dimension
-        data_shape = (1,) + data_shape
-
-        init_data = jnp.ones(data_shape, model_dtype,)
-
-        if self.task.config.pipeline.flatten:
-            # TODO: This assumes 3D format (28, 28, 1); (256, 256, 3)
-            init_data = init_data.reshape(*init_data.shape[:-3], -1)
-
-        init_shape = {}
-        for branch, _ in self.task.config.pipeline.branch.items():
-            init_shape[str(branch)] = init_data.copy()
-
-        params = self.model.init(self.rng, init_shape)
-
-        opt_collect = []
-        prefix_branch = lambda x: "branch_" + str(x)
-        for opt_idx, opt in self.task.optimizer.items():
-            opt_collect.append(
-                optax.masked(
-                    opt,
-                    mask=flattened_traversal(
-                        lambda path, _: path.split("/")[0] == prefix_branch(opt_idx)
-                    ),
-                )
-            )
-
-        multi_tx = optax.chain(*opt_collect)
-
-        mutable_keys = list(params.keys())
-        mutable_keys.remove("params")
-
-        mutable_states = {}
-        for mutable_key in mutable_keys:
-            mutable_states[mutable_key] = params[mutable_key].unfreeze()
-
-        print("Mutable keys: ", mutable_states)
-
-        state_params = {
-            "apply_fn": self.model.apply,
-            "params": params["params"].unfreeze(),
-            "tx": multi_tx,
-            "mutable_states": mutable_states,
-        }
-
-        state = TrainState.create(
-            global_step=0,
-            apply_fn=self.model.apply,
-            params=params["params"].unfreeze(),
-            tx=multi_tx,
-            mutable_states=mutable_states,
+        variables = {"params": params, **train_state.mutable_states}
+        outs, new_state = model_fn.apply(
+            variables, batch, mutable=train_state.mutable_states.keys()
         )
+        loss = loss_fn(outs)
+        return loss, new_state, outs
 
-        # load pretrained modules
-        state = load_pretrained(self.task.config.module, state)
-
-        # load checkpoint
-        if self.task.config.env.restore_checkpoint.params:
-            state = checkpoints.restore_checkpoint(
-                target=self.model, **self.task.config.env.restore_checkpoint,
-            )
-
-        loss_fn = partial(self.loss, model_fn=self.model, mutable_keys=mutable_keys)
-
-        p_step = jax.pmap(
-            partial(
-                self.step,
-                dynamic_scale=self.task.config.env.dynamic_scale,
-                mutable_keys=mutable_keys,
-                loss_fn=loss_fn,
-                dynamic_scale_params=self.task.config.env.dynamic_scale_params,
-            ),
-            axis_name="batch",
-            donate_argnums=(0, 1),
+    if config.env.dynamic_scale:
+        # optim.DynamicScale returns a DynamicScaleResult object
+        grad_fn = optim.DynamicScale(**config.env.dynamic_scale_params).value_and_grad(
+            train_loss, has_aux=True
         )
+        dyn_scale, is_fin, loss_and_aux, grad = grad_fn(train_state.params, batch)
+    else:
+        grad_fn = jax.value_and_grad(train_loss, has_aux=True)
+        loss_and_aux, grad = grad_fn(train_state.params, batch)
 
-        return state, p_step
+    (loss, aux) = loss_and_aux
+    (new_state, outs) = aux
 
+    loss, grad = (
+        jax.lax.pmean(loss, axis_name="device"),
+        jax.lax.pmean(grad, axis_name="device"),
+    )
 
-def load_pretrained(config, state):
-    """
-    Overwrite branches or modules from pretrained checkpoint indicated in
-    config.model.branches.
+    state = train_state.apply_gradients(
+        grads=grad["params"],
+        **{"mutable_states": aux},
+    )
 
-    Args:
-        config (DictConfig): SSLTrainer config at task.config.model.branches
-        state (flax.training.TrainState): model state
-    """
+    for idx, fun in enumerate(post_process_fn):
+        state = train_state.replace(params=fun(state.params, state.step))
 
-    params = unfreeze(state.params)
+    metrics = metrics_fn(outs)
 
-    for module_key, module_params in config.items():
-        if "pretrained" in module_params:
-            assert isinstance(module_params.pretrained, str), "pretrained models are paths type str"
-            path = module_params["pretrained"]
-
-            replace = restore_checkpoint(
-                str(Path(__file__).parents[2]) + path,
-                target=None,
-            )
-            if "model_state" in replace:
-                while "model_state" in replace:
-                    replace = replace["model_state"]
-            elif "params" in replace:
-                while "params" in replace:
-                    replace = replace["params"]
-            else:
-                raise Exception("checkpoint file structure not recognized")
-            params[module_key] = replace
-            logger.info(f"{module_key} loaded from: " + str(Path(__file__).parents[2]) + path)
-    state.replace(params=freeze(params))
-    return state
+    return train_state, loss, metrics
