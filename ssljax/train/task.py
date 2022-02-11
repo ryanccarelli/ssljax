@@ -16,7 +16,8 @@ from ssljax.data import ScenicData
 from ssljax.losses.loss import Loss
 from ssljax.models.model import Model
 from ssljax.optimizers import Optimizer
-from ssljax.train import Scheduler, Trainer, Writer
+from ssljax.train import Scheduler, Trainer
+from ssljax.train.metrics import Metric
 from ssljax.train.postprocess import PostProcess
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ class Task:
         - pipeline
         - dataloader
         - post-processing
+        - metrics
 
     Args:
         config (omegaconf.DictConfig): a hydra configuration file
@@ -131,15 +133,12 @@ class Task:
         """
         Initialize the metrics.
 
-        Returns (Meter): The metrics to use for the task.
+        Returns (metric_writers.Writer): a writer
         """
         writer = metric_writers.create_default_writer(
             self.config.workdir, just_logging=jax.process_index() > 0, asynchronous=True
         )
-        return get_from_register(Writer, self.config.metrics.writer.name)(
-            **self.config.metrics.writer.params,
-            **schedule,
-        )
+        return writer
 
     def _get_post_process(self) -> Mapping[str, Callable]:
         schedule = (
@@ -189,3 +188,12 @@ class Task:
                 data_rng=data_rng,
             )
         return data
+
+    def _get_metric(self):
+        """
+        Initialize metric.
+        """
+        metric = get_from_register(Metric, self.config.metric.name)(
+            **self.config.metric.params
+        )
+        return metric

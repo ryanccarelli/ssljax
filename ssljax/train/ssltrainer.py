@@ -137,6 +137,7 @@ def train(
             model_fn=task.model,
             pipeline_fn=task.pipeline,
             post_process_fn=task.post_process,
+            metrics_fn=task.
             config=task.config,
         ),
         axis_name="device",
@@ -257,6 +258,7 @@ def train_step(
     model_fn,
     pipeline_fn,
     post_process_fn,
+    metrics_fn,
     config,
 ):
     """
@@ -265,10 +267,10 @@ def train_step(
     Args:
         state (flax.training.train_state.TrainState): model state
         batch (jnp.ndarray): a single data batch
-        rng (jnp.ndarray): PRNG key
-        mutable_keys (List[str]): parameters that are mutable
         loss_fn: loss
         model_fn: model
+        post_process_fn: post_process
+        metrics_fn: metrics
     """
 
     # TODO: why do we split here?
@@ -330,6 +332,7 @@ def train_step(
     for idx, fun in enumerate(post_process_fn):
         state = train_state.replace(params=fun(state.params, state.step))
 
-    metrics = metrics_fn(outs)
+    # metrics_fn is 
+    metrics = metrics_fn(outs, batch)
 
     return train_state, loss, metrics

@@ -3,13 +3,12 @@ import logging
 import jax.numpy as jnp
 from optax import (constant_schedule, cosine_decay_schedule,
                    cosine_onecycle_schedule, exponential_decay,
-                   linear_schedule, linear_onecycle_schedule, piecewise_constant_schedule,
-                   piecewise_interpolate_schedule, polynomial_schedule)
+                   linear_onecycle_schedule, linear_schedule,
+                   piecewise_constant_schedule, piecewise_interpolate_schedule,
+                   polynomial_schedule)
 from ssljax.core import register
 
 logger = logging.getLogger(__name__)
-
-logger.error(f"{__name__}: THESE ARE PLACEHOLDERS!!")
 
 
 class Scheduler:

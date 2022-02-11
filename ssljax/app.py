@@ -26,7 +26,6 @@ from clu import metric_writers, platform
 
 FLAGS = flags.FLAGS
 
-# These are general flags that are used across most of scenic projects. These
 # flags can be accessed via `flags.FLAGS.<flag_name>` and projects can also
 # define their own flags in their `main.py`.
 flags.DEFINE_string("config", None, "Task configuration.")
@@ -43,7 +42,7 @@ def run(main):
 def _run_main(argv, *, main):
     """Runs the `main` method after some initial setup."""
     del argv
-    # Hide any GPUs form TensorFlow. Otherwise TF might reserve memory and make
+    # Hide any GPUs from TensorFlow. Otherwise TF might reserve memory and make
     # it unavailable to JAX.
     tf.config.experimental.set_visible_devices([], "GPU")
 
