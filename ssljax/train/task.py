@@ -86,6 +86,7 @@ class Task:
         )
 
 
+
     def _get_optimizers(self) -> List[Optimizer]:
         """
         Initialize the optimizer.
@@ -93,27 +94,14 @@ class Task:
         Returns (Optimizer): The optimizers to use for the task.
         """
 
-        def _get_inc_exclude_filters(optimizer_dict):
-            filters ={"inc_filters": [], "exc_filters": []}
-            if "inc_filters" in optimizer_dict:
-                filters["inc_filters"] = optimizer_dict["inc_filters"]
-            if "exc_filters" in optimizer_dict.params:
-                filters["exc_filters"] = optimizer_dict["exc_filters"]
-            return filters
-
-        print("schedulers111", self.schedulers)
         optimizers = OrderedDict()
         for optimizer_key, optimizer_params in self.config.optimizers.items():
-            print("opt key params", optimizer_key, optimizer_params)
             schedulers_for_opt = {}
-            print("optimizer_key vs shceulders", optimizer_key, self.schedulers.keys())
             if optimizer_key in self.schedulers["opt_schedulers"]:
                 for key, val in self.schedulers["opt_schedulers"][optimizer_key].items():
-                    print("kv", key, val)
                     schedulers_for_opt[key] = get_from_register(Scheduler, val.name)(**val.params)
-            filters = _get_inc_exclude_filters(optimizer_params)
+            filters = {k: optimizer_params.get(k, []) for k in ('inc_filters', 'exc_filters')}
             mask_fn = partial(inc_exc_filter, **filters)
-            print("schedulers for opt", schedulers_for_opt)
             optimizer = optax.masked(
                 get_from_register(Optimizer, optimizer_params.name)(
                     **schedulers_for_opt,
@@ -145,7 +133,6 @@ class Task:
             ) in self.config.schedulers.post_process.items():
                 schedulers["post_process"][scheduler_key] = scheduler_params
 
-        print("schedulers123", schedulers)
         return schedulers
 
     def _get_meter(self) -> Meter:
