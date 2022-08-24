@@ -131,3 +131,9 @@ dmypy.json
 
 # PyCharm Project Files
 .idea/
+
+#checkpoints and outputs
+tests/train/outs/tensorboard/
+tests/train/conf/
+conf/
+outs/

@@ -1,0 +1,273 @@
+env:
+  seed: 1337
+  numpy_seed: 1337
+  jax_seed: 1337
+  epochs: 2
+  accum_steps: 1
+  save_checkpoint:
+    params:
+      ckpt_dir: "outs/checkpoints/"
+      keep: 1
+      overwrite: True
+      keep_every_n_steps: 300
+  restore_checkpoint:
+    params: {}
+  half_precision: False
+  dynamic_scale: False
+  dynamic_scale_params: {}
+
+trainer:
+  name: SSLTrainer
+
+module:
+  body1:
+    name: ViT
+    params:
+      num_classes: 20
+      # mlp_dim
+      # Ti 768
+      # S 1536
+      # B 3072
+      # L 4096
+      # H 5120
+      mlp_dim: 3072
+      # num_layers
+      # Ti 12
+      # S 12
+      # B 12
+      # L 24
+      # H 32
+      num_layers: 12
+      # num_heads
+      # Ti 3
+      # S 6
+      # B 12
+      # L 16
+      # H 16
+      num_heads: 12
+      # patches
+      # 16 for B/16 (in general after /)
+      patches: 16
+      # hidden_size
+      # Ti 192
+      # S 384
+      # B 768
+      # L 1024
+      # H 1280
+      hidden_size: 768
+      representation_size: None
+      dropout_rate: 0.1
+      attention_dropout_rate: 0.
+      stochastic_depth: None
+      classifier: "token"
+      dtype: "float32"
+  proj1:
+    name: MLP
+    params:
+      layer_dims: [4096, 4096, 256]
+      dropout_prob: 0.0
+      # TODO: SyncBN? Paper first says follows SIMCLR
+      # then later says follows BYOL in appendix A
+      batch_norm: True
+      batch_norm_params:
+        use_running_average: True
+        momentum: 0.9
+        epsilon: 1e-5
+      activation_name: "relu"
+  pred1:
+    name: MLP
+    params:
+      layer_dims: [4096, 256]
+      dropout_prob: 0.0
+      # TODO: SyncBN? Paper first says follows SIMCLR
+      # then later says follows BYOL in appendix A
+      batch_norm: True
+      batch_norm_params:
+          decay_rate: 0.9
+          epsilon: 1e-5
+      activation_name: "relu"
+  body2:
+    name: ViT
+    params:
+      num_classes:
+      # mlp_dim
+      # Ti 768
+      # S 1536
+      # B 3072
+      # L 4096
+      # H 5120
+      mlp_dim: 3072
+      # num_layers
+      # Ti 12
+      # S 12
+      # B 12
+      # L 24
+      # H 32
+      num_layers: 12
+      # num_heads
+      # Ti 3
+      # S 6
+      # B 12
+      # L 16
+      # H 16
+      num_heads: 12
+      # patches
+      # 16 for B/16 (in general after /)
+      patches: 16
+      # hidden_size
+      # Ti 192
+      # S 384
+      # B 768
+      # L 1024
+      # H 1280
+      hidden_size: 768
+      representation_size: None
+      dropout_rate: 0.1
+      attention_dropout_rate: 0.
+      stochastic_depth: None
+      classifier: "token"
+      # TODO: convert str to jnp type
+      dtype: "float32"
+  proj2:
+    name: MLP
+    params:
+      layer_dims: [4096, 4096, 256]
+      dropout_prob: 0.0
+      batch_norm: True
+      # TODO: SyncBN? Paper first says follows SIMCLR
+      # then later says follows BYOL in appendix A
+      batch_norm_params:
+        use_running_average: True
+        momentum: 0.9
+        epsilon: 1e-5
+      activation_name: "relu"
+
+model:
+  name: SSLModel
+  branch:
+    0:
+      pipelines: ["0", "1"]
+      stop_gradient: False
+      body: body1
+      head: head1
+      pred: pred1
+    1:
+      pipelines: ["0", "1"]
+      stop_gradient: True
+      body: body2
+      head: head2
+
+loss:
+  name: infonce_loss
+  params: {}
+
+optimizer:
+  branch:
+    0:
+      name: adamw
+      params:
+        weight_decay: 1e-6
+
+scheduler:
+  branch:
+    0:
+      learning_rate:
+        name: BYOLlr
+        params:
+          base_learning_rate: 0.6
+          warmup_steps: 10000
+          batch_size: 4096
+          # epochs * train_images_per_epoch // batch_size
+          # TODO: for now this is a random number
+          total_steps: 100000
+  post_process:
+    0:
+      tau:
+        name: BYOLema
+        params:
+          base_ema: 0.99
+          # TODO: why is this max_steps and total_steps above (inherit this weirdness from DM implementation)
+          max_steps: 100000
+
+post_process:
+  funcs:
+    0:
+      name: ema
+      params:
+        online_branch_name: ["body1", "proj1"]
+        target_branch_name: ["body2", "proj2"]
+
+meter:
+  name: SSLMeter
+  params: {}
+
+pipeline:
+  flatten: False
+  pre:
+    augmentations:
+      # TODO: this needs to be RandomResizedCrop
+      RandomCrop:
+        params:
+          prop: 1.0
+          height: 224
+          width: 224
+  branch:
+    0:
+      augmentations:
+        RandomFlip:
+          params:
+            prob: 1.0
+        ColorTransform:
+          params:
+            prob: 1.0
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.2
+            hue: 0.1
+            color_jitter_prob: 0.8
+            to_grayscale_prob: 0.2
+            shuffle: True
+        GaussianBlur:
+          params:
+            prob: 0.1
+        Solarize:
+          params:
+            prob: 0.2
+            threshold: 0.5
+        Clip:
+          params:
+            prob: 1.0
+            x_min: 0
+            x_max: 1
+    1:
+      augmentations:
+        RandomFlip:
+          params:
+            prob: 1.0
+        ColorTransform:
+          params:
+            prob: 1.0
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.2
+            hue: 0.1
+            color_jitter_prob: 0.8
+            to_grayscale_prob: 0.2
+            shuffle: True
+        GaussianBlur:
+          params:
+            prob: 1.0
+        Clip:
+          params:
+            prob: 1.0
+            x_min: 0
+            x_max: 1
+
+data:
+  pretraining:
+    name: Base
+    params:
+      dataset_name: "mnist"
+      batch_size: 32
+      data_dtype_str: "float32"
+      dataset_configs: {}

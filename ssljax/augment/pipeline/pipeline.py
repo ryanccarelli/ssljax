@@ -1,26 +1,29 @@
-# base class for augmentations here
-
-# augmentations will be used by the trainer
 import jax
 import jax.numpy as jnp
-
-from ssljax.augment.augmentation.augmentation import Augmentation, AugmentationDistribution
+from ssljax.augment.augmentation.augmentation import Augmentation
+from ssljax.core import get_from_register
+from omegaconf import DictConfig
+from functools import partial
 
 
 class Pipeline(Augmentation):
     """
-    A Pipeline is a composition of AugmentationDistribution.
+    A Pipeline is a composition of Augmentations.
 
     Args:
-        augmentations (list): sequence of AugmentationDistribution to be sampled in sequence
+        config (DictConfig): config at pipelines.branches.i where i is pipeline index
     """
 
-    def __init__(self, augmentation_distributions):
-        assert all([isinstance(t, AugmentationDistribution) for t in augmentation_distributions]), (
+    def __init__(self, config):
+        aug_list = [
+            get_from_register(Augmentation, x)(**y.params) for x, y in config.items()
+        ]
+
+        assert all([isinstance(t, Augmentation) for t in aug_list]), (
             f"all elements in input list must be of"
-            f" type ssljax.augment.AugmentationDistribution"
+            f" type ssljax.augment.Augmentation"
         )
-        self.pipeline = augmentation_distributions
+        self.pipeline = aug_list
 
     def __len__(self):
         return len(self.pipeline)
@@ -33,18 +36,12 @@ class Pipeline(Augmentation):
         return out
 
     def __call__(self, x, rng):
-        # assert isinstance(x, jnp.array), f"argument of type {type(x)} must be __."
-        for aug_distribution in self.pipeline:
+        if not isinstance(x, list):
+            x = [x]
+        for aug in self.pipeline:
             rng, _ = jax.random.split(rng)
-            aug = aug_distribution.sample(rng)
-            x = aug(x, rng)
-        return x
+            aug = partial(aug, rng=rng)
+            x = list(map(aug, x))
+        x = list(map(lambda v: jax.lax.stop_gradient(v), x))
 
-    def save(self, path):
-        """
-        save pipeline to disk
-
-        Args:
-            path (str): save path on disk
-        """
-        raise NotImplementedError
+        return x[0] if len(x) == 1 else x

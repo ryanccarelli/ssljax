@@ -2,29 +2,34 @@ import flax
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
+import ml_collections
+from omegaconf import DictConfig
+from scenic.projects.baselines.vit import ViT as vit
+from ssljax.core import register
+from ssljax.models.model import Model
 
 
-class VIT(nn.Module):
+@register(Model, "ViT")
+class ViT(Model):
     """
-    Flax implementation of vision transformer.
+    Flax implementation of a vision transformer.
+    We wrap the ViT model in `<scenic> https://github.com/google-research/scenic`_.
 
     Args:
-
+        config (omegaconf.DictConfig): configuration
     """
 
+    config: DictConfig
+
     def setup(self):
-        pass
+        # scenic constructs patch_sizes in backend
+        patches = ml_collections.ConfigDict()
+        size = self.config.patch_size
+        patches.size = [int(size), int(size)]
+        del self.config.patch_size
+        self.model = vit(**self.config, patches=patches)
+        self.config.patch_size = size
 
     @nn.compact
-    def __call__(self, x):
-        pass
-
-
-if __name__ == "__main__":
-    key = jax.random.PRNGKey(0)
-    k1, k2, k3 = jax.random.split(key, 3)
-    x = jax.random.normal(k1, (256, 256, 3))
-    model = VIT()
-    params = model.init(k2, x)
-    out = model.apply(params, x, train=True)
-    print(out)
+    def __call__(self, x, train: bool=True):
+        return self.model(x, train=train)

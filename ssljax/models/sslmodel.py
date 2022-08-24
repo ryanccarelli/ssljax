@@ -1,17 +1,3 @@
-"""
-We want to support two configurations:
-    1. contrastive learning by negative pairs (eg SIMCLR)
-    2. non-contrastive (eg BYOL, SimSiam)
-
-The non-contrastive approaches replace negative pairs with:
-    1. a learnable predictor
-    2. a stop-gradient
-
-Support
-stop gradient on target but not on predictor
-both ema of bodies and bodies with shared parameters
-
-"""
 import collections
 from dataclasses import dataclass
 
@@ -20,7 +6,7 @@ import jax.numpy as jnp
 from flax import linen as nn
 from omegaconf import DictConfig
 from ssljax.augment import Augment
-from ssljax.core.utils.register import get_from_register, register
+from ssljax.core import get_from_register, register
 from ssljax.models.branch.branch import Branch
 from ssljax.models.model import Model
 
@@ -28,11 +14,11 @@ from ssljax.models.model import Model
 @register(Model, "SSLModel")
 class SSLModel(Model):
     """
-    Base class implementing self-supervised model.
+    Base class implementing a self-supervised model.
+    A self-supervised model consists of a list of branches
+    that are executed in parallel to process augmented views of inputs.
 
-    A self-supervised model consists of a set of branches
-    that are executed in parallel on a list of augmented inputs,
-    returning a list of branch outs.
+    This class is used by ``ssljax.core.utils.register``.
 
     Args:
         config (ssljax.conf.config): model specification
@@ -41,34 +27,62 @@ class SSLModel(Model):
     config: DictConfig
 
     def setup(self):
-        branch = []
-        for branch_idx, branch_params in self.config.model.branches.items():
-            b = get_from_register(Branch, branch_params.name)(**branch_params.params)
-            branch.append(b)
-        self.branch = branch
+        modules, branches, pipelines = {}, {}, {}
+
+        for module_key, module_params in self.config.module.items():
+            modules[module_key] = get_from_register(Model, module_params.name)(
+                module_params.params, name=module_key
+            )
+
+        for branch_key, branch_params in self.config.model.branch.items():
+            stop_gradient = (
+                branch_params.stop_gradient
+                if "stop_gradient" in branch_params
+                else False
+            )
+            intermediate = (
+                branch_params.intermediate if "intermediate" in branch_params else None
+            )
+            pipelines[str(branch_key)] = branch_params.pipelines
+            stages = {
+                key: modules[val]
+                for key, val in branch_params.items()
+                if key not in ["stop_gradient", "pipelines", "intermediate"]
+            }
+            branches[str(branch_key)] = Branch(
+                stages=stages, stop_gradient=stop_gradient, intermediate=intermediate
+            )
+
+        self.branches = branches
+        self.pipelines = pipelines
 
     def __call__(self, x):
         """
         Forward pass branches.
 
         Args:
-            x(tuple(jnp.array)): each element of x represents
+            x(dict(jnp.array)): each element of x represents
                 raw data mapped through a different augmentation.Pipeline
         """
-        outs = []
-        x = jnp.split(x, x.shape[-1], axis=-1)
-        x = [jnp.squeeze(y, axis=-1) for y in x]
-
-        for x, b in zip(x, self.branch):
-            outs.append(b(x))
+        outs = {}
+        for key, val in self.branches.items():
+            add = {}
+            for pipeline in self.pipelines[key]:
+                add[pipeline] = val(x[pipeline])
+            outs[key] = add
 
         return outs
 
-    def freeze_head(self):
-        raise NotImplementedError
+    def detach_module(self, branch, module):
+        """
+        Detach a module (for inference).
 
-    def freeze_body(self):
-        raise NotImplementedError
+        Args:
+            branch (str): branch key
+            module (str): module key
 
-    def is_frozen(self):
+        Example:
+            TODO
+        """
+        # overwrite call?
         raise NotImplementedError
